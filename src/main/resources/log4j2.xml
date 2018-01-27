@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<Configuration status="warn">
+	<Appenders>
+		<Console name="Console" target="SYSTEM_OUT">
+			<PatternLayout>
+				<Pattern>%d{yyyy-MM-dd HH:mm:ss} - %r [%t] %-5p %c{1} - %m%n</Pattern>
+			</PatternLayout>
+		</Console>
+		<File name="DebugLog" fileName="logs/sdmx-metadata.log">
+			<PatternLayout>
+				<Pattern>%d{yyyy-MM-dd HH:mm:ss} - %r [%t] %-5p %c{1} \t %m%n</Pattern>
+			</PatternLayout>
+		</File>
+	</Appenders>
+	<Loggers>
+		<Logger name="fr.insee.semweb" level="DEBUG" additivity="false">
+			<Appender-Ref ref="DebugLog"/>
+		</Logger>
+		<Root level="error">
+			<Appender-Ref ref="Console"/>
+		</Root>
+	</Loggers>
+</Configuration>

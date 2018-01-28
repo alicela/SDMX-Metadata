@@ -589,10 +589,12 @@ public class M0Converter {
 	 */
 	public static Model extractFamilies() {
 
-		// Read the M0 model and the URI mappings for families
+		// Read the M0 model and create the URI mappings if necessary
 		readDataset();
+		if (allURIMappings == null) allURIMappings = createURIMappings(); // Not indispensable for families
+
 		logger.debug("Extracting the information on families from dataset " + Configuration.M0_FILE_NAME);
-		Map<Integer, String> identificationMappings = getIdURIFixedMappings(dataset, "famille"); // Just in case, but for now there is no mappings for families
+		//Map<Integer, String> identificationMappings = getIdURIFixedMappings(dataset, "famille"); // Just in case, but for now there is no mappings for families
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "familles");
 
 		// Create the target model and set appropriate prefix mappings
@@ -610,12 +612,12 @@ public class M0Converter {
 		int familyRealNumber = 0;
 		for (int familyIndex = 1; familyIndex <= familyMaxNumber; familyIndex++) {
 			Resource m0Resource = m0Model.createResource("http://baseUri/familles/famille/" + familyIndex);
-			if (!m0Model.contains(m0Resource, null)) continue;
+			if (!m0Model.contains(m0Resource, null)) continue; // No actual family for the current index
 			familyRealNumber++;
-			String targetURI = identificationMappings.get(familyIndex); // Will be null until we have 'web4G' identifiers for families
-			if (targetURI == null) {
-				logger.error("No target identifier found for M0 family " + m0Resource.getURI());
+			String targetURI = allURIMappings.get(m0Resource.getURI()); // Will be null until we have 'web4G' identifiers for families
+			if (targetURI == null) { // Should really not happen
 				targetURI = Configuration.operationResourceURI(Integer.toString(familyIndex), "famille");
+				logger.error("No target URI found for M0 family " + m0Resource.getURI() + ", defaulting to " + targetURI);
 			}
 			Resource targetResource = familyModel.createResource(targetURI, OperationModelMaker.statisticalOperationFamily);
 			logger.info("Creating target family " + targetURI + " from M0 resource " + m0Resource.getURI());

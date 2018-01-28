@@ -774,16 +774,16 @@ public class M0Converter {
 		}
 		m0Model.close();
 
-		logger.info(indicatorRealNumber + " indicators extracted, now adding the PRODUCED_FROM relations");
-		Map<String, List<String>> productionRelations = extractProductionRelations();
-		for (String indicatorM0URI : productionRelations.keySet()) {
+		logger.info(indicatorRealNumber + " indicators extracted, now adding the PRODUCED_FROM, RELATED_TO and REPLACES relations");
+		Map<String, List<String>> multipleRelations = extractProductionRelations();
+		for (String indicatorM0URI : multipleRelations.keySet()) {
 			String indicatorTargetURI = allURIMappings.get(indicatorM0URI);
 			if (indicatorTargetURI == null) {
 				logger.info("No target URI found for M0 indicator " + indicatorM0URI);
 				continue;				
 			}
 			Resource indicatorResource = indicatorModel.createResource(indicatorTargetURI);
-			for (String seriesM0URI : productionRelations.get(indicatorM0URI)) {
+			for (String seriesM0URI : multipleRelations.get(indicatorM0URI)) {
 				String seriesTargetURI = allURIMappings.get(seriesM0URI);
 				if (seriesTargetURI == null) {
 					logger.info("No target URI found for M0 series " + seriesTargetURI);
@@ -793,6 +793,30 @@ public class M0Converter {
 				logger.debug("PROV wasGeneratedBy property created from indicator " + indicatorTargetURI + " to series " + seriesTargetURI);
 			}
 		}
+		// RELATED_TO relations (limited to indicators)
+		multipleRelations = extractRelations();
+		for (String startM0URI : multipleRelations.keySet()) {
+			if (!startM0URI.startsWith("http://baseUri/indicateurs")) continue;
+			Resource startResource = indicatorModel.createResource(allURIMappings.get(startM0URI));
+			for (String endM0URI : multipleRelations.get(startM0URI)) {
+				Resource endResource = indicatorModel.createResource(allURIMappings.get(endM0URI));
+				startResource.addProperty(RDFS.seeAlso, endResource); // extractRelations returns each relation twice (in each direction)
+				logger.debug("See also property created from resource " + startResource.getURI() + " to resource " + endResource.getURI());
+			}
+		}
+		// REPLACES relations (limited to indicators)
+		multipleRelations = extractReplacements();
+		for (String replacingM0URI : multipleRelations.keySet()) {
+			if (!replacingM0URI.startsWith("http://baseUri/indicateurs")) continue;
+			Resource replacingResource = indicatorModel.createResource(allURIMappings.get(replacingM0URI));
+			for (String replacedM0URI : multipleRelations.get(replacingM0URI)) {
+				Resource replacedResource = indicatorModel.createResource(allURIMappings.get(replacedM0URI));
+				replacingResource.addProperty(DCTerms.replaces, replacedResource);
+				replacedResource.addProperty(DCTerms.isReplacedBy, replacingResource);
+				logger.debug("Replacement property created between resource " + replacingResource.getURI() + " replacing resource " + replacedResource.getURI());
+			}
+		}
+
 		return indicatorModel;
 	}
 
@@ -882,9 +906,10 @@ public class M0Converter {
 				logger.debug("See also property created from resource " + startResource.getURI() + " to resource " + endResource.getURI());
 			}
 		}
-		// REPLACES relations
+		// REPLACES relations (excluding indicators)
 		multipleRelations = extractReplacements(m0AssociationModel);
 		for (String replacingM0URI : multipleRelations.keySet()) {
+			if (replacingM0URI.startsWith("http://baseUri/indicateurs")) continue; // There is no cross-relation of replacement between operations and indicators
 			Resource replacingResource = operationModel.createResource(allURIMappings.get(replacingM0URI));
 			for (String replacedM0URI : multipleRelations.get(replacingM0URI)) {
 				Resource replacedResource = operationModel.createResource(allURIMappings.get(replacedM0URI));
@@ -897,14 +922,12 @@ public class M0Converter {
 		for (OrganizationRole role : OrganizationRole.values()) {
 			logger.debug("Creating organizational relations with role " + role.toString());
 			multipleRelations = extractOrganizationalRelations(m0AssociationModel, role);
-			System.out.println(multipleRelations);
 			for (String operationM0URI : multipleRelations.keySet()) {
 				Resource operationResource = operationModel.createResource(allURIMappings.get(operationM0URI));
 				for (String organizationURI : multipleRelations.get(operationM0URI)) {
 					Resource organizationResource = ResourceFactory.createResource(convertM0OrganizationURI(organizationURI));
-					System.out.print(operationM0URI + "\t" + organizationURI);
-					System.out.println(operationResource.getURI() + "\t" + organizationResource.getURI());
 					operationResource.addProperty(role.getProperty(), organizationResource);
+					logger.debug("Organizational relation created between resource " + operationResource.getURI() + " and organization " + organizationResource.getURI());
 				}
 			}
 		}
@@ -939,7 +962,7 @@ public class M0Converter {
 		// The relations are in the 'associations' graph and have the following structure :
 		// <http://baseUri/series/serie/12/REPLACES> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/series/serie/13/REMPLACE_PAR> .
 
-		logger.debug("Extracting the information on replacement relations between series");
+		logger.debug("Extracting the information on replacement relations between series or indicators");
 		Map<String, List<String>> replacementMappings = new HashMap<String, List<String>>();
 		
 		if (m0AssociationModel == null) return extractReplacements();
@@ -1268,13 +1291,13 @@ public class M0Converter {
 	/**
 	 * Returns the maximum of the sequence number used in a M0 model.
 	 * 
-	 * M0 URIs use a sequence number an increment strictly inferior to the value of property http://rem.org/schema#sequenceValue of resource http://baseUri/codelists/codelist/sequence
+	 * M0 URIs use a sequence number an increment inferior to the value of property http://rem.org/schema#sequenceValue of resource http://baseUri/codelists/codelist/sequence
 	 * @param m0Model The M0 model (extracted from the dataset).
 	 * @return The maximum sequence number, or 0 if the information cannot be obtained in the model.
 	 */
 	public static int getMaxSequence(Model m0Model) {
 
-		// M0 URIs use a sequence number an increment strictly inferior to the value of property http://rem.org/schema#sequenceValue of resource http://baseUri/{type}s/{type}/sequence
+		// M0 URIs use a sequence number an increment inferior or equal to the value of property http://rem.org/schema#sequenceValue of resource http://baseUri/{type}s/{type}/sequence
 		// We assume that there is only one triple containing this property per graph.
 		final Property sequenceValueProperty = ResourceFactory.createProperty("http://rem.org/schema#sequenceValue");
 
@@ -1284,7 +1307,7 @@ public class M0Converter {
 
 		if (!sequenceStatement.getObject().isLiteral()) return 0;
 
-		return (Integer.parseInt(sequenceStatement.getObject().asLiteral().toString()) - 1); // TODO A try/catch would be more secure
+		return (Integer.parseInt(sequenceStatement.getObject().asLiteral().toString())); // Assuming we have a string parseable to integer
 	}
 
 	/**

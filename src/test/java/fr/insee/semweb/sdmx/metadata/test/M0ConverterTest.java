@@ -223,7 +223,7 @@ public class M0ConverterTest {
 	public void testGetMaxSequence() {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "documentations");
+		Model m0Model = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "familles");
 
 		System.out.println(M0Converter.getMaxSequence(m0Model));
 	}

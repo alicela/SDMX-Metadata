@@ -857,16 +857,16 @@ public class M0Converter {
 		operationModel.setNsPrefix("dcterms", DCTerms.getURI());
 		operationModel.setNsPrefix("insee", "http://rdf.insee.fr/def/base#");
 
-		// First add models on families, series and operations
+		// First add models on families, series and operations (this will read the dataset and create the URI mappings)
 		operationModel.add(extractFamilies()).add(extractSeries()).add(extractOperations());
-		// We will need the URI mappings for the relations
-		if (allURIMappings == null) allURIMappings = createURIMappings();
+
 		// Now read the links of various kinds between families, series and operations, starting with hierarchies
+		// For readability, we do not verify in this method that the M0 URIs are in the mappings
 		Model m0AssociationModel = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
 		Map<String, String> simpleRelations = extractHierarchies(m0AssociationModel);
 		for (String chilM0dURI : simpleRelations.keySet()) {
-			Resource child = operationModel.createResource(convertM0URI(chilM0dURI));
-			Resource parent = operationModel.createResource(convertM0URI(simpleRelations.get(chilM0dURI)));
+			Resource child = operationModel.createResource(allURIMappings.get(chilM0dURI));
+			Resource parent = operationModel.createResource(allURIMappings.get(simpleRelations.get(chilM0dURI)));
 			child.addProperty(DCTerms.isPartOf, parent);
 			parent.addProperty(DCTerms.hasPart, child);
 			logger.debug("Hierarchy properties created between child " + child.getURI() + " and parent " + parent.getURI());
@@ -875,9 +875,9 @@ public class M0Converter {
 		Map<String, List<String>> multipleRelations = extractRelations(m0AssociationModel);
 		for (String startM0URI : multipleRelations.keySet()) {
 			if (startM0URI.startsWith("http://baseUri/indicateurs")) continue;
-			Resource startResource = operationModel.createResource(convertM0URI(startM0URI));
+			Resource startResource = operationModel.createResource(allURIMappings.get(startM0URI));
 			for (String endM0URI : multipleRelations.get(startM0URI)) {
-				Resource endResource = operationModel.createResource(convertM0URI(endM0URI));
+				Resource endResource = operationModel.createResource(allURIMappings.get(endM0URI));
 				startResource.addProperty(RDFS.seeAlso, endResource); // extractRelations returns each relation twice (in each direction)
 				logger.debug("See also property created from resource " + startResource.getURI() + " to resource " + endResource.getURI());
 			}
@@ -885,9 +885,9 @@ public class M0Converter {
 		// REPLACES relations
 		multipleRelations = extractReplacements(m0AssociationModel);
 		for (String replacingM0URI : multipleRelations.keySet()) {
-			Resource replacingResource = operationModel.createResource(convertM0URI(replacingM0URI));
+			Resource replacingResource = operationModel.createResource(allURIMappings.get(replacingM0URI));
 			for (String replacedM0URI : multipleRelations.get(replacingM0URI)) {
-				Resource replacedResource = operationModel.createResource(convertM0URI(replacedM0URI));
+				Resource replacedResource = operationModel.createResource(allURIMappings.get(replacedM0URI));
 				replacingResource.addProperty(DCTerms.replaces, replacedResource);
 				replacedResource.addProperty(DCTerms.isReplacedBy, replacingResource);
 				logger.debug("Replacement property created between resource " + replacingResource.getURI() + " replacing resource " + replacedResource.getURI());
@@ -899,7 +899,7 @@ public class M0Converter {
 			multipleRelations = extractOrganizationalRelations(m0AssociationModel, role);
 			System.out.println(multipleRelations);
 			for (String operationM0URI : multipleRelations.keySet()) {
-				Resource operationResource = operationModel.createResource(convertM0URI(operationM0URI));
+				Resource operationResource = operationModel.createResource(allURIMappings.get(operationM0URI));
 				for (String organizationURI : multipleRelations.get(operationM0URI)) {
 					Resource organizationResource = ResourceFactory.createResource(convertM0OrganizationURI(organizationURI));
 					System.out.print(operationM0URI + "\t" + organizationURI);
@@ -1320,21 +1320,6 @@ public class M0Converter {
 	}
 
 	/**
-	 * Aggregates all the specific mappings between M0 and target URIs for families, series and operations, and stores them in the 'fixedURIMappings' class member.
-	 */
-	private static void readURIMappings() {
-
-		// Aggregate all the URI mappings to avoid multiple queries on ID_DDS
-		fixedURIMappings = new HashMap<String, String>();
-		Map<Integer, String> idMappings = getIdURIFixedMappings(dataset, "famille");
-		for (int m0Id : idMappings.keySet()) fixedURIMappings.put("http://baseUri/familles/famille/" + m0Id, idMappings.get(m0Id)); // Empty for families, so it's just in case
-		idMappings = getIdURIFixedMappings(dataset, "serie");
-		for (int m0Id : idMappings.keySet()) fixedURIMappings.put("http://baseUri/series/serie/" + m0Id, idMappings.get(m0Id));
-		idMappings = getIdURIFixedMappings(dataset, "operation");
-		for (int m0Id : idMappings.keySet()) fixedURIMappings.put("http://baseUri/operations/operation/" + m0Id, idMappings.get(m0Id));
-	}
-
-	/**
 	 * Reads the mappings between M0 and target URIs for organizations.
 	 */
 	public static void readOrganizationURIMappings() {
@@ -1359,21 +1344,6 @@ public class M0Converter {
 				organizationURIMappings.put(m0URI, orgURI);
 			}
 		});
-	}
-
-	/**
-	 * Converts an M0 operation resource URI into the corresponding target URI.
-	 * 
-	 * @param m0URI The M0 operation resource URI.
-	 * @return The target URI for the resource.
-	 */
-	public static String convertM0URI(String m0URI) {
-
-		if (fixedURIMappings == null) readURIMappings();
-		if (fixedURIMappings.containsKey(m0URI)) return fixedURIMappings.get(m0URI);
-		String type = m0URI.split("/")[4];
-		if ("indicateur".equals(type)) return Configuration.indicatorURI(StringUtils.substringAfterLast(m0URI, "/"));
-		return Configuration.operationResourceURI(StringUtils.substringAfterLast(m0URI, "/"), m0URI.split("/")[4]);
 	}
 
 	/**

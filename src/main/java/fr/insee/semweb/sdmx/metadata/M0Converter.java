@@ -662,7 +662,7 @@ public class M0Converter {
 			seriesRealNumber++;
 			String targetURI = allURIMappings.get(m0Resource.getURI());
 			if (targetURI == null) { // There is definitely a problem if the M0 URI is not in the mappings
-				logger.error("No target identifier found for M0 series " + m0Resource.getURI());
+				logger.error("No target URI found for M0 series " + m0Resource.getURI());
 				continue;
 			}
 			Resource targetResource = seriesModel.createResource(targetURI, OperationModelMaker.statisticalOperationSeries);
@@ -707,7 +707,7 @@ public class M0Converter {
 			operationRealNumber++;
 			String targetURI = allURIMappings.get(m0Resource.getURI());
 			if (targetURI == null) { // There is definitely a problem if the M0 URI is not in the mappings
-				logger.info("No target identifier found for M0 operation " + m0Resource.getURI());
+				logger.info("No target URI found for M0 operation " + m0Resource.getURI());
 				continue;
 			}
 			Resource targetResource = operationModel.createResource(targetURI, OperationModelMaker.statisticalOperation);
@@ -740,8 +740,10 @@ public class M0Converter {
 	 */
 	public static Model extractIndicators() {
 
-		// Read the M0 model and the URI mappings for indicators
+		// Read the M0 model and create the URI mappings if necessary
 		readDataset();
+		if (allURIMappings == null) allURIMappings = createURIMappings();
+
 		logger.debug("Extracting the information on indicators from dataset " + Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "indicateurs");
 
@@ -756,22 +758,39 @@ public class M0Converter {
 		logger.debug("Maximum index for indicators is " + indicatorMaxNumber);
 
 		// Loop on the indicator index
+		int indicatorRealNumber = 0;
 		for (int indicatorIndex = 1; indicatorIndex <= indicatorMaxNumber; indicatorIndex++) {
 			Resource m0Resource = m0Model.createResource("http://baseUri/indicateurs/indicateur/" + indicatorIndex);
-			String  targetURI = Configuration.indicatorURI(Integer.toString(indicatorIndex));
+			if (!m0Model.contains(m0Resource, null)) continue; // Cases where the index is not attributed
+			indicatorRealNumber++;
+			String targetURI = allURIMappings.get(m0Resource.getURI());
+			if (targetURI == null) { // There is definitely a problem if the M0 URI is not in the mappings
+				logger.info("No target URI found for M0 indicator " + m0Resource.getURI());
+				continue;
+			}
 			Resource targetResource = indicatorModel.createResource(targetURI, OperationModelMaker.statisticalIndicator);
 			logger.info("Creating indicator " + targetURI + " from M0 resource " + m0Resource.getURI());
 			fillLiteralProperties(targetResource, m0Model, m0Resource);
 		}
 		m0Model.close();
-		// Add the PRODUCED_FROM relations
+
+		logger.info(indicatorRealNumber + " indicators extracted, now adding the PRODUCED_FROM relations");
 		Map<String, List<String>> productionRelations = extractProductionRelations();
 		for (String indicatorM0URI : productionRelations.keySet()) {
-			Resource indicatorResource = indicatorModel.createResource(Configuration.indicatorURI(StringUtils.substringAfterLast(indicatorM0URI, "/")));
+			String indicatorTargetURI = allURIMappings.get(indicatorM0URI);
+			if (indicatorTargetURI == null) {
+				logger.info("No target URI found for M0 indicator " + indicatorM0URI);
+				continue;				
+			}
+			Resource indicatorResource = indicatorModel.createResource(indicatorTargetURI);
 			for (String seriesM0URI : productionRelations.get(indicatorM0URI)) {
-				Resource seriesResource = indicatorModel.createResource(convertM0URI(seriesM0URI));
-				indicatorResource.addProperty(PROV.wasGeneratedBy, seriesResource);
-				logger.debug("PROV wasGeneratedBy property created from indicator " + indicatorResource.getURI() + " to series " + seriesResource.getURI());
+				String seriesTargetURI = allURIMappings.get(seriesM0URI);
+				if (seriesTargetURI == null) {
+					logger.info("No target URI found for M0 series " + seriesTargetURI);
+					continue;
+				}
+				indicatorResource.addProperty(PROV.wasGeneratedBy, indicatorModel.createResource(seriesTargetURI));
+				logger.debug("PROV wasGeneratedBy property created from indicator " + indicatorTargetURI + " to series " + seriesTargetURI);
 			}
 		}
 		return indicatorModel;
@@ -1242,21 +1261,8 @@ public class M0Converter {
 				relationMappings.get(indicatorURI).add(seriesURI);
 			}
 		});
-
+		logger.debug("Number of 'PRODUCED_FROM' relations found: " + relationMappings.size());
 		return relationMappings;
-	}
-
-	/**
-	 * Extracts the operation identifier from a resource URI.
-	 * 
-	 * @param uri The resource URI.
-	 * @return The identifier of the operation.
-	 */
-	public static String getOperationId(String uri) {
-
-		// TODO Review
-		// Assuming URIs of the type 'http://baseUri/FR-ACCES-FINANCEMENT-PME-10-PERSONNES/SOURCE_CODE'
-		return uri.substring(18).split("/")[0];
 	}
 
 	/**

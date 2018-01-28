@@ -640,7 +640,6 @@ public class M0Converter {
 		if (allURIMappings == null) allURIMappings = createURIMappings();
 
 		logger.debug("Extracting the information on series from dataset " + Configuration.M0_FILE_NAME);
-		//Map<Integer, String> identificationMappings = getIdURIFixedMappings(dataset, "serie");
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "series");
 
 		// Create the target model and set appropriate prefix mappings
@@ -683,10 +682,11 @@ public class M0Converter {
 	 */
 	public static Model extractOperations() {
 
-		// Read the M0 model and the URI mappings for operations
+		// Read the M0 model and create the URI mappings if necessary
 		readDataset();
+		if (allURIMappings == null) allURIMappings = createURIMappings();
+
 		logger.debug("Extracting the information on operations from dataset " + Configuration.M0_FILE_NAME);
-		Map<Integer, String> identificationMappings = getIdURIFixedMappings(dataset, "operation");
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "operations");
 
 		// Create the target model and set appropriate prefix mappings
@@ -705,11 +705,11 @@ public class M0Converter {
 			Resource m0Resource = m0Model.createResource("http://baseUri/operations/operation/" + operationIndex);
 			if (!m0Model.contains(m0Resource, null)) continue; // Cases where the index is not attributed
 			operationRealNumber++;
-			String targetURI = identificationMappings.get(operationIndex);
-			if (targetURI == null) {
-				logger.info("No target identifier found for M0 operation " + m0Resource.getURI() + ", using M0 identifier for now");
-				targetURI = Configuration.operationResourceURI(Integer.toString(operationIndex), "operation");
-			} else logger.info("Target identifier found for M0 operation " + m0Resource.getURI() + ": target URI will be " + targetURI);
+			String targetURI = allURIMappings.get(m0Resource.getURI());
+			if (targetURI == null) { // There is definitely a problem if the M0 URI is not in the mappings
+				logger.info("No target identifier found for M0 operation " + m0Resource.getURI());
+				continue;
+			}
 			Resource targetResource = operationModel.createResource(targetURI, OperationModelMaker.statisticalOperation);
 			logger.info("Creating target operation " + targetURI + " from M0 resource " + m0Resource.getURI());
 			// Extract TITLE, ALT_LABEL and MILLESIME (or MILESSIME)

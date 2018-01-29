@@ -13,6 +13,7 @@ import java.util.function.Consumer;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.junit.Test;
 
@@ -91,6 +92,14 @@ public class M0ConverterTest {
 		Model extract = M0Converter.extractCodeLists();
 		extract.write(new FileOutputStream("src/test/resources/m0-codes.ttl"), "TTL");
 	}
+
+	@Test
+	public void testReadAllBaseResources() throws IOException {
+
+		Dataset base = M0Converter.readAllBaseResources("http://rdf.insee.fr/graphes/operations", "http://rdf.insee.fr/graphes/produits");
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/base-resources.trig"), base, Lang.TRIG);
+	}
+
 
 	@Test
 	public void testExtractOrganizations() throws IOException {

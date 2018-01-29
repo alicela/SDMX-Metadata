@@ -20,6 +20,7 @@ import java.util.stream.IntStream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.query.Dataset;
+import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
@@ -109,6 +110,23 @@ public class M0Converter {
 		sims1508Model.write(new FileOutputStream("src/main/resources/models/sims-1508.ttl"), "TTL");
 
 		m0SIMSModel.close();
+	}
+
+	/**
+	 * Return a dataset containing two named graphs: one for families, series and operations, and one for indicators.
+	 * 
+	 * @param operationGraph The URI to use for the 'operations' graph.
+	 * @param indicatorGraph The URI to use for the 'indicators' graph.
+	 * @return A Jena <code>Dataset</code> containing the information organized in two graphs.
+	 */
+	public static Dataset readAllBaseResources(String operationGraph, String indicatorGraph) {
+
+		logger.debug("Extracting M0 dataset with graph: " + operationGraph + " for operations and graph " + indicatorGraph + " for indicators");
+		Dataset dataset = DatasetFactory.create();
+		dataset.addNamedModel(operationGraph, extractAllOperations());
+		dataset.addNamedModel(indicatorGraph, extractIndicators());
+
+		return dataset;
 	}
 
 	/**

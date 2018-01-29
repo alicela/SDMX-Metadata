@@ -256,13 +256,14 @@ public class Configuration {
 	}
 
 	/**
-	 * Target URI of a statistical operation, family or series.
+	 * Target URI of a statistical operation, family, series or indicator.
 	 * 
 	 * @param web4GNumber The Web4G source number (4-digit integer)
-	 * @param type Type of resource under consideration: should be 'famille', 'serie' ou 'operation'.
+	 * @param type Type of resource under consideration: should be 'famille', 'serie', 'operation' or 'indicateur'.
 	 * @return The target URI of the resource (for example http://id.insee.fr/operations/serie/s1234)
 	 */
 	public static String operationResourceURI(String web4GNumber, String type) {
+		if ("indicateur".equals(type)) return indicatorURI("p" + web4GNumber);
 		return INSEE_OPS_BASE_URI + type + "/s" + web4GNumber;
 	}
 

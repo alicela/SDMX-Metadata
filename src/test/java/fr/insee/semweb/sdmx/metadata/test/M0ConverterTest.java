@@ -20,6 +20,7 @@ import org.junit.Test;
 import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.M0Converter;
 import fr.insee.semweb.sdmx.metadata.M0Converter.OrganizationRole;
+import fr.insee.semweb.sdmx.metadata.M0SIMSConverter;
 
 public class M0ConverterTest {
 
@@ -113,7 +114,7 @@ public class M0ConverterTest {
 	public void testExtractOneCodeList() throws IOException {
 
 		Model extract = M0Converter.extractCodeLists();
-		Model subExtract = M0Converter.extractM0ResourceModel(extract, "http://baseUri/codelists/codelist/3");
+		Model subExtract = M0SIMSConverter.extractM0ResourceModel(extract, "http://baseUri/codelists/codelist/3");
 		subExtract.write(new FileOutputStream("src/test/resources/m0-codelist-3.ttl"), "TTL");
 	}
 

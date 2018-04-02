@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -61,44 +62,34 @@ public class M0Checker {
 
 		Model documentations = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 
-		Map<Integer, List<String>> uriList = new TreeMap<Integer, List<String>>();
-
+		// Build the mapping between documentation id (number) and the list of associated properties
+		Map<Integer, List<String>> propertiesByDocumentation = new TreeMap<Integer, List<String>>();
 		ResIterator subjectsIterator = documentations.listSubjects();
 		while (subjectsIterator.hasNext()) {
-			String uri = subjectsIterator.next().getURI();
-			String[] pathComponents = uri.substring(baseURILength).split("/");
+			String documentationM0URI = subjectsIterator.next().getURI();
+			String[] pathComponents = documentationM0URI.substring(baseURILength).split("/");
 			String documentationId = pathComponents[0];
-			// Series identifier appears to be an integer, with one exception
+			// Series identifiers are integers (but careful with the sequence number)
 			try {
 				Integer documentationIntId = Integer.parseInt(documentationId);
-				if (!uriList.containsKey(documentationIntId)) uriList.put(documentationIntId, new ArrayList<String>());
+				if (!propertiesByDocumentation.containsKey(documentationIntId)) propertiesByDocumentation.put(documentationIntId, new ArrayList<String>());
 				// In this case we make lists of property names, not full URIs
-				if (pathComponents.length > 1) uriList.get(documentationIntId).add(pathComponents[1]);
+				if (pathComponents.length > 1) propertiesByDocumentation.get(documentationIntId).add(pathComponents[1]);
 			} catch (NumberFormatException e) {
-				System.out.println("Invalid documentation URI " + uri);
+				// Should be the sequence number resource: http://baseUri/documentations/documentation/sequence
+				if (!("sequence".equals(documentationId))) System.out.println("Invalid documentation URI: " + documentationM0URI);
 			}
 		}
+		System.out.println("Found a total of " + propertiesByDocumentation.size() + " documentations in the M0 model");
 
-		// Find the difference between 110 and 111 properties
-		List<String> case110 = null;
-		List<String> case111 = null;
-		List<String> testList = null;
-		for (Integer id : uriList.keySet()) {
-			System.out.println(id + " - " + uriList.get(id).size());
-			testList = new ArrayList<String>(uriList.get(id));
-			if (testList.size() == 110) {
-				if (case110 == null) case110 = new ArrayList<String>(testList);
-				testList.removeAll(case110);
-				if (testList.size() > 0) System.out.println("New property for documentation " + id + ": " + testList);
-			}
-			if (testList.size() == 111) {
-				if (case111 == null) case111 = new ArrayList<String>(testList);
-				testList.removeAll(case111);
-				if (testList.size() > 0) System.out.println("New property for documentation " + id + ": " + testList);
-			}
+		// Build the list of all properties used in the M0 documentation model
+		Set<String> m0Properties = new TreeSet<String>();
+		for (Integer id : propertiesByDocumentation.keySet()) {
+			System.out.println("Documentation #" + id + " uses " + propertiesByDocumentation.get(id).size() + " properties");
+			m0Properties.addAll(propertiesByDocumentation.get(id));
 		}
-		case111.removeAll(case110);
-		System.out.println("Additional property " + case111);
+		System.out.println(m0Properties.size() + " properties used in M0 'documentation' graph: " + m0Properties);
+
 
 		// Find the differences between the properties listed here and the SIMS/SIMS+ properties
 		SIMSFRScheme simsPlusScheme = null;
@@ -112,11 +103,11 @@ public class M0Checker {
 		for (SIMSFREntry entry : simsPlusScheme.getEntries()) {
 			simsProps.add(entry.getCode());
 		}
-		testList = new ArrayList<String>(simsProps);
-		testList.removeAll(case110);
+		List<String> testList = new ArrayList<String>(simsProps);
+		testList.removeAll(m0Properties);
 		Collections.sort(testList);
 		System.out.println("Properties in SIMSFr and not in M0: " + testList);
-		testList = new ArrayList<String>(case110);
+		testList = new ArrayList<String>(m0Properties);
 		testList.removeAll(simsProps);
 		Collections.sort(testList);
 		System.out.println("Properties in M0 and not in SIMSFr: " + testList);
@@ -127,10 +118,10 @@ public class M0Checker {
 			simsProps.add(entry.getCode());
 		}
 		testList = new ArrayList<String>(simsProps);
-		testList.removeAll(case110);
+		testList.removeAll(m0Properties);
 		Collections.sort(testList);
 		System.out.println("Properties in SIMS and not in M0: " + testList);
-		testList = new ArrayList<String>(case110);
+		testList = new ArrayList<String>(m0Properties);
 		testList.removeAll(simsProps);
 		Collections.sort(testList);
 		System.out.println("Properties in M0 and not in SIMS: " + testList);
@@ -368,7 +359,9 @@ public class M0Checker {
         diffWriter.close();
 	}
 
-	public static void extractModels(Dataset dataset) throws IOException {
+	public static void extractModels() throws IOException {
+
+		dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 
 		Iterator<String> nameIterator = dataset.listNames();
 		while (nameIterator.hasNext()) System.out.println("Named graph: " + nameIterator.next());

@@ -2,6 +2,8 @@ package fr.insee.semweb.sdmx.metadata.test;
 
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+
 import org.junit.Test;
 
 import fr.insee.semweb.sdmx.metadata.M0Checker;
@@ -29,8 +31,9 @@ public class M0CheckerTest {
 	}
 
 	@Test
-	public void testExtractModels() {
-		fail("Not yet implemented");
+	public void testExtractModels() throws IOException {
+
+		M0Checker.extractModels();
 	}
 
 	@Test

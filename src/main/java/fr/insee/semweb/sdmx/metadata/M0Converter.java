@@ -510,7 +510,7 @@ public class M0Converter {
 					logger.warn("No correspondence found for DDS identifier " + ddsId + " (M0 resource " + m0URI + ")");
 				} else {
 					String web4GId = Configuration.dds2Web4GIdMappings.get(ddsId);
-					logger.debug("Correspondence found for " + type + " with DDS identifier " + ddsId + ": Web4G identifier is " + web4GId);
+					logger.debug("Correspondence found for " + type + " " + m0Id + " with DDS identifier " + ddsId + ": Web4G identifier is " + web4GId);
 					String targetURI = Configuration.operationResourceURI(web4GId, type);
 					mappings.put(m0Id, targetURI);
 				}
@@ -519,7 +519,7 @@ public class M0Converter {
 		extract.close();
 		// HACK Add three direct mappings for series 135, 136 and 137 because they have an ID_DDS but it is not in the M0 dataset
 		mappings.put(135, Configuration.operationResourceURI("1241", "serie"));
-		mappings.put(136, Configuration.operationResourceURI("1195", "serie"));
+		mappings.put(136, Configuration.operationResourceURI("1371", "serie")); // Changed from 1195, see mail 2/20
 		mappings.put(137, Configuration.operationResourceURI("1284", "serie"));
 
 		return mappings;
@@ -804,7 +804,7 @@ public class M0Converter {
 			for (String seriesM0URI : multipleRelations.get(indicatorM0URI)) {
 				String seriesTargetURI = allURIMappings.get(seriesM0URI);
 				if (seriesTargetURI == null) {
-					logger.info("No target URI found for M0 series " + seriesTargetURI);
+					logger.info("No target URI found for M0 series " + seriesM0URI);
 					continue;
 				}
 				indicatorResource.addProperty(PROV.wasGeneratedBy, indicatorModel.createResource(seriesTargetURI));
@@ -1273,11 +1273,11 @@ public class M0Converter {
 	 */
 	public static Map<String, List<String>> extractProductionRelations(Model m0AssociationModel) {
 
-		// The relations between operations and organizations are in the 'associations' graph and have the following structure (same with '/ORGANISATION' for producer):
-		// <http://baseUri/indicateurs/indicateur/9/PRODUCED_FROM> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/series/serie/71/PRODUCED_FROM>
-		// TODO See cases where PRODUIT_INDICATEURS attribute is used.
+		// The relations between series and indicators are in the 'associations' graph and have the following structure:
+		// <http://baseUri/indicateurs/indicateur/27/PRODUCED_FROM> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/series/serie/137/PRODUIT_INDICATEURS>
+		// Note: discard cases where PRODUCED_FROM is used instead of PRODUIT_INDICATEURS.
 
-		logger.debug("Extracting 'PRODUCED_FROM' relations between series and indicators");
+		logger.debug("Extracting 'PRODUCED_FROM/PRODUIT_INDICATEURS' relations between series and indicators");
 		Map<String, List<String>> relationMappings = new HashMap<String, List<String>>();
 
 		//if (m0AssociationModel == null) return extractProductionRelations();
@@ -1286,7 +1286,7 @@ public class M0Converter {
 	        public boolean selects(Statement statement) {
 	        	String subjectURI = statement.getSubject().getURI();
 	        	String objectURI = statement.getObject().asResource().getURI();
-	        	if (!((subjectURI.endsWith("PRODUCED_FROM")) && (objectURI.endsWith("PRODUCED_FROM")))) return false;
+	        	if (!((subjectURI.endsWith("PRODUCED_FROM")) && (objectURI.endsWith("PRODUIT_INDICATEURS")))) return false;
 	        	if ((subjectURI.startsWith("http://baseUri/indicateurs")) && (objectURI.startsWith("http://baseUri/series"))) return true;
 	        	return false;
 	        }
@@ -1297,7 +1297,7 @@ public class M0Converter {
 			// 
 			public void accept(Statement statement) {
 				String indicatorURI = StringUtils.removeEnd(statement.getSubject().getURI(), "/PRODUCED_FROM");
-				String seriesURI = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/PRODUCED_FROM");
+				String seriesURI = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/PRODUIT_INDICATEURS");
 				if (!relationMappings.containsKey(indicatorURI)) relationMappings.put(indicatorURI, new ArrayList<String>());
 				relationMappings.get(indicatorURI).add(seriesURI);
 			}
@@ -1326,6 +1326,22 @@ public class M0Converter {
 		if (!sequenceStatement.getObject().isLiteral()) return 0;
 
 		return (Integer.parseInt(sequenceStatement.getObject().asLiteral().toString())); // Assuming we have a string parseable to integer
+	}
+
+	/**
+	 * Checks the URI mappings to detect any duplicates in the target URI.
+	 * 
+	 * @param mappings The URI mappings (M0 URIs as keys, target URIs as values).
+	 */
+	public static void checkMappings(Map<String, String> mappings) {
+
+		logger.debug("Checking for duplicate values in the URI mappings"); 
+		List<String> values = new ArrayList<String>();
+		for (String key : mappings.keySet()) {
+			String value = mappings.get(key);
+			if (values.contains(value)) logger.error("Duplicate value in mappings: " + value); 
+			else values.add(value);
+		}
 	}
 
 	/**

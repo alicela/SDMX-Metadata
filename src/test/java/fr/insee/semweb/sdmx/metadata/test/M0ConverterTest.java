@@ -59,6 +59,7 @@ public class M0ConverterTest {
 	public void testCreateURIMappings() throws IOException {
 
 		Map<String, String> mappings = M0Converter.createURIMappings();
+		M0Converter.checkMappings(mappings);
 		Files.write(Paths.get("src/test/resources/uri-mappings.txt"), () -> mappings.entrySet().stream().<CharSequence>map(e -> e.getKey() + "\t" + e.getValue()).iterator());
 	}
 

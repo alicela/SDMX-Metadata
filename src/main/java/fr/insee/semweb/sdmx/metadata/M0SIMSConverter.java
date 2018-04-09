@@ -5,17 +5,23 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import org.apache.jena.datatypes.xsd.XSDDatatype;
+import org.apache.jena.query.Dataset;
+import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Selector;
 import org.apache.jena.rdf.model.SimpleSelector;
 import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
@@ -28,15 +34,47 @@ public class M0SIMSConverter extends M0Converter {
 
 	public static Logger logger = LogManager.getLogger(M0SIMSConverter.class);
 
+	public static String M0_DOCUMENTATION_BASE_URI = "http://baseUri/documentations/documentation/";
+
 	/**
 	 * Converts a list (or all) of M0 'documentation' models to SIMS models.
 	 * 
 	 * @param m0Ids A <code>List</code> of M0 'documentation' metadata set identifiers, or <code>null</code> to convert all models.
+	 * @param namedModels If <code>true</code>, a named model will be created for each identifier, otherwise all models will be merged in the dataset.
+	 * @return A Jena dataset containing the models corresponding to the identifiers received.
 	 */
-	public static void convertToSIMS(List<String> m0Ids) {
+	public static Dataset convertToSIMS(List<Integer> m0Ids, boolean namedModels) {
 
-		// First get the list of all existing M0 'documentation' models
-		
+		// We will need the documentation model and the SIMSFr MSD
+		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0DocumentationModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+		simsFrMSD = ModelFactory.createOntologyModel().read(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME);
+
+		// If parameter was null, get the list of all existing M0 'documentation' models
+		SortedSet<Integer> docIdentifiers = new TreeSet<Integer>();
+		if (m0Ids == null) {
+			docIdentifiers = getM0DocumentationIds();
+			logger.debug("Converting all M0 'documentation' models to SIMSFr format (" + docIdentifiers.size() + " models)");
+		}
+		else {
+			docIdentifiers.addAll(m0Ids); // Sorts and eliminates duplicates
+			logger.debug("Converting a list of M0 'documentation' models to SIMSFr format (" + docIdentifiers.size() + " models)");
+		}
+
+		Dataset simsDataset = DatasetFactory.create();
+		for (Integer docIdentifier : docIdentifiers) {
+			// Extract the M0 model containing the resource of the current documentation
+			Model docModel = extractM0ResourceModel(m0DocumentationModel, M0_DOCUMENTATION_BASE_URI + docIdentifier);
+			// Convert to SIMS format
+			Model simsModel = m0ConvertToSIMS(docModel);
+			if (!namedModels) simsDataset.getDefaultModel().add(simsModel);
+			else {
+				simsDataset.addNamedModel("http://rdf.insee.fr/graphe/qualite/sims" + docIdentifier, simsModel);
+			}
+			simsModel.close();
+			docModel.close();
+		}
+		return simsDataset;
 	}
 
 	/**
@@ -155,5 +193,49 @@ public class M0SIMSConverter extends M0Converter {
 		extractModel.add(m0Model.listStatements(selector));
 	
 		return extractModel;
+	}
+
+	/**
+	 * Returns the set of documentation identifiers in the M0 'documentations' model of the current dataset.
+	 * 
+	 * @return The set of identifiers as integers in ascending order.
+	 */
+	public static SortedSet<Integer> getM0DocumentationIds() {
+
+		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		logger.debug("Listing M0 documentation identifiers from dataset " + Configuration.M0_FILE_NAME);
+
+		Model m0 = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+		SortedSet<Integer> m0DocumentIdSet = getM0DocumentationIds(dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations"));
+		m0.close();
+		return m0DocumentIdSet;
+	}
+
+	/**
+	 * Returns the set of documentation identifiers in a M0 'documentations' model.
+	 * 
+	 * @param m0DocumentationModel The M0 'documentations' model.
+	 * @return The set of identifiers as integers in ascending order.
+	 */
+	private static SortedSet<Integer> getM0DocumentationIds(Model m0DocumentationModel) {
+
+		SortedSet<Integer> m0DocumentIdSet = new TreeSet<Integer>();
+
+		ResIterator subjectsIterator = m0DocumentationModel.listSubjects();
+		while (subjectsIterator.hasNext()) {
+			String m0DocumentationURI = subjectsIterator.next().getURI();
+			// Documentation URIs will typically look like http://baseUri/documentations/documentation/1608/ASSOCIE_A
+			String m0DocumentationId = m0DocumentationURI.substring(M0_DOCUMENTATION_BASE_URI.length()).split("/")[0];
+			// Series identifiers are integers (but careful with the sequence number)
+			try {
+				m0DocumentIdSet.add(Integer.parseInt(m0DocumentationId));
+			} catch (NumberFormatException e) {
+				// Should be the sequence number resource: http://baseUri/documentations/documentation/sequence
+				if (!("sequence".equals(m0DocumentationId))) logger.error("Invalid documentation URI: " + m0DocumentationURI);
+			}
+		}
+		logger.debug("Found a total of " + m0DocumentIdSet.size() + " documentations in the M0 model");
+
+		return m0DocumentIdSet;
 	}
 }

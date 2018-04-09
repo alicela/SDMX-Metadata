@@ -58,7 +58,6 @@ public class M0Checker {
 	public static void studyDocumentations() {
 
 		String baseURI = "http://baseUri/documentations/documentation/";
-		int baseURILength = baseURI.length();
 
 		Model documentations = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 
@@ -67,9 +66,9 @@ public class M0Checker {
 		ResIterator subjectsIterator = documentations.listSubjects();
 		while (subjectsIterator.hasNext()) {
 			String documentationM0URI = subjectsIterator.next().getURI();
-			String[] pathComponents = documentationM0URI.substring(baseURILength).split("/");
+			String[] pathComponents = documentationM0URI.substring(baseURI.length()).split("/");
 			String documentationId = pathComponents[0];
-			// Series identifiers are integers (but careful with the sequence number)
+			// Documentation identifiers are integers (but careful with the sequence number)
 			try {
 				Integer documentationIntId = Integer.parseInt(documentationId);
 				if (!propertiesByDocumentation.containsKey(documentationIntId)) propertiesByDocumentation.put(documentationIntId, new ArrayList<String>());

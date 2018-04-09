@@ -212,6 +212,14 @@ public class M0ConverterTest {
 	}
 
 	@Test
+	public void testConvertToSIMS() throws IOException {
+
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(Arrays.asList(1519), false);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1519.trig"), simsDataset, Lang.TRIG);
+		
+	}
+
+	@Test
 	public void testExtractSeriesProperty2() throws IOException {
 
 		// Read the source M0 dataset and extract the model on series

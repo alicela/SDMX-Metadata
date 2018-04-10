@@ -9,7 +9,7 @@ import org.junit.Test;
 import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
 
-public class SIMSPlusSchemeTest {
+public class SIMSFrSchemeTest {
 
 	@Test
 	public void testReadSIMSPlusFromExcel() {
@@ -18,7 +18,6 @@ public class SIMSPlusSchemeTest {
 		assertNotNull(simsPlusScheme);
 
 		System.out.println(simsPlusScheme);
-
 	}
 
 }

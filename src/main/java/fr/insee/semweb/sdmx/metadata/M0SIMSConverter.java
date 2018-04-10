@@ -36,6 +36,11 @@ public class M0SIMSConverter extends M0Converter {
 
 	public static String M0_DOCUMENTATION_BASE_URI = "http://baseUri/documentations/documentation/";
 
+	/** The SIMS-FR metadata structure definition */
+	protected static Model simsFrMSD = null;
+	/** The SIMS-FR scheme */
+	protected static SIMSFRScheme simsFRScheme = null;
+
 	/**
 	 * Converts a list (or all) of M0 'documentation' models to SIMS models.
 	 * 
@@ -45,10 +50,11 @@ public class M0SIMSConverter extends M0Converter {
 	 */
 	public static Dataset convertToSIMS(List<Integer> m0Ids, boolean namedModels) {
 
-		// We will need the documentation model and the SIMSFr MSD
+		// We will need the documentation model, the SIMSFr scheme and the SIMSFr MSD
 		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0DocumentationModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 		simsFrMSD = ModelFactory.createOntologyModel().read(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME);
+		simsFRScheme = SIMSFRScheme.readSIMSFRFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 
 		// If parameter was null, get the list of all existing M0 'documentation' models
 		SortedSet<Integer> docIdentifiers = new TreeSet<Integer>();
@@ -91,15 +97,13 @@ public class M0SIMSConverter extends M0Converter {
 	
 		// Will be handy for parsing dates
 		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-
-		// Read the SIMSFr structure from the Excel specification
-		// TODO Move to a calling function
-		simsFRScheme = SIMSFRScheme.readSIMSFRFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 	
 		logger.debug("Creating metadata report model for m0 documentation " + m0Id);
 	
 		Model simsModel = ModelFactory.createDefaultModel();
+		simsModel.setNsPrefix("rdf", RDF.getURI());
 		simsModel.setNsPrefix("rdfs", RDFS.getURI());
+		simsModel.setNsPrefix("xsd", XSD.getURI());
 		simsModel.setNsPrefix("dcterms", DCTerms.getURI());
 		simsModel.setNsPrefix("skos", SKOS.getURI());
 		simsModel.setNsPrefix("insee", Configuration.BASE_INSEE_ONTO_URI);

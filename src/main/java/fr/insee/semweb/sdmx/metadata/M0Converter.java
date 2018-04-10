@@ -68,11 +68,6 @@ public class M0Converter {
 	/** The DQV quality measurement */
 	protected static Resource DQV_QUALITY_MEASUREMENT = ResourceFactory.createResource("http://www.w3.org/ns/dqv#QualityMeasurement");
 
-	/** The SIMS-FR metadata structure definition */
-	protected static Model simsFrMSD = null;
-	/** The SIMS-FR scheme */
-	protected static SIMSFRScheme simsFRScheme = null;
-
 	/** The M0 dataset containing all the models */
 	static Dataset dataset = null;
 
@@ -90,11 +85,6 @@ public class M0Converter {
 		// Read the source M0 dataset and extract SIMS information
 		readDataset();
 		Model m0SIMSModel = dataset.getNamedModel(M0_BASE_GRAPH_URI + "documentations");
-
-
-		// Read the SIMS MSD
-		simsFrMSD = ModelFactory.createOntologyModel();
-		simsFrMSD.read(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME);
 
 		Model m01508Model = M0SIMSConverter.extractM0ResourceModel(m0SIMSModel, "http://baseUri/operations/operation/1508");
 		Model sims1508Model = M0SIMSConverter.m0ConvertToSIMS(m01508Model);

@@ -11,8 +11,8 @@ import org.junit.Test;
 
 import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.SIMSModelMaker;
-import fr.insee.semweb.sdmx.metadata.SIMSFREntry;
-import fr.insee.semweb.sdmx.metadata.SIMSFRScheme;
+import fr.insee.semweb.sdmx.metadata.SIMSFrEntry;
+import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
 import fr.insee.stamina.utils.DQV;
 
 public class SIMSModelMakerTest {
@@ -26,7 +26,7 @@ public class SIMSModelMakerTest {
 	@Test
 	public void testReadSIMSPlusFromExcel() {
 
-		SIMSFRScheme.readSIMSFRFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+		SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 	}
 
 	@Test
@@ -38,7 +38,7 @@ public class SIMSModelMakerTest {
 	@Test
 	public void testGetRangeSIMS() {
 
-		SIMSFREntry testEntry = new SIMSFREntry("TEST");
+		SIMSFrEntry testEntry = new SIMSFrEntry("TEST");
 
 		testEntry.setRepresentation("Text");
 		assertEquals(SIMSModelMaker.getRange(testEntry, true), XSD.xstring);
@@ -63,7 +63,7 @@ public class SIMSModelMakerTest {
 	@Test
 	public void testGetRangeSIMSPlus() {
 
-		SIMSFREntry testEntry = new SIMSFREntry("TEST");
+		SIMSFrEntry testEntry = new SIMSFrEntry("TEST");
 
 		testEntry.setInseeRepresentation("Text");
 		assertEquals(SIMSModelMaker.getRange(testEntry, false), XSD.xstring);

@@ -6,19 +6,23 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
-public class SIMSFRScheme {
+public class SIMSFrScheme {
 
 	private String name = null;
 	private String source = null;
-	private List<SIMSFREntry> entries = null;
+	private List<SIMSFrEntry> entries = null;
 
-	public SIMSFRScheme() {
-		this.entries = new ArrayList<SIMSFREntry>();
+	private static Logger logger = LogManager.getLogger(SIMSFrScheme.class);
+
+	public SIMSFrScheme() {
+		this.entries = new ArrayList<SIMSFrEntry>();
 	}
 
 	/**
@@ -28,7 +32,7 @@ public class SIMSFRScheme {
 	 * @return <code>true</code> if the notation was found, <code>false</code> otherwise.
 	 */
 	public boolean containsNotation(String notation) {
-		for (SIMSFREntry entry : this.entries) {
+		for (SIMSFrEntry entry : this.entries) {
 			if (entry.getNotation().equals(notation)) return true;
 		}
 		return false;
@@ -43,9 +47,9 @@ public class SIMSFRScheme {
 
 		StringBuilder report = new StringBuilder();
 
-		for (SIMSFREntry entry : this.entries) {
+		for (SIMSFrEntry entry : this.entries) {
 			String parentNotation = entry.getParentNotation();
-			// The SIMSFR actually does not contain highest level concepts 'I' and 'S', hence the second test
+			// The SIMSFr actually does not contain highest level concepts 'I' and 'S', hence the second test
 			if ((parentNotation != null) && (parentNotation.length() > 1) && !this.containsNotation(parentNotation))
 				report.append("No parent found for entry with notation " + entry.getNotation() + "\n");
 		}
@@ -58,11 +62,11 @@ public class SIMSFRScheme {
 	 * @param notation The notation of the entry whose parent is sought.
 	 * @return The parent entry (<code>SIMSEntry</code> object) or <code>null</code> if no parent is found.
 	 */
-	public SIMSFREntry getParent(String notation) {
+	public SIMSFrEntry getParent(String notation) {
 
-		String parentNotation = SIMSFREntry.getParentNotation(notation);
+		String parentNotation = SIMSFrEntry.getParentNotation(notation);
 		if (parentNotation!= null) {
-			for (SIMSFREntry entry : this.entries) {
+			for (SIMSFrEntry entry : this.entries) {
 				if (entry.getNotation().equals(parentNotation)) return entry;
 			}
 		}
@@ -75,55 +79,56 @@ public class SIMSFRScheme {
 	 * @param notation The entry (<code>SIMSEntry</code> object) whose parent is sought.
 	 * @return The parent entry (<code>SIMSEntry</code> object) or <code>null</code> if no parent is found.
 	 */
-	public SIMSFREntry getParent(SIMSEntry entry) {
+	public SIMSFrEntry getParent(SIMSEntry entry) {
 
 		if ((entry == null) || (entry.getNotation() == null)) return null;
 		return getParent(entry.getNotation());
 	}
 
 	/**
-	 * Reads the SIMSFR scheme from an Excel file.
-	 * @param xlsxFile The Excel file specifying the SIMSFR.
-	 * @return The SIMSFR as a <code>SIMSFRScheme</code> object, or <code>null</code> in case of problem.
+	 * Reads the SIMSFr scheme from an Excel file.
+	 * @param xlsxFile The Excel file specifying the SIMSFr.
+	 * @return The SIMSFr as a <code>SIMSFrScheme</code> object, or <code>null</code> in case of problem.
 	 */
-	public static SIMSFRScheme readSIMSFRFromExcel(File xlsxFile) {
+	public static SIMSFrScheme readSIMSFrFromExcel(File xlsxFile) {
 	
 		Workbook simsWorkbook = null;
-		Sheet simsFRSheet = null;
+		Sheet simsFrSheet = null;
 		try {
+			logger.info("Reading SIMSFr scheme from Excel file " + xlsxFile.getAbsolutePath());
 			simsWorkbook = WorkbookFactory.create(xlsxFile);
-			simsFRSheet = simsWorkbook.getSheetAt(1); // SIMSFR is on the second sheet
+			simsFrSheet = simsWorkbook.getSheetAt(1); // SIMSFr is on the second sheet
 		} catch (Exception e) {
-			SIMSModelMaker.logger.fatal("Error while opening Excel file - " + e.getMessage());
+			logger.fatal("Error while opening Excel file - " + e.getMessage());
 			return null;
 		}
 	
-		SIMSFRScheme simsFR = new SIMSFRScheme();
-		simsFR.setName(Configuration.simsConceptSchemeName(false, false));
-		simsFR.setSource(xlsxFile.getPath());
+		SIMSFrScheme simsFr = new SIMSFrScheme();
+		simsFr.setName(Configuration.simsConceptSchemeName(false, false));
+		simsFr.setSource(xlsxFile.getPath());
 	
-		Iterator<Row> rows = simsFRSheet.rowIterator();
+		Iterator<Row> rows = simsFrSheet.rowIterator();
 		rows.next(); rows.next(); // Skip two title lines
 		while (rows.hasNext()) {
 			Row row = rows.next();
-			SIMSFREntry simsFREntry = SIMSFREntry.readFromRow(row);
-			if (simsFREntry == null) continue;
-	
-			simsFR.addEntry(simsFREntry);
-			SIMSModelMaker.logger.debug("Entry read: " + simsFREntry);
+			SIMSFrEntry simsFrEntry = SIMSFrEntry.readFromRow(row);
+			if (simsFrEntry == null) continue;
+			simsFr.addEntry(simsFrEntry);
+			SIMSModelMaker.logger.debug("Entry read: " + simsFrEntry);
 		}
 		try { simsWorkbook.close(); } catch (IOException ignored) { }
+		logger.info("Finished reading SIMSFr scheme, number of entries in the scheme: " + simsFr.getEntries().size());
 	
-		return simsFR;
+		return simsFr;
 	}
 
 	/**
-	 * Returns a string representation of the SIMSFR entry.
+	 * Returns a string representation of the SIMSFr entry.
 	 */
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 		builder.append("Scheme ").append(name).append(" (source: '").append(source).append("')\n");
-		for (SIMSFREntry entry : this.getEntries()) {
+		for (SIMSFrEntry entry : this.getEntries()) {
 			builder.append("\nProperty ").append(entry.getNotation()).append(" (").append(entry.getCode()).append("): ");
 			builder.append(entry.getName()).append(" (").append(entry.getFrenchName()).append(")\n");
 			builder.append("Associated concept: ").append(Configuration.simsConceptURI(entry)).append("\n");
@@ -132,22 +137,22 @@ public class SIMSFRScheme {
 				builder.append("Direct RDF property: ").append(Configuration.propertyMappings.get(entry.getCode()).getURI()).append("\n");
 			} else {
 				if (entry.isOriginal()) { // SIMS entry
-					if (!entry.isAddedOrModified()) { // entry not modified in SIMSFR
-						builder.append("SIMS original attribute, unchanged in SIMSFR\n");
+					if (!entry.isAddedOrModified()) { // entry not modified in SIMSFr
+						builder.append("SIMS original attribute, unchanged in SIMSFr\n");
 						builder.append("Associated metadata attribute specification: ").append(Configuration.simsAttributeSpecificationURI(entry, true)).append("\n");
 						builder.append("Associated metadata attribute property: ").append(Configuration.simsAttributePropertyURI(entry, true));
 						builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, true)).append(")\n");
-					} else { // entry modified in SIMSFR
-						builder.append("SIMS original attribute, modified in SIMSFR\n");
+					} else { // entry modified in SIMSFr
+						builder.append("SIMS original attribute, modified in SIMSFr\n");
 						builder.append("Associated metadata attribute specification (SIMS): ").append(Configuration.simsAttributeSpecificationURI(entry, true)).append("\n");
 						builder.append("Associated metadata attribute property (SIMS): ").append(Configuration.simsAttributePropertyURI(entry, true));
 						builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, true)).append(")\n");
-						builder.append("Associated metadata attribute specification (SIMSFR): ").append(Configuration.simsAttributeSpecificationURI(entry, false)).append("\n");
-						builder.append("Associated metadata attribute property (SIMSFR): ").append(Configuration.simsAttributePropertyURI(entry, false));
+						builder.append("Associated metadata attribute specification (SIMSFr): ").append(Configuration.simsAttributeSpecificationURI(entry, false)).append("\n");
+						builder.append("Associated metadata attribute property (SIMSFr): ").append(Configuration.simsAttributePropertyURI(entry, false));
 						builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, false)).append(")\n");
 					}
-				} else { // Property added in SIMSFR
-					builder.append("Attribute added in SIMSFR\n");
+				} else { // Property added in SIMSFr
+					builder.append("Attribute added in SIMSFr\n");
 					builder.append("Associated metadata attribute specification: ").append(Configuration.simsAttributeSpecificationURI(entry, false)).append("\n");
 					builder.append("Associated metadata attribute property: ").append(Configuration.simsAttributePropertyURI(entry, false));
 					builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, false)).append(")\n");					
@@ -175,16 +180,15 @@ public class SIMSFRScheme {
 		this.source = source;
 	}
 
-	public List<SIMSFREntry> getEntries() {
+	public List<SIMSFrEntry> getEntries() {
 		return entries;
 	}
 
-	public void setEntries(List<SIMSFREntry> entries) {
+	public void setEntries(List<SIMSFrEntry> entries) {
 		this.entries = entries;
 	}
 
-	public void addEntry(SIMSFREntry entry) {
+	public void addEntry(SIMSFrEntry entry) {
 		this.entries.add(entry);
 	}
-
 }

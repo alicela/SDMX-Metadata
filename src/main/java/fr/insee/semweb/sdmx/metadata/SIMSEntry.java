@@ -35,7 +35,7 @@ public class SIMSEntry {
 		String notationAndName = row.getCell(indexes[0], MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
 		if (notationAndName.length() == 0) return null; // Avoids a trailing empty line in the "Plus" format
 		String notation = notationAndName.split(" ")[0];
-		SIMSEntry entry = (fromPlus ? new SIMSFREntry(notation) : new SIMSEntry(notation));
+		SIMSEntry entry = (fromPlus ? new SIMSFrEntry(notation) : new SIMSEntry(notation));
 		// Concepts with only one '.' in their notation code are DQV categories
 		entry.setType((notation.split("\\.").length == 2) ? EntryType.CATEGORY : EntryType.DIMENSION);
 

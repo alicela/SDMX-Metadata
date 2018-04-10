@@ -146,13 +146,13 @@ public class Configuration {
 	}
 
 	/** URI of a SIMSv2/SIMSv2FR metadata attribute specification */
-	public static String simsAttributeSpecificationURI(SIMSFREntry entry, boolean simsStrict) {
+	public static String simsAttributeSpecificationURI(SIMSFrEntry entry, boolean simsStrict) {
 		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "attributeSpecification/" + entry.getNotation();
 		else return BASE_SIMS_URI + "attributeSpecification/" + entry.getNotation();
 	}
 
 	/** URI of a SIMSv2/SIMSv2FR metadata attribute property */
-	public static String simsAttributePropertyURI(SIMSFREntry entry, boolean simsStrict) {
+	public static String simsAttributePropertyURI(SIMSFrEntry entry, boolean simsStrict) {
 		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "attribute/" + entry.getNotation();
 		return BASE_SIMS_URI + "attribute/" + entry.getNotation();
 	}
@@ -223,7 +223,7 @@ public class Configuration {
 	}
 
 	/** URI of a SIMSv2/SIMSv2FR represented by a SIMSFREntry */
-	public static String simsConceptURI(SIMSFREntry entry) {
+	public static String simsConceptURI(SIMSFrEntry entry) {
 		if (entry.isOriginal()) return simsConceptURI(entry.getNotation());
 		return "http://id.insee.fr/concepts/simsv2fr/" + entry.getNotation();
 	}

@@ -4,11 +4,11 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
 
 /**
- * Represents an entry in the SIMS Plus structure.
+ * Represents an entry in the SIMSFr structure.
  * 
  * @author Franck Cotton
  */
-public class SIMSFREntry extends SIMSEntry {
+public class SIMSFrEntry extends SIMSEntry {
 
 	private String title; // TODO This variable should be named otherwise
 	private String metric;
@@ -17,16 +17,16 @@ public class SIMSFREntry extends SIMSEntry {
 	private String origin;
 	private String inseeRepresentation;
 
-	public SIMSFREntry(String notation) {
+	public SIMSFrEntry(String notation) {
 		super(notation);
 	}
 
-	public static SIMSFREntry readFromRow(Row row) {
+	public static SIMSFrEntry readFromRow(Row row) {
 
 		SIMSEntry baseEntry = SIMSEntry.readFromRow(row, true);
 		if (baseEntry == null) return null;
 
-		SIMSFREntry entry = (SIMSFREntry) baseEntry;
+		SIMSFrEntry entry = (SIMSFrEntry) baseEntry;
 
 		// Title is in column A, should not be empty
 		String cellValue = row.getCell(0, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();

@@ -91,15 +91,15 @@ public class M0Checker {
 
 
 		// Find the differences between the properties listed here and the SIMS/SIMS+ properties
-		SIMSFRScheme simsPlusScheme = null;
+		SIMSFrScheme simsPlusScheme = null;
 		try {
-			simsPlusScheme = SIMSFRScheme.readSIMSFRFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+			simsPlusScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 		} catch (Exception e) {
 			System.out.println("Error reading SIMS Plus Excel file");
 			return;
 		}
 		List<String> simsProps = new ArrayList<String>();
-		for (SIMSFREntry entry : simsPlusScheme.getEntries()) {
+		for (SIMSFrEntry entry : simsPlusScheme.getEntries()) {
 			simsProps.add(entry.getCode());
 		}
 		List<String> testList = new ArrayList<String>(simsProps);
@@ -112,7 +112,7 @@ public class M0Checker {
 		System.out.println("Properties in M0 and not in SIMSFr: " + testList);
 
 		simsProps = new ArrayList<String>();
-		for (SIMSFREntry entry : simsPlusScheme.getEntries()) {
+		for (SIMSFrEntry entry : simsPlusScheme.getEntries()) {
 			if (!entry.isOriginal()) continue; // Ignore Insee's additions
 			simsProps.add(entry.getCode());
 		}
@@ -239,9 +239,9 @@ public class M0Checker {
 	public static void checkSIMSAttributes() {
 
 		// Create the list of SIMSFr attribute names and other known attributes
-		SIMSFRScheme simsFRScheme = SIMSFRScheme.readSIMSFRFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+		SIMSFrScheme simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 		List<String> knownAttributes = new ArrayList<String>();
-		for (SIMSFREntry entry : simsFRScheme.getEntries())	knownAttributes.add(entry.getCode());
+		for (SIMSFrEntry entry : simsFRScheme.getEntries())	knownAttributes.add(entry.getCode());
 		// Add the 'technical' attributes
 		knownAttributes.addAll(Arrays.asList("ID", "ID_DDS", "ID_METIER", "ASSOCIE_A", "sequence", "VALIDATION_STATUS"));
 

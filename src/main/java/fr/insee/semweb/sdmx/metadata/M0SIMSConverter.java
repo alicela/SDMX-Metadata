@@ -39,7 +39,7 @@ public class M0SIMSConverter extends M0Converter {
 	/** The SIMS-FR metadata structure definition */
 	protected static Model simsFrMSD = null;
 	/** The SIMS-FR scheme */
-	protected static SIMSFRScheme simsFRScheme = null;
+	protected static SIMSFrScheme simsFRScheme = null;
 
 	/**
 	 * Converts a list (or all) of M0 'documentation' models to SIMS models.
@@ -54,7 +54,7 @@ public class M0SIMSConverter extends M0Converter {
 		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0DocumentationModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 		simsFrMSD = ModelFactory.createOntologyModel().read(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME);
-		simsFRScheme = SIMSFRScheme.readSIMSFRFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+		simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 
 		// If parameter was null, get the list of all existing M0 'documentation' models
 		SortedSet<Integer> docIdentifiers = new TreeSet<Integer>();
@@ -114,7 +114,7 @@ public class M0SIMSConverter extends M0Converter {
 		report.addProperty(RDFS.label, simsModel.createLiteral("Rapport de métadonnées " + m0Id, "fr"));
 		// TODO Do we create a root Metadata Attribute?
 	
-		for (SIMSFREntry entry : simsFRScheme.getEntries()) {
+		for (SIMSFrEntry entry : simsFRScheme.getEntries()) {
 			// Create a m0 resource corresponding to the SIMS entry
 			Resource m0Resource = ResourceFactory.createResource(baseResource.getURI() + "/" + entry.getCode());
 			// Check if the resource has values in M0 (French values are sine qua non)

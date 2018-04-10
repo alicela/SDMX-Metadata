@@ -56,9 +56,9 @@ public class SIMSModelMaker {
 		sdmxModel = readSDMXModel(Configuration.SDMX_MM_TURTLE_FILE_NAME, true);
 
 		// Read the SIMS Excel file into a SIMSFRScheme object
-		SIMSFRScheme simsFRScheme = null;
+		SIMSFrScheme simsFRScheme = null;
 		try {
-			simsFRScheme = SIMSFRScheme.readSIMSFRFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+			simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 		} catch (Exception e) {
 			logger.fatal("Error reading SIMS Excel file " + Configuration.SIMS_XLSX_FILE_NAME + " - " + e.getMessage());
 			System.exit(1);
@@ -140,7 +140,7 @@ public class SIMSModelMaker {
 	 * @param createDQV A boolean indicating if Data Quality Vocabulary constructs should be added to the model.
 	 * @return A Jena <code>Model</code> containing the concept scheme.
 	 */
-	public static Model createConceptScheme(SIMSFRScheme simsFR, boolean simsStrict, boolean addFrench, boolean createDQV) {
+	public static Model createConceptScheme(SIMSFrScheme simsFR, boolean simsStrict, boolean addFrench, boolean createDQV) {
 
 		logger.info("About to create the concept scheme for the " + (simsStrict ? " SIMSv2" : "SIMSv2FR") + " model");
 
@@ -154,7 +154,7 @@ public class SIMSModelMaker {
 		simsv2.addProperty(SKOS.prefLabel, skosCS.createLiteral(Configuration.simsConceptSchemeName(simsStrict, false), "en"));
 		if (addFrench) simsv2.addProperty(SKOS.prefLabel, skosCS.createLiteral(Configuration.simsConceptSchemeName(simsStrict, true), "fr"));
 
-		for (SIMSFREntry entry : simsFR.getEntries()) {
+		for (SIMSFrEntry entry : simsFR.getEntries()) {
 
 			if (simsStrict && entry.getNotation().startsWith("I")) continue; // All strict SIMS entries have notations starting with 'S'
 			if (entry.getNotation().equals("I.1") || entry.getNotation().startsWith("I.1.")) continue; // Even in non-strict mode, entries in the 'Identity' section are direct properties on the operation rather than metadata attributes
@@ -176,7 +176,7 @@ public class SIMSModelMaker {
 				}
 			}
 			simsConcept.addProperty(SKOS.inScheme, simsv2);
-			SIMSFREntry parent = simsFR.getParent(entry);
+			SIMSFrEntry parent = simsFR.getParent(entry);
 			if (parent == null) {
 				simsv2.addProperty(SKOS.hasTopConcept, simsConcept);
 				simsConcept.addProperty(SKOS.topConceptOf, simsv2);
@@ -197,7 +197,7 @@ public class SIMSModelMaker {
 	 * @param addFrench A boolean indicating if French labels and descriptions should be included.
 	 * @return A Jena <code>Model</code> containing the metadata structure definition.
 	 */
-	public static Model createMetadataStructureDefinition(SIMSFRScheme sims, boolean simsStrict, boolean addFrench) {
+	public static Model createMetadataStructureDefinition(SIMSFrScheme sims, boolean simsStrict, boolean addFrench) {
 
 		logger.info("About to create the model for the " + (simsStrict ? " SIMS" : "SIMSPlus") + " Metadata Structure Definition");
 
@@ -221,7 +221,7 @@ public class SIMSModelMaker {
 		msd.addProperty(DCTerms.hasPart, reportStructure);
 
 		// Create the metadata attribute properties and metadata attribute property specifications
-		for (SIMSFREntry entry : sims.getEntries()) {
+		for (SIMSFrEntry entry : sims.getEntries()) {
 
 			if (simsStrict && entry.getNotation().startsWith("I")) continue; // All strict SIMS entries have notations starting with 'S'
 
@@ -234,7 +234,7 @@ public class SIMSModelMaker {
 			if (entry.isPresentational()) {
 				attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "isPresentational"), msdModel.createTypedLiteral(true));
 			}
-			SIMSFREntry parent = sims.getParent(entry);
+			SIMSFrEntry parent = sims.getParent(entry);
 			if (parent != null) {
 				attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "parent"), msdModel.createResource(Configuration.simsAttributeSpecificationURI(parent, simsStrict)));
 			}
@@ -264,7 +264,7 @@ public class SIMSModelMaker {
 	 * @param simsStrict A boolean indicating if the context is restricted to the SIMS or extended to SIMSPlus.
 	 * @return The range of the property represented as a (non-null) Jena <code>Resource</code>.
 	 */
-	public static Resource getRange(SIMSFREntry entry, boolean simsStrict) {
+	public static Resource getRange(SIMSFrEntry entry, boolean simsStrict) {
 
 		Resource range = null;
 

@@ -114,7 +114,7 @@ public class SIMSFrScheme {
 			SIMSFrEntry simsFrEntry = SIMSFrEntry.readFromRow(row);
 			if (simsFrEntry == null) continue;
 			simsFr.addEntry(simsFrEntry);
-			SIMSModelMaker.logger.debug("Entry read: " + simsFrEntry);
+			logger.debug("Entry read: " + simsFrEntry);
 		}
 		try { simsWorkbook.close(); } catch (IOException ignored) { }
 		logger.info("Finished reading SIMSFr scheme, number of entries in the scheme: " + simsFr.getEntries().size());
@@ -132,9 +132,10 @@ public class SIMSFrScheme {
 			builder.append("\nProperty ").append(entry.getNotation()).append(" (").append(entry.getCode()).append("): ");
 			builder.append(entry.getName()).append(" (").append(entry.getFrenchName()).append(")\n");
 			builder.append("Associated concept: ").append(Configuration.simsConceptURI(entry)).append("\n");
-			if (entry.getNotation().equals("1.1") || entry.getNotation().startsWith("I.1.")) {
+			if (entry.isDirect()) {
 				// Direct property, not part of metadata report
-				builder.append("Direct RDF property: ").append(Configuration.propertyMappings.get(entry.getCode()).getURI()).append("\n");
+				if (entry.isPresentational()) builder.append("No associated RDF property, identity attribute is presentational\n");
+				else builder.append("Direct RDF property: ").append(Configuration.propertyMappings.get(entry.getCode()).getURI()).append("\n");
 			} else {
 				if (entry.isOriginal()) { // SIMS entry
 					if (!entry.isAddedOrModified()) { // entry not modified in SIMSFr

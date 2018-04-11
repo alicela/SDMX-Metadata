@@ -15,7 +15,6 @@ import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.vocabulary.DCTerms;
-import org.apache.jena.vocabulary.ORG;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SKOS;
 
@@ -25,7 +24,7 @@ public class Configuration {
 
 	// Input files
 	/** Excel file containing the SIMS/SIMSFR models */
-	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSplus_V20170518.xlsx";
+	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V201803.xlsx";
 	/** Excel file containing the code lists */
 	public static String CL_XLSX_FILE_NAME = "src/main/resources/data/CODE_LISTS_20180110.xlsx";
 	/** Excel file containing the themes code list */
@@ -89,8 +88,9 @@ public class Configuration {
 		propertyMappings.put("SUMMARY", DCTerms.abstract_);
 		propertyMappings.put("HISTORY", SKOS.historyNote);
 		propertyMappings.put("FREQ_COLL", DCTerms.accrualPeriodicity);
-		propertyMappings.put("ORGANISATION", ORG.role);
-		propertyMappings.put("STAKEHOLDERS", ORG.role);
+		propertyMappings.put("ORGANISATION", DCTerms.creator);
+		propertyMappings.put("STAKEHOLDERS", DCTerms.contributor);
+		propertyMappings.put("DATA_COLLECTOR", DCTerms.contributor); // Using dcterms:contributor for now, should be a sub-property
 		propertyMappings.put("REPLACES", DCTerms.replaces);
 		propertyMappings.put("RELATED_TO", RDFS.seeAlso);
 	}

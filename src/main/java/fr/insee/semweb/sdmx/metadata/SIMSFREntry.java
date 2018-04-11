@@ -66,6 +66,16 @@ public class SIMSFrEntry extends SIMSEntry {
 	}
 
 	/**
+	 * Indicates if the entry corresponds to a direct property (directly attached to the target) or is attached through a SIMSFr report.
+	 * 
+	 * @return <code>true</code> if the entry corresponds to a direct property, <code>false</code> otherwise.
+	 */
+	public boolean isDirect() {
+
+		return ((this.getNotation().equals("I.1") || this.getNotation().startsWith("I.1.")) || this.getNotation().startsWith("C.1."));
+	}
+
+	/**
 	 * Indicates if the entry belongs to the original SIMS v2.
 	 * 
 	 * @return <code>true</code> if the entry belongs to the original SIMS v2, <code>false</code> otherwise.

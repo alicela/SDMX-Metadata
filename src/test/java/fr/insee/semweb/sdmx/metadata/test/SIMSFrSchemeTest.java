@@ -12,12 +12,11 @@ import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
 public class SIMSFrSchemeTest {
 
 	@Test
-	public void testReadSIMSPlusFromExcel() {
+	public void testReadSIMSFrFromExcel() {
 
-		SIMSFrScheme simsPlusScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
-		assertNotNull(simsPlusScheme);
+		SIMSFrScheme simsFrScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+		assertNotNull(simsFrScheme);
 
-		System.out.println(simsPlusScheme);
+		System.out.println(simsFrScheme);
 	}
-
 }

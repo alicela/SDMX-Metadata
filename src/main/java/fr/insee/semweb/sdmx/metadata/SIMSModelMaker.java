@@ -1,16 +1,10 @@
 package fr.insee.semweb.sdmx.metadata;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
 import org.apache.jena.ontology.DatatypeProperty;
 import org.apache.jena.ontology.ObjectProperty;
 import org.apache.jena.ontology.OntClass;
@@ -28,11 +22,6 @@ import org.apache.jena.vocabulary.SKOS;
 import org.apache.jena.vocabulary.XSD;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import fr.insee.semweb.sdmx.metadata.SIMSEntry.EntryType;
 import fr.insee.stamina.utils.DQV;
@@ -252,7 +241,7 @@ public class SIMSModelMaker {
 			Resource attributeProperty = msdModel.createResource(Configuration.simsAttributePropertyURI(entry, simsStrict), sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "MetadataAttributeProperty"));
 			// The type of the property depends on the values of the representation variables (SIMS and Insee)
 			Resource propertyRange = getRange(entry, simsStrict);
-			logger.debug("Property range is " + propertyRange.getLocalName());
+			logger.debug("MetadataAttributeProperty range is " + propertyRange.getLocalName());
 			if (propertyRange.equals(XSD.xstring) || propertyRange.equals(XSD.date)) attributeProperty.addProperty(RDF.type, OWL.DatatypeProperty);
 			else attributeProperty.addProperty(RDF.type, OWL.ObjectProperty);
 			attributeProperty.addProperty(RDFS.label, msdModel.createLiteral("Metadata Attribute Property for concept " + entry.getName(), "en"));
@@ -329,86 +318,5 @@ public class SIMSModelMaker {
 			// Catch-all case
 			return RDFS.Resource;
 		}
-	}
-
-	/**
-	 * Reads the SIMS from an Excel file.
-	 * 
-	 * @param xlsxFile The Excel file containing the SIMS.
-	 * @param fromPlus Indicates if the data should be read in the "SIMS Plus" sheet.
-	 * @return The SIMS as a <code>List<SIMSEntry></code> object, or <code>null</code> in case of problem.
-	 */
-	public static List<SIMSEntry> readSIMSFromExcel(File xlsxFile, boolean fromPlus) {
-
-		// The SIMS Plus Excel file contains the original SIMS on the first sheet and the SIMS
-		// Plus data on the second sheet. The latter contains the SIMS (except ESS guidelines and quality
-		// indicators, but also additional columns and lines;
-
-		int sheetNumber = (fromPlus ? 1 : 0);
-		
-		Workbook simsWorkbook = null;
-		Sheet simsSheet = null;
-		try {
-			simsWorkbook = WorkbookFactory.create(xlsxFile);
-			simsSheet = simsWorkbook.getSheetAt(sheetNumber);
-		} catch (Exception e) {
-			logger.fatal("Error while opening Excel file - " + e.getMessage());
-			return null;
-		}
-
-		List<SIMSEntry> sims = new ArrayList<SIMSEntry>();
-
-		Iterator<Row> rows = simsSheet.rowIterator();
-		rows.next(); // Skip the title line
-		if (fromPlus) rows.next(); // Second title line in the SIMS Plus format
-		while (rows.hasNext()) {
-			Row row = rows.next();
-			// Additional lines in the SIMS Plus format are identified by a non blank K column ("Origine")
-			if ((fromPlus) && (row.getCell(10, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim().length() > 0)) continue;
-
-			SIMSEntry simsEntry = SIMSEntry.readFromRow(row, fromPlus);
-			if (simsEntry == null) continue;
-
-			System.out.println(simsEntry);
-			// logger.debug("Entry read: " + entry);
-			sims.add(simsEntry);
-		}
-		try { simsWorkbook.close(); } catch (IOException ignored) { }
-		return sims;
-	}
-
-	/**
-	 * Reads the SIMS from a CVS file.
-	 * 
-	 * @param csvFile The CVS file containing the SIMS.
-	 * @return The SIMS as a <code>List<SIMSEntry></code> object, or <code>null</code> in case of problem.
-	 * @throws IOException In case of problem reading the file.
-	 */
-	public static List<SIMSEntry> readSIMSFromCSV(File csvFile) throws IOException {
-
-		CSVParser parser = new CSVParser(new FileReader(csvFile), CSVFormat.TDF.withQuote(null).withHeader().withIgnoreEmptyLines());
-
-		List<SIMSEntry> sims = new ArrayList<SIMSEntry>();
-
-		for (CSVRecord record : parser) {
-			String notation = record.get("Concept Notation").trim();
-			if (notation.length() == 0) {
-				logger.error("Concept notation empty for record " + record.getRecordNumber());
-				continue;
-			}
-			else {
-				SIMSEntry entry = new SIMSEntry(notation);
-				entry.setCode(record.get("Concept Code").trim());
-				entry.setName(record.get("Concept Name").trim());
-				String type = record.get("concept").trim().toLowerCase();
-				if (type.equals("category")) entry.setType(EntryType.CATEGORY);
-				else if (type.equals("dimension")) entry.setType(EntryType.DIMENSION);
-				logger.debug("Entry read: " + entry);
-				sims.add(entry);
-			}
-		}
-		parser.close();
-
-		return sims;
 	}
 }

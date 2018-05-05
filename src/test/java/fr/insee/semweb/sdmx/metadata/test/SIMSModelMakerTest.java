@@ -10,21 +10,15 @@ import org.apache.jena.vocabulary.XSD;
 import org.junit.Test;
 
 import fr.insee.semweb.sdmx.metadata.Configuration;
-import fr.insee.semweb.sdmx.metadata.SIMSModelMaker;
 import fr.insee.semweb.sdmx.metadata.SIMSFrEntry;
 import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
+import fr.insee.semweb.sdmx.metadata.SIMSModelMaker;
 import fr.insee.stamina.utils.DQV;
 
 public class SIMSModelMakerTest {
 
 	@Test
-	public void testReadSIMSFromExcel() {
-
-		SIMSModelMaker.readSIMSFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME), false);
-	}
-
-	@Test
-	public void testReadSIMSPlusFromExcel() {
+	public void testReadSIMSFrFromExcel() {
 
 		SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 	}

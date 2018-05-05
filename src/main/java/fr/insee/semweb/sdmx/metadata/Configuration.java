@@ -32,7 +32,7 @@ public class Configuration {
 	/** Turtle file containing the SDMX metadata model vocabulary */
 	public static String SDMX_MM_TURTLE_FILE_NAME = "src/main/resources/data/sdmx-metadata.ttl";
 	/** TriG file containing the "M0" (temporary model) RDF dataset */
-	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20180316.trig";
+	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20180418.trig";
 	/** Excel file containing the information on operations */
 	public static String OPERATIONS_XLSX_FILE_NAME = "src/main/resources/data/Liste sources_20170612_CASD.xlsx";
 	/** Excel file containing the information on organizations */
@@ -59,6 +59,8 @@ public class Configuration {
 	public static String BASE_SIMS_URI = "http://ec.europa.eu/eurostat/simsv2/";
 	/** Base URI for SIMSv2FR resources */
 	public static String BASE_SIMS_FR_URI = "http://id.insee.fr/qualite/simsv2fr/";
+	/** Base URI for SIMS metadata reports */
+	protected static String REPORT_BASE_URI = "http://id.insee.fr/qualite/rapport/";
 	/** Prefix for the SDMX metadata model vocabulary */
 	public static String SDMX_MM_PREFIX = "sdmx-mm";
 	/** Base URI for the SDMX metadata model vocabulary */
@@ -235,7 +237,7 @@ public class Configuration {
 
 	/** URI of an organization */
 	public static String organizationURI(String organizationId) {
-		return Configuration.INSEE_ORG_BASE_URI + slug(organizationId);
+		return INSEE_ORG_BASE_URI + slug(organizationId);
 	}
 
 	/** URI of an Insee organizational unit */
@@ -269,7 +271,7 @@ public class Configuration {
 
 	/** URI of a statistical operation */
 	public static String statisticalOperationURI(String name) {
-		return Configuration.INSEE_OPS_BASE_URI + "operation/" + slug(name);
+		return INSEE_OPS_BASE_URI + "operation/" + slug(name);
 	}
 
 	/** URI of a statistical operation series */
@@ -287,9 +289,14 @@ public class Configuration {
 		return "http://id.insee.fr/produits/indicateur/" + indicatorId;
 	}
 
+	/** URI of a SIMS quality report */
+	public static String simsReportURI(String documentationId) {
+		return REPORT_BASE_URI + documentationId;
+	}
+
 	/** URI of a CASD dataset */
 	public static String datasetURI(String name, String operation) {
-		return Configuration.CASD_PRODUCTS_BASE_URI + "dataset/" + slug(operation) + "-" + slug(name);
+		return CASD_PRODUCTS_BASE_URI + "dataset/" + slug(operation) + "-" + slug(name);
 	}
 
 	// Utility string manipulation methods

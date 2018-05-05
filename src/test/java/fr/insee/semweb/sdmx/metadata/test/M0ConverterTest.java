@@ -102,7 +102,6 @@ public class M0ConverterTest {
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/base-resources.trig"), base, Lang.TRIG);
 	}
 
-
 	@Test
 	public void testExtractOrganizations() throws IOException {
 

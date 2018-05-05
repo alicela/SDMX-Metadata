@@ -38,7 +38,7 @@ import fr.insee.semweb.sdmx.metadata.SIMSEntry.EntryType;
 import fr.insee.stamina.utils.DQV;
 
 /**
- * Creates a collection of Jena models corresponding to the SIMSv2/SIMSv2FR standards.
+ * Creates a collection of Jena models corresponding to the SIMSv2/SIMSv2Fr standards.
  * 
  * @author Franck Cotton
  */
@@ -49,23 +49,28 @@ public class SIMSModelMaker {
 	/** Jena model for the SDMX metadata model */
 	public static OntModel sdmxModel = null;
 
+	/**
+	 * Reads the SIMS/SIMSFr in an Excel files and creates all the Jena models: concept schemes and MSD for both SIMSv2 and SIMSv2Fr.
+	 * 
+	 * @param args Not used.
+	 */
 	public static void main(String[] args) {
 
 		// Read the SDMX metadata model RDF vocabulary in the OntModel
 		logger.debug("About to read the SDMX metadata model RDF vocabulary");
 		sdmxModel = readSDMXModel(Configuration.SDMX_MM_TURTLE_FILE_NAME, true);
 
-		// Read the SIMS Excel file into a SIMSFRScheme object
-		SIMSFrScheme simsFRScheme = null;
+		// Read the SIMS Excel file into a SIMSFrScheme object
+		SIMSFrScheme simsFrScheme = null;
 		try {
-			simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+			simsFrScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 		} catch (Exception e) {
 			logger.fatal("Error reading SIMS Excel file " + Configuration.SIMS_XLSX_FILE_NAME + " - " + e.getMessage());
 			System.exit(1);
 		}
 
 		// Create the SKOS concept scheme for SIMSv2 (strict) with DQV dimensions and categories
-		Model simsSKOSModel = createConceptScheme(simsFRScheme, true, false, true);
+		Model simsSKOSModel = createConceptScheme(simsFrScheme, true, false, true);
 		try {
 			simsSKOSModel.write(new FileWriter(Configuration.SIMS_CS_TURTLE_FILE_NAME), "TTL");
 		} catch (IOException e) {
@@ -73,17 +78,18 @@ public class SIMSModelMaker {
 			System.exit(1);
 		}
 
-		// Create the SKOS concept scheme for SIMSv2FR with DQV dimensions and categories
-		simsSKOSModel = createConceptScheme(simsFRScheme, false, true, true);
+		// Create the SKOS concept scheme for SIMSv2Fr with DQV dimensions and categories
+		simsSKOSModel = createConceptScheme(simsFrScheme, false, true, true);
 		try {
 			simsSKOSModel.write(new FileWriter(Configuration.SIMS_FR_CS_TURTLE_FILE_NAME), "TTL");
 		} catch (IOException e) {
-			logger.fatal("Error writing the SIMSv2FR concept scheme Turtle file", e);
+			logger.fatal("Error writing the SIMSv2Fr concept scheme Turtle file", e);
 			System.exit(1);
 		}
+		simsSKOSModel.close();
 
 		// Create the SIMS MSD model for SIMSv2 (strict)
-		Model simsMSDModel = createMetadataStructureDefinition(simsFRScheme, true, false);
+		Model simsMSDModel = createMetadataStructureDefinition(simsFrScheme, true, false);
 		try {
 			simsMSDModel.write(new FileWriter(Configuration.SIMS_MSD_TURTLE_FILE_NAME), "TTL");
 		} catch (IOException e) {
@@ -91,14 +97,15 @@ public class SIMSModelMaker {
 			System.exit(1);
 		}
 
-		// Create the SIMS MSD model for SIMSv2FR
-		simsMSDModel = createMetadataStructureDefinition(simsFRScheme, false, true);
+		// Create the SIMS MSD model for SIMSv2Fr
+		simsMSDModel = createMetadataStructureDefinition(simsFrScheme, false, true);
 		try {
 			simsMSDModel.write(new FileWriter(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME), "TTL");
 		} catch (IOException e) {
-			logger.fatal("Error writing the SIMSv2FR MSD Turtle file", e);
+			logger.fatal("Error writing the SIMSv2Fr MSD Turtle file", e);
 			System.exit(1);
 		}
+		simsMSDModel.close();
 	}
 
 	/**
@@ -111,6 +118,7 @@ public class SIMSModelMaker {
 
 		OntModel sdmxMetadataModel = ModelFactory.createOntologyModel();
 		sdmxMetadataModel.read(turtleFileName);
+		logger.debug("SDMX metadata vocabulary read from file " + turtleFileName);
 		if (logDetails) {
 			List<OntClass> ontClasses = sdmxMetadataModel.listClasses().toList();
 			logger.info("Number of classes in the model: " + ontClasses.size());
@@ -132,61 +140,63 @@ public class SIMSModelMaker {
 	}
 
 	/**
-	 * Creates a Jena model containing the SKOS concept scheme associated to SIMSv2 or SIMSv2FR.
+	 * Creates a Jena model containing the SKOS concept scheme associated to SIMSv2 or SIMSv2Fr.
 	 * 
-	 * @param simsFR A <code>SIMSFRScheme</object> containing the SIMSv2FR model.
-	 * @param simsStrict A boolean indicating if the concept scheme generated is restricted to the SIMSv2 or extended to SIMSv2FR.
+	 * @param simsFr A <code>SIMSFrScheme</object> containing the SIMSv2Fr model.
+	 * @param simsStrict A boolean indicating if the concept scheme generated is restricted to the SIMSv2 or extended to SIMSv2Fr.
 	 * @param addFrench A boolean indicating if French labels and descriptions should be included.
 	 * @param createDQV A boolean indicating if Data Quality Vocabulary constructs should be added to the model.
 	 * @return A Jena <code>Model</code> containing the concept scheme.
 	 */
-	public static Model createConceptScheme(SIMSFrScheme simsFR, boolean simsStrict, boolean addFrench, boolean createDQV) {
+	public static Model createConceptScheme(SIMSFrScheme simsFr, boolean simsStrict, boolean addFrench, boolean createDQV) {
 
-		logger.info("About to create the concept scheme for the " + (simsStrict ? " SIMSv2" : "SIMSv2FR") + " model");
+		logger.info("About to create the concept scheme for the " + (simsStrict ? " SIMSv2" : "SIMSv2Fr") + " model");
 
-		Model skosCS = ModelFactory.createDefaultModel();
-		skosCS.setNsPrefix("skos", SKOS.getURI());
-		if (createDQV) skosCS.setNsPrefix("dqv", DQV.getURI());
+		Model skosCSModel = ModelFactory.createDefaultModel();
+		skosCSModel.setNsPrefix("skos", SKOS.getURI());
+		if (createDQV) skosCSModel.setNsPrefix("dqv", DQV.getURI());
 
-		// Creates the Concept Scheme
-		Resource simsv2 = skosCS.createResource(Configuration.simsConceptSchemeURI(simsStrict), SKOS.ConceptScheme);
-		simsv2.addProperty(SKOS.notation, "SIMSv2" + (simsStrict ? "" : "FR"));
-		simsv2.addProperty(SKOS.prefLabel, skosCS.createLiteral(Configuration.simsConceptSchemeName(simsStrict, false), "en"));
-		if (addFrench) simsv2.addProperty(SKOS.prefLabel, skosCS.createLiteral(Configuration.simsConceptSchemeName(simsStrict, true), "fr"));
+		// Create the Concept Scheme resource
+		Resource simsCS = skosCSModel.createResource(Configuration.simsConceptSchemeURI(simsStrict), SKOS.ConceptScheme);
+		simsCS.addProperty(SKOS.notation, "SIMSv2" + (simsStrict ? "" : "Fr"));
+		simsCS.addProperty(SKOS.prefLabel, skosCSModel.createLiteral(Configuration.simsConceptSchemeName(simsStrict, false), "en"));
+		if (addFrench) simsCS.addProperty(SKOS.prefLabel, skosCSModel.createLiteral(Configuration.simsConceptSchemeName(simsStrict, true), "fr"));
 
-		for (SIMSFrEntry entry : simsFR.getEntries()) {
+		for (SIMSFrEntry entry : simsFr.getEntries()) {
 
 			if (simsStrict && entry.getNotation().startsWith("I")) continue; // All strict SIMS entries have notations starting with 'S'
 			if (entry.getNotation().equals("I.1") || entry.getNotation().startsWith("I.1.")) continue; // Even in non-strict mode, entries in the 'Identity' section are direct properties on the operation rather than metadata attributes
 
-			logger.debug("Creating concept for entry " + entry.getNotation() + " (" + entry.getCode() + ")");
+			logger.debug("Creating SKOS concept for entry " + entry.getNotation() + " (" + entry.getCode() + ")");
 
-			Resource simsConcept = skosCS.createResource(Configuration.simsConceptURI(entry), SKOS.Concept);
+			Resource simsConcept = skosCSModel.createResource(Configuration.simsConceptURI(entry), SKOS.Concept);
 			simsConcept.addProperty(SKOS.notation, entry.getNotation());
-			simsConcept.addProperty(SKOS.prefLabel, skosCS.createLiteral(entry.getName(), "en"));
+			simsConcept.addProperty(SKOS.prefLabel, skosCSModel.createLiteral(entry.getName(), "en"));
 			if (addFrench) {
-				simsConcept.addProperty(SKOS.prefLabel, skosCS.createLiteral(entry.getFrenchName(), "fr"));				
+				simsConcept.addProperty(SKOS.prefLabel, skosCSModel.createLiteral(entry.getFrenchName(), "fr"));				
 			}
 			if (createDQV) {
 				if (entry.getType() == EntryType.CATEGORY) simsConcept.addProperty(RDF.type, DQV.Category); // Add type DQV category
 				if (entry.getType() == EntryType.DIMENSION) {
 					simsConcept.addProperty(RDF.type, DQV.Dimension); // Add type DQV dimension
 					// NB: only case of a 'I' category is I.20, but it has no dimensions
-					simsConcept.addProperty(DQV.inCategory, skosCS.createResource(Configuration.simsConceptURI(SIMSEntry.getCategoryNotation(entry.getNotation())))); // Add inCategory for dimensions
+					String categoryURI = Configuration.simsConceptURI(SIMSEntry.getCategoryNotation(entry.getNotation()));
+					simsConcept.addProperty(DQV.inCategory, skosCSModel.createResource(categoryURI)); // Add inCategory property from dimension to category
 				}
 			}
-			simsConcept.addProperty(SKOS.inScheme, simsv2);
-			SIMSFrEntry parent = simsFR.getParent(entry);
+			simsConcept.addProperty(SKOS.inScheme, simsCS);
+			SIMSFrEntry parent = simsFr.getParent(entry);
 			if (parent == null) {
-				simsv2.addProperty(SKOS.hasTopConcept, simsConcept);
-				simsConcept.addProperty(SKOS.topConceptOf, simsv2);
+				simsCS.addProperty(SKOS.hasTopConcept, simsConcept);
+				simsConcept.addProperty(SKOS.topConceptOf, simsCS);
 			} else {
-				Resource parentConcept = skosCS.createResource(Configuration.simsConceptURI(parent));
+				Resource parentConcept = skosCSModel.createResource(Configuration.simsConceptURI(parent));
 				simsConcept.addProperty(SKOS.broader, parentConcept);
 				parentConcept.addProperty(SKOS.narrower, simsConcept);
 			}
 		}
-		return skosCS;
+		logger.debug("Model correctly created");
+		return skosCSModel;
 	}
 
 	/**

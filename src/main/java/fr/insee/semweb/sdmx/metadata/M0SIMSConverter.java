@@ -9,11 +9,12 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 import org.apache.jena.datatypes.xsd.XSDDatatype;
+import org.apache.jena.ontology.OntModel;
+import org.apache.jena.ontology.OntProperty;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
@@ -37,7 +38,7 @@ public class M0SIMSConverter extends M0Converter {
 	public static String M0_DOCUMENTATION_BASE_URI = "http://baseUri/documentations/documentation/";
 
 	/** The SIMS-FR metadata structure definition */
-	protected static Model simsFrMSD = null;
+	protected static OntModel simsFrMSD = null;
 	/** The SIMS-FR scheme */
 	protected static SIMSFrScheme simsFRScheme = null;
 
@@ -53,7 +54,7 @@ public class M0SIMSConverter extends M0Converter {
 		// We will need the documentation model, the SIMSFr scheme and the SIMSFr MSD
 		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0DocumentationModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
-		simsFrMSD = ModelFactory.createOntologyModel().read(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME);
+		simsFrMSD = (OntModel) ModelFactory.createOntologyModel().read(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME);
 		simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 
 		// If parameter was null, get the list of all existing M0 'documentation' models
@@ -92,8 +93,8 @@ public class M0SIMSConverter extends M0Converter {
 	public static Model m0ConvertToSIMS(Model m0Model) {
 	
 		// Retrieve base URI (the base resource is a skos:Concept) and the corresponding M0 identifier
-		Resource baseResource = m0Model.listStatements(null, RDF.type, SKOS.Concept).toList().get(0).getSubject(); // Should raise an exception in case of problem
-		String m0Id = baseResource.getURI().substring(baseResource.getURI().lastIndexOf('/') + 1);
+		Resource m0BaseResource = m0Model.listStatements(null, RDF.type, SKOS.Concept).toList().get(0).getSubject(); // Should raise an exception in case of problem
+		String m0Id = m0BaseResource.getURI().substring(m0BaseResource.getURI().lastIndexOf('/') + 1);
 	
 		// Will be handy for parsing dates
 		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
@@ -108,62 +109,75 @@ public class M0SIMSConverter extends M0Converter {
 		simsModel.setNsPrefix("skos", SKOS.getURI());
 		simsModel.setNsPrefix("insee", Configuration.BASE_INSEE_ONTO_URI);
 	
-		// Create metadata report
-		Resource report = simsModel.createResource(REPORT_BASE_URI + m0Id, simsModel.createResource(Configuration.SDMX_MM_BASE_URI + "MetadataReport"));
+		// Create the metadata report
+		Resource report = simsModel.createResource(Configuration.simsReportURI(m0Id), simsModel.createResource(Configuration.SDMX_MM_BASE_URI + "MetadataReport"));
 		report.addProperty(RDFS.label, simsModel.createLiteral("Metadata report " + m0Id, "en"));
 		report.addProperty(RDFS.label, simsModel.createLiteral("Rapport de métadonnées " + m0Id, "fr"));
+		logger.debug("MetadataReport resource created for report: " + report.getURI());
 		// TODO Do we create a root Metadata Attribute?
-	
+
 		for (SIMSFrEntry entry : simsFRScheme.getEntries()) {
-			// Create a m0 resource corresponding to the SIMS entry
-			Resource m0Resource = ResourceFactory.createResource(baseResource.getURI() + "/" + entry.getCode());
+			// Create a m0 resource corresponding to the SIMSFr entry
+			Resource m0EntryResource = ResourceFactory.createResource(m0BaseResource.getURI() + "/" + entry.getCode());
+			logger.debug("Looking for the presence of SIMS attribute " + entry.getCode() + " (M0 URI: " + m0EntryResource + ")");
 			// Check if the resource has values in M0 (French values are sine qua non)
-			List<RDFNode> objectValues = m0Model.listObjectsOfProperty(m0Resource, M0_VALUES).toList();
-			if (objectValues.size() == 0) continue; // Resource actually not present in the M0 model
+			List<RDFNode> objectValues = m0Model.listObjectsOfProperty(m0EntryResource, M0_VALUES).toList();
+			if (objectValues.size() == 0) {
+				logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());
+				continue;
+			}
 			if (objectValues.size() > 1) {
 				// Several values for the resource, we have a problem
-				logger.error("Multiple values for resource " + m0Resource);
+				logger.error("Error: there are multiple values in the M0 documentation model for SIMSFr attribute " + entry.getCode());
 				continue;
 			}
 			// If we arrived here, we have one value, but it can be empty (including numerous cases where the value is just new line characters)
 			String stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", ""); // TODO Check cases where value is "\n\n"
-			if (stringValue.length() == 0) continue;
-			logger.debug("Value found for M0 resource " + m0Resource);
+			if (stringValue.length() == 0) {
+				logger.debug("Empty value found in the M0 documentation model for SIMSFr attribute " + entry.getCode() + ", ignoring");
+				continue;
+			}
+			logger.debug("Non-empty value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());
 			// Get the metadata attribute property from the MSD and get its range
-			Property metadataAttributeProperty = simsFrMSD.getProperty(Configuration.simsAttributePropertyURI(entry, false));
+			String propertyURI = Configuration.simsAttributePropertyURI(entry, false);
+			OntProperty metadataAttributeProperty = simsFrMSD.getOntProperty(propertyURI);
+			if (metadataAttributeProperty == null) { // This should not happen
+				logger.error("Error: property " + propertyURI + " not found in the SIMSFr MSD");
+				continue;
+			}
 			Statement rangeStatement = metadataAttributeProperty.getProperty(RDFS.range);
-			Resource range = (rangeStatement == null) ? null : rangeStatement.getObject().asResource();
-			logger.debug("Target property is " + metadataAttributeProperty + " with range " + range);
-			if (range == null) {
+			Resource propertyRange = (rangeStatement == null) ? null : rangeStatement.getObject().asResource();
+			logger.debug("Target property is " + metadataAttributeProperty + " with range " + propertyRange);
+			if (propertyRange == null) {
 				// We are in the case of a 'text + seeAlso' object
 				Resource objectResource = simsModel.createResource(); // Anonymous for now
 				objectResource.addProperty(RDF.value, simsModel.createLiteral(stringValue, "fr"));
 				report.addProperty(metadataAttributeProperty, objectResource);
 			}
-			else if (range.equals(SIMS_REPORTED_ATTRIBUTE)) {
+			else if (propertyRange.equals(SIMS_REPORTED_ATTRIBUTE)) {
 				// Just a placeholder for now, the case does not seem to exist in currently available data
 				report.addProperty(metadataAttributeProperty, simsModel.createResource(SIMS_REPORTED_ATTRIBUTE));
 			}
-			else if (range.equals(XSD.xstring)) {
+			else if (propertyRange.equals(XSD.xstring)) {
 				// TODO For now we attach all properties to the report, but a hierarchy of reported attributes should be created
 				report.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "fr"));
 				// See if there is an English version
-				objectValues = m0Model.listObjectsOfProperty(m0Resource, M0_VALUES_EN).toList();
+				objectValues = m0Model.listObjectsOfProperty(m0EntryResource, M0_VALUES_EN).toList();
 				if (objectValues.size() == 0) {
 					stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", "");
 					if (stringValue.length() > 0) report.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "en"));
 				}
 			}
-			else if (range.equals(XSD.date)) {
+			else if (propertyRange.equals(XSD.date)) {
 				// Try to parse the string value as a date (yyyy-MM-dd seems to be used in the documentations graph)
 				try {
 					dateFormat.parse(stringValue); // Just to make sure we have a valid date
 					report.addProperty(metadataAttributeProperty, simsModel.createTypedLiteral(stringValue, XSDDatatype.XSDdate));
 				} catch (ParseException e) {
-					logger.error("Unparseable date value " + stringValue + " for M0 resource " + m0Resource.getURI());
+					logger.error("Unparseable date value " + stringValue + " for M0 resource " + m0EntryResource.getURI());
 				}
 			}
-			else if (range.equals(DQV_QUALITY_MEASUREMENT)) {
+			else if (propertyRange.equals(DQV_QUALITY_MEASUREMENT)) {
 				// This case should not exist
 			}
 			else {

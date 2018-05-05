@@ -123,7 +123,7 @@ public class SIMSFrScheme {
 	}
 
 	/**
-	 * Returns a string representation of the SIMSFr entry.
+	 * Returns a string representation of the SIMSFr scheme.
 	 */
 	public String toString() {
 		StringBuilder builder = new StringBuilder();

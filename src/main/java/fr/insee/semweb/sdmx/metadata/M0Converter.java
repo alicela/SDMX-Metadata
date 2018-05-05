@@ -51,9 +51,6 @@ public class M0Converter {
 	/** Base URI for SIMS-related resources in M0 */
 	static String M0_SIMS_BASE_URI = "http://baseUri/documentations/documentation/";
 
-	/** Base URI for SIMS metadata reports */
-	protected static String REPORT_BASE_URI = "http://id.insee.fr/qualite/rapport/"; // TODO Move to configuration eventually
-
 	/** The ubiquitous 'values' property in M0 */
 	protected static Property M0_VALUES = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#values");
 	/** The ubiquitous 'values' property in M0, English version */

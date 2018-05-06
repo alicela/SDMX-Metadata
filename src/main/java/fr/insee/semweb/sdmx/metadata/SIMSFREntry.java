@@ -1,7 +1,14 @@
 package fr.insee.semweb.sdmx.metadata;
 
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.vocabulary.ORG;
+import org.apache.jena.vocabulary.RDFS;
+import org.apache.jena.vocabulary.XSD;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
+
+import fr.insee.stamina.utils.DQV;
 
 /**
  * Represents an entry in the SIMSFr structure.
@@ -127,6 +134,64 @@ public class SIMSFrEntry extends SIMSEntry {
 
 		// What is typed 'Quality indicator' in the SIMSFr is what is actually called Metric in DQV
 		return (this.type == EntryType.METRIC);
+	}
+
+	/**
+	 * Determines the range of the metadata attribute property corresponding to the entry, based on the information on the representation of its values.
+	 * 
+	 * @param simsStrict A boolean indicating if the context is restricted to the SIMS or extended to SIMSFr.
+	 * @return The range of the property represented as a (non-null) Jena <code>Resource</code>.
+	 */
+	public Resource getRange(boolean simsStrict) {
+
+		Resource range = null;
+
+		// For presentational properties, so the metadata attribute property will have ReportedAttribute for range (valid both strict and not strict)
+		if (this.isPresentational()) return ResourceFactory.createResource(Configuration.SDMX_MM_BASE_URI + "ReportedAttribute");
+
+		// In the strict SIMS model, the only possible (non-null) types are Text (with variants Telephone, etc.), Date, Quality Indicator and code list (CL_...)
+		String type = this.getRepresentation();
+		if (type != null) { // type can be null for attributes added in SIMSFr
+			type = type.trim().toLowerCase();
+			if (type.equals("date")) range = XSD.date;
+			else if (type.startsWith("quality")) range = DQV.Metric; // But we don't create attribute properties for quality indicators
+			else if (type.contains("code")) {
+				// Extract SDMX code list name (pattern is '(code list: CL_FREQ)')
+				String clConceptNotation = type.substring(type.indexOf("cl_"), type.lastIndexOf(")"));
+				range = ResourceFactory.createResource(Configuration.sdmxCodeConceptURI(clConceptNotation));
+			}
+			// All that is left is text and variants like fax, telephone or e-mail
+			else range = XSD.xstring;
+		}
+		// When in strict SIMS mode, we stop here
+		if (simsStrict) return range;
+
+		// In SIMSFr mode, we have to look at the Insee representation if it exists, but this field is not well normalized (see SIMSFrSchemeTest test class for listing the values)
+		type = this.getInseeRepresentation().trim().toLowerCase();
+
+		// All that starts with 'text' or 'expression' (for 'expression régulière') is treated as string datatype property
+		if (type.startsWith("text") || type.startsWith("expression")) return XSD.xstring;
+		// 'Rich text' alone (without reference) is also string for now (could be HTLM text)
+		if (type.equals("rich text")) return XSD.xstring;
+		// The other cases of 'rich text' ('Rich text + other material...') are associated with references: we simply return RDF resource in this case
+		if (type.startsWith("rich text")) return RDFS.Resource;
+		// If representation starts with 'code list', either the list is indicated with CL_*, or it is the list of SSMs
+		// FIXME There are also cases where the representation contains only the code list name (CL_FREQ_FR, CL_COLLECTION_MODE)
+		else if ((type.startsWith("code list")) || (type.startsWith("cl_"))) {
+			int index = type.indexOf("cl_");
+			if (index >= 0) {
+				// Extract the name of the code list (can be followed by space or new line)
+				int firstSpace = type.indexOf("\n", index);
+				if (firstSpace == -1) firstSpace = type.indexOf(" ", index);
+				String clConceptNotation = (firstSpace < 0) ? type.substring(index) : type.substring(index, firstSpace);
+				return ResourceFactory.createResource(Configuration.codeConceptURI(clConceptNotation));
+			} else {
+				// Code list is in fact a list of organizations, so the property range will be org:Organization
+				return ORG.Organization;
+			}
+		}
+		// All cases should be covered at this point
+		return null;
 	}
 
 	// Getters and setters

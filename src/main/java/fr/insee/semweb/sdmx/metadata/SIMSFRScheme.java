@@ -13,6 +13,11 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
+/**
+ * The <code>SIMSFrScheme</code> class represents the structure of the SIMSv2Fr standard.
+ * 
+ * @author Franck Cotton
+ */
 public class SIMSFrScheme {
 
 	private String name = null;
@@ -139,23 +144,22 @@ public class SIMSFrScheme {
 					builder.append("SIMS original attribute, unchanged in SIMSFr\n");
 					builder.append("Associated metadata attribute specification: ").append(Configuration.simsAttributeSpecificationURI(entry, true)).append("\n");
 					builder.append("Associated metadata attribute property: ").append(Configuration.simsAttributePropertyURI(entry, true));
-					builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, true)).append(")\n");
+					builder.append(" (range: ").append(entry.getRange(true)).append(")\n");
 				} else { // entry modified in SIMSFr
 					builder.append("SIMS original attribute, modified in SIMSFr\n");
 					builder.append("Associated metadata attribute specification (SIMS): ").append(Configuration.simsAttributeSpecificationURI(entry, true)).append("\n");
 					builder.append("Associated metadata attribute property (SIMS): ").append(Configuration.simsAttributePropertyURI(entry, true));
-					builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, true)).append(")\n");
+					builder.append(" (range: ").append(entry.getRange(true)).append(")\n");
 					builder.append("Associated metadata attribute specification (SIMSFr): ").append(Configuration.simsAttributeSpecificationURI(entry, false)).append("\n");
 					builder.append("Associated metadata attribute property (SIMSFr): ").append(Configuration.simsAttributePropertyURI(entry, false));
-					builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, false)).append(")\n");
+					builder.append(" (range: ").append(entry.getRange(true)).append(")\n");
 				}
 			} else { // Property added in SIMSFr
 				builder.append("Attribute added in SIMSFr\n");
 				builder.append("Associated metadata attribute specification: ").append(Configuration.simsAttributeSpecificationURI(entry, false)).append("\n");
 				builder.append("Associated metadata attribute property: ").append(Configuration.simsAttributePropertyURI(entry, false));
-				builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, false)).append(")\n");					
+				builder.append(" (range: ").append(entry.getRange(true)).append(")\n");					
 			}
-
 		}
 		return builder.toString();
 	}

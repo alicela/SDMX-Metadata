@@ -12,9 +12,7 @@ import org.apache.jena.ontology.OntModel;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.vocabulary.DCTerms;
-import org.apache.jena.vocabulary.ORG;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
@@ -215,13 +213,13 @@ public class SIMSModelMaker {
 	 * Creates the Metadata Structure Definition associated to the SIMS in a Jena model.
 	 * 
 	 * @param sims A <code>SIMSScheme</object> containing the SIMS model.
-	 * @param simsStrict A boolean indicating if the MSD generated is restricted to the SIMS or extended to SIMSPlus.
+	 * @param simsStrict A boolean indicating if the MSD generated is restricted to the SIMS or extended to SIMSFr.
 	 * @param addFrench A boolean indicating if French labels and descriptions should be included.
 	 * @return A Jena <code>Model</code> containing the metadata structure definition.
 	 */
 	public static Model createMetadataStructureDefinition(SIMSFrScheme sims, boolean simsStrict, boolean addFrench) {
 
-		logger.info("About to create the model for the " + (simsStrict ? " SIMS" : "SIMSPlus") + " Metadata Structure Definition");
+		logger.info("About to create the model for the " + (simsStrict ? " SIMS" : "SIMSFr") + " Metadata Structure Definition");
 
 		Model msdModel = ModelFactory.createDefaultModel();
 		msdModel.setNsPrefix("rdfs", RDFS.getURI());
@@ -246,8 +244,8 @@ public class SIMSModelMaker {
 		for (SIMSFrEntry entry : sims.getEntries()) {
 
 			if (simsStrict && entry.getNotation().startsWith("I")) continue; // All strict SIMS entries have notations starting with 'S'
-
-			if (entry.getNotation().equals("I.1") || entry.getNotation().startsWith("I.1.")) continue; // Even in non-strict mode, entries in the 'Identity' section are direct properties on the operation rather than metadata attributes
+			if (entry.isDirect()) continue; // Even in non-strict mode, entries in the 'Identity' section are direct properties on the operation rather than metadata attributes
+			if (entry.isQualityMetric()) continue; // We don't create metadata attributes for quality metrics/indicators
 
 			logger.debug("Processing metadata attribute " + entry.getNotation() + " (" + entry.getCode() + ")");
 
@@ -262,81 +260,20 @@ public class SIMSModelMaker {
 			}
 			reportStructure.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "metadataAttributeSpecification"), attributeSpec);
 			Resource attributeProperty = msdModel.createResource(Configuration.simsAttributePropertyURI(entry, simsStrict), sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "MetadataAttributeProperty"));
-			// The type of the property depends on the values of the representation variables (SIMS and Insee)
-			Resource propertyRange = getRange(entry, simsStrict);
-			logger.debug("Created MetadataAttributeProperty " + attributeProperty.getURI() + " with range " + propertyRange.getLocalName());
-			if (propertyRange.equals(XSD.xstring) || propertyRange.equals(XSD.date)) attributeProperty.addProperty(RDF.type, OWL.DatatypeProperty);
-			else attributeProperty.addProperty(RDF.type, OWL.ObjectProperty);
 			attributeProperty.addProperty(RDFS.label, msdModel.createLiteral("Metadata Attribute Property for concept " + entry.getName(), "en"));
 			attributeProperty.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "concept"), msdModel.createResource(Configuration.simsConceptURI(entry)));
 			attributeProperty.addProperty(RDFS.domain, sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "ReportedAttribute"));
-			if (!propertyRange.equals(RDFS.Resource)) attributeProperty.addProperty(RDFS.range, propertyRange);
 			attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "metadataAttributeProperty"), attributeProperty);
+			// The type of the property depends on the values of the representation variables (SIMS and Insee)
+			Resource propertyRange = entry.getRange(simsStrict);
+			if (propertyRange == null) logger.error("Range undertermined for SIMSEntry " + entry.getNotation());
+			else {
+				if (propertyRange.equals(XSD.xstring) || propertyRange.equals(XSD.date)) attributeProperty.addProperty(RDF.type, OWL.DatatypeProperty);
+				else attributeProperty.addProperty(RDF.type, OWL.ObjectProperty);				
+				if (!propertyRange.equals(RDFS.Resource)) attributeProperty.addProperty(RDFS.range, propertyRange);
+			}
+			logger.debug("Created MetadataAttributeProperty " + attributeProperty.getURI() + " with range " + propertyRange.getLocalName());
 		}
 		return msdModel;
-	}
-
-	/**
-	 * Determines the range of an metadata attribute property based on the information on the representation of its values.
-	 * 
-	 * @param entry A <code>SIMSFrEntry</code> corresponding to the metadata attribute.
-	 * @param simsStrict A boolean indicating if the context is restricted to the SIMS or extended to SIMSFr.
-	 * @return The range of the property represented as a (non-null) Jena <code>Resource</code>.
-	 */
-	public static Resource getRange(SIMSFrEntry entry, boolean simsStrict) {
-
-		Resource range = null;
-
-		// In the strict SIMS model, the only possible (non-null) types are Text (with variants Telephone, etc.), Date, Quality Indicator and code list (CL_...)
-		// If the SIMS type is null, it means that the property is presentational, so the metadata attribute property will have ReportedAttribute for range
-		String type = entry.getRepresentation();
-		if ((type == null) || (type.trim().length() == 0)) range = ResourceFactory.createResource(Configuration.SDMX_MM_BASE_URI + "ReportedAttribute");
-		else {
-			type = type.trim().toLowerCase();
-			if (type.equals("date")) range = XSD.date;
-			else if (type.startsWith("quality")) range = DQV.Metric; // TODO We should actually not create attribute properties for quality indicators
-			else if (type.contains("code")) {
-				// Extract SDMX code list name (pattern is '(code list: CL_FREQ)')
-				String clConceptNotation = type.substring(type.indexOf("cl_"), type.lastIndexOf(")"));
-				range = ResourceFactory.createResource(Configuration.sdmxCodeConceptURI(clConceptNotation));
-			}
-			// All that is left is text and variants like fax, telephone or e-mail
-			else range = XSD.xstring;
-		}
-
-		// When in strict SIMS mode, we stop here
-		if (simsStrict) return range;
-
-		// In SIMSFr mode, we have to look at the Insee representation if it exists
-		// We ignore for now 'ou texte' mentions
-		type = entry.getInseeRepresentation();
-		if ((type == null) || (type.equals("ou texte"))) return range;
-
-		type = type.trim().toLowerCase();
-		// All that starts with 'text' or 'expression' (for 'expression régulière) is treated as string datatype property
-		if (type.startsWith("text") || type.startsWith("expression")) return XSD.xstring;
-		// 'Rich text' alone (without reference) is also string for now (could be HTLM text)
-		if (type.equals("rich text")) return XSD.xstring;
-		// The other cases of 'rich text' ('Rich text + other material...') are associated with references: we simply return RDF resource in this case
-		if (type.startsWith("rich text")) return RDFS.Resource;
-		// If representation starts with 'code list', either the list is indicated with CL_*, or it is the list of SSMs
-		else if (type.startsWith("code list")) {
-			int index = type.indexOf("cl_");
-			if (index >= 0) {
-				// Extract the name of the code list (can be followed by space or new line)
-				int firstSpace = type.indexOf("\n", index);
-				if (firstSpace == -1) firstSpace = type.indexOf(" ", index);
-				String clConceptNotation = (firstSpace < 0) ? type.substring(index) : type.substring(index, firstSpace);
-				return ResourceFactory.createResource(Configuration.codeConceptURI(clConceptNotation));
-			} else {
-				// Code list is in fact a list of organizations, so the property range will be org:Organization
-				return ORG.Organization;
-			}
-		}
-		// Third and last possible type: text + reference, we simply return RDF resource in this case
-		else {
-			// Catch-all case
-			return RDFS.Resource;
-		}
 	}
 }

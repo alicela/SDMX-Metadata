@@ -11,7 +11,7 @@ import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
 public class SIMSFrEntry extends SIMSEntry {
 
 	private String title; // TODO This variable should be named otherwise
-	private String metric;
+	private String metric; // Unfortunate naming here also, this is more the type of the metric (indicator)
 	private String frenchName;
 	private String frenchDescription;
 	private String origin;
@@ -21,6 +21,12 @@ public class SIMSFrEntry extends SIMSEntry {
 		super(notation);
 	}
 
+	/**
+	 * Reads a SIMSFr entry from a row in the base Excel spreadsheet.
+	 * 
+	 * @param row The row (POI user model object) storing the characteristics of the entry.
+	 * @return The SIMSFr entry read.
+	 */
 	public static SIMSFrEntry readFromRow(Row row) {
 
 		SIMSEntry baseEntry = SIMSEntry.readFromRow(row, true);
@@ -33,7 +39,7 @@ public class SIMSFrEntry extends SIMSEntry {
 		entry.setTitle(cellValue);
 
 		// Metric is in column D, often empty
-		cellValue = row.getCell(3, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
+		cellValue = row.getCell(3, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim().replace("\n", " ");
 		if (cellValue.length() > 0) entry.setMetric(cellValue);
 
 		// French concept name is in column H, never empty
@@ -87,7 +93,7 @@ public class SIMSFrEntry extends SIMSEntry {
 	}
 
 	/**
-	 * Indicates if the entry is added in SIMS Plus or if its representation is modified (compared to the original SIMS v2).
+	 * Indicates if the entry is added in SIMSFr or if its representation is modified (compared to the original SIMS v2).
 	 * 
 	 * @return <code>true</code> if the entry belongs to the original SIMS v2, <code>false</code> otherwise.
 	 */
@@ -110,6 +116,17 @@ public class SIMSFrEntry extends SIMSEntry {
 		// Presentational original attributes have no representation, and no Insee representation for added attributes
 		// There is no case of presentational attribute in SIMS given which is given a Insee representation
 		return (this.isOriginal() ? (this.representation == null) : (this.inseeRepresentation == null));
+	}
+
+	/**
+	 * Indicates if the entry is a quality metric as defined in DQV.
+	 * 
+	 * @return <code>true</code> if the entry is a metric, <code>false</code> otherwise.
+	 */
+	public boolean isQualityMetric() {
+
+		// What is typed 'Quality indicator' in the SIMSFr is what is actually called Metric in DQV
+		return (this.representation != null) && (this.representation.toLowerCase().startsWith("quality"));
 	}
 
 	// Getters and setters
@@ -161,4 +178,3 @@ public class SIMSFrEntry extends SIMSEntry {
 		this.inseeRepresentation = inseeRepresentation;
 	}
 }
-

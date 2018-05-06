@@ -25,38 +25,38 @@ public class SIMSEntry {
 	 * Creates a <code>SIMSEntry</code> from a spreadsheet row.
 	 * 
 	 * @param row A SIMS spreadsheet row as a <code>Row</code> object.
-	 * @param fromPlus Indicates if the row is in SIMS Plus format or just SIMS format.
+	 * @param fromFr Indicates if the row is in SIMSFr format or just SIMS format.
 	 * @return A <code>SIMSEntry</code> with values read in the row.
 	 */
-	public static SIMSEntry readFromRow(Row row, boolean fromPlus) {
+	public static SIMSEntry readFromRow(Row row, boolean fromFr) {
 
-		int[] indexes = (fromPlus ? Configuration.SIMS_COLUMNS_SIMS_FR : Configuration.SIMS_COLUMNS_SIMS);
+		int[] indexes = (fromFr ? Configuration.SIMS_COLUMNS_SIMS_FR : Configuration.SIMS_COLUMNS_SIMS);
 
 		String notationAndName = row.getCell(indexes[0], MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
 		if (notationAndName.length() == 0) return null; // Avoids a trailing empty line in the "Plus" format
 		String notation = notationAndName.split(" ")[0];
-		SIMSEntry entry = (fromPlus ? new SIMSFrEntry(notation) : new SIMSEntry(notation));
+		SIMSEntry entry = (fromFr ? new SIMSFrEntry(notation) : new SIMSEntry(notation));
 		// Concepts with only one '.' in their notation code are DQV categories
 		entry.setType((notation.split("\\.").length == 2) ? EntryType.CATEGORY : EntryType.DIMENSION);
 
-		// Concept name is in column B (Plus: F), never empty
+		// Concept name is in column B (SIMSFr: F), never empty
 		String cellValue = row.getCell(indexes[1], MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
 		entry.setName(cellValue);
 
-		// Concept code is in column C (Plus: E), never empty
+		// Concept code is in column C (SIMSFr: E), never empty
 		cellValue = row.getCell(indexes[2], MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
 		entry.setCode(cellValue);
 
-		// Description is in column D (Plus: G), can be empty (only case S.3)
+		// Description is in column D (SIMSFr: G), can be empty (only case S.3)
 		cellValue = row.getCell(indexes[3], MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
 		if (cellValue.length() > 0) entry.setDescription(cellValue);
 
-		// Representation is in column E (Plus: J), can be empty
+		// Representation is in column E (SIMSFr: J), can be empty
 		cellValue = row.getCell(indexes[4], MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
 		if (cellValue.length() > 0) entry.setRepresentation(cellValue);
 
 		// The next attributes are only available in the base format
-		if (!fromPlus) {
+		if (!fromFr) {
 			cellValue = row.getCell(5, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
 			if (cellValue.length() > 0) entry.setGuidelines(cellValue); // Guidelines are in column F, can be empty
 			cellValue = row.getCell(6, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();

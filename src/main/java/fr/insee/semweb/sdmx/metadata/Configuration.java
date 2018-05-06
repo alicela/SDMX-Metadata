@@ -23,8 +23,8 @@ import eu.casd.semweb.psp.PSPOperationEntry;
 public class Configuration {
 
 	// Input files
-	/** Excel file containing the SIMS/SIMSFR models */
-	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V201803.xlsx";
+	/** Excel file containing the SIMS/SIMSFr models */
+	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V201804.xlsx";
 	/** Excel file containing the code lists */
 	public static String CL_XLSX_FILE_NAME = "src/main/resources/data/CODE_LISTS_20180110.xlsx";
 	/** Excel file containing the themes code list */
@@ -41,13 +41,13 @@ public class Configuration {
 	// Output files
 	/** Concepts and concept schemes associated to the SIMS attributes */
 	public static String SIMS_CS_TURTLE_FILE_NAME = "src/main/resources/data/sims-cs.ttl";
-	/** Concepts and concept schemes associated to the SIMSFR attributes */
+	/** Concepts and concept schemes associated to the SIMSFr attributes */
 	public static String SIMS_FR_CS_TURTLE_FILE_NAME = "src/main/resources/data/sims-fr-cs.ttl";
 	/** SIMS metadata structure definition and related resources */
 	public static String SIMS_MSD_TURTLE_FILE_NAME = "src/main/resources/data/sims-msd.ttl";
 	/** SIMS-FR metadata structure definition and related resources */
 	public static String SIMS_FR_MSD_TURTLE_FILE_NAME = "src/main/resources/data/sims-fr-msd.ttl";
-	/** SIMSFR code lists */
+	/** SIMSFr code lists */
 	public static String SIMS_CL_TURTLE_FILE_NAME = "src/main/resources/data/sims-cl.ttl";
 	/** Concepts and concept schemes for the categorization of the operations and products */
 	public static String THEMES_TURTLE_FILE_NAME = "src/main/resources/data/themes.ttl";
@@ -75,7 +75,7 @@ public class Configuration {
 	public static String INSEE_CODES_BASE_URI = "http://id.insee.fr/codes/";
 	/** Base URI for organizations */
 	public static String INSEE_ORG_BASE_URI = "http://id.insee.fr/organisations/";
-	// Numbers of the columns where the SIMS information is stored in SIMS and SIMSFR Excel formats
+	// Numbers of the columns where the SIMS information is stored in SIMS and SIMSFr Excel formats
 	// Notation and name, Concept name, Concept code, Description, Representation, ESS guidelines, Quality indicators
 	public static int[] SIMS_COLUMNS_SIMS = {0, 1, 2, 3, 4, 5, 6};
 	public static int[] SIMS_COLUMNS_SIMS_FR = {1, 5, 4, 6, 9, -1, -1};
@@ -224,7 +224,7 @@ public class Configuration {
 		return BASE_SIMS_URI + "concept/" + notation;
 	}
 
-	/** URI of a SIMSv2/SIMSv2FR represented by a SIMSFREntry */
+	/** URI of a SIMSv2/SIMSv2Fr represented by a SIMSFrEntry */
 	public static String simsConceptURI(SIMSFrEntry entry) {
 		if (entry.isOriginal()) return simsConceptURI(entry.getNotation());
 		return "http://id.insee.fr/concepts/simsv2fr/" + entry.getNotation();

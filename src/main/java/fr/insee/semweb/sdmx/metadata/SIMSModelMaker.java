@@ -241,26 +241,23 @@ public class SIMSModelMaker {
 			Resource attributeProperty = msdModel.createResource(Configuration.simsAttributePropertyURI(entry, simsStrict), sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "MetadataAttributeProperty"));
 			// The type of the property depends on the values of the representation variables (SIMS and Insee)
 			Resource propertyRange = getRange(entry, simsStrict);
-			logger.debug("MetadataAttributeProperty range is " + propertyRange.getLocalName());
+			logger.debug("Created MetadataAttributeProperty " + attributeProperty.getURI() + " with range " + propertyRange.getLocalName());
 			if (propertyRange.equals(XSD.xstring) || propertyRange.equals(XSD.date)) attributeProperty.addProperty(RDF.type, OWL.DatatypeProperty);
 			else attributeProperty.addProperty(RDF.type, OWL.ObjectProperty);
 			attributeProperty.addProperty(RDFS.label, msdModel.createLiteral("Metadata Attribute Property for concept " + entry.getName(), "en"));
 			attributeProperty.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "concept"), msdModel.createResource(Configuration.simsConceptURI(entry)));
 			attributeProperty.addProperty(RDFS.domain, sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "ReportedAttribute"));
 			if (!propertyRange.equals(RDFS.Resource)) attributeProperty.addProperty(RDFS.range, propertyRange);
-			// TODO Add isDefinedBy?
-			// attributeProperty.addProperty(RDFS.isDefinedBy, msd);
 			attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "metadataAttributeProperty"), attributeProperty);
 		}
-
 		return msdModel;
 	}
 
 	/**
 	 * Determines the range of an metadata attribute property based on the information on the representation of its values.
 	 * 
-	 * @param entry A <code>SIMSPlusEntry</code> corresponding to the metadata attribute.
-	 * @param simsStrict A boolean indicating if the context is restricted to the SIMS or extended to SIMSPlus.
+	 * @param entry A <code>SIMSFrEntry</code> corresponding to the metadata attribute.
+	 * @param simsStrict A boolean indicating if the context is restricted to the SIMS or extended to SIMSFr.
 	 * @return The range of the property represented as a (non-null) Jena <code>Resource</code>.
 	 */
 	public static Resource getRange(SIMSFrEntry entry, boolean simsStrict) {
@@ -274,7 +271,7 @@ public class SIMSModelMaker {
 		else {
 			type = type.trim().toLowerCase();
 			if (type.equals("date")) range = XSD.date;
-			else if (type.startsWith("quality")) range = DQV.QualityMeasurement; // TODO Or is it Metric?
+			else if (type.startsWith("quality")) range = DQV.Metric; // TODO We should actually not create attribute properties for quality indicators
 			else if (type.contains("code")) {
 				// Extract SDMX code list name (pattern is '(code list: CL_FREQ)')
 				String clConceptNotation = type.substring(type.indexOf("cl_"), type.lastIndexOf(")"));
@@ -287,7 +284,7 @@ public class SIMSModelMaker {
 		// When in strict SIMS mode, we stop here
 		if (simsStrict) return range;
 
-		// In SIMSPlus mode, we have to look at the Insee representation if it exists
+		// In SIMSFr mode, we have to look at the Insee representation if it exists
 		// We ignore for now 'ou texte' mentions
 		type = entry.getInseeRepresentation();
 		if ((type == null) || (type.equals("ou texte"))) return range;

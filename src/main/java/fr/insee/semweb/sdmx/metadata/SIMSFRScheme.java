@@ -136,29 +136,38 @@ public class SIMSFrScheme {
 				// Direct property, not part of metadata report
 				if (entry.isPresentational()) builder.append("No associated RDF property, identity attribute is presentational\n");
 				else builder.append("Direct RDF property: ").append(Configuration.propertyMappings.get(entry.getCode()).getURI()).append("\n");
-			} else {
-				if (entry.isOriginal()) { // SIMS entry
-					if (!entry.isAddedOrModified()) { // entry not modified in SIMSFr
-						builder.append("SIMS original attribute, unchanged in SIMSFr\n");
-						builder.append("Associated metadata attribute specification: ").append(Configuration.simsAttributeSpecificationURI(entry, true)).append("\n");
-						builder.append("Associated metadata attribute property: ").append(Configuration.simsAttributePropertyURI(entry, true));
-						builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, true)).append(")\n");
-					} else { // entry modified in SIMSFr
-						builder.append("SIMS original attribute, modified in SIMSFr\n");
-						builder.append("Associated metadata attribute specification (SIMS): ").append(Configuration.simsAttributeSpecificationURI(entry, true)).append("\n");
-						builder.append("Associated metadata attribute property (SIMS): ").append(Configuration.simsAttributePropertyURI(entry, true));
-						builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, true)).append(")\n");
-						builder.append("Associated metadata attribute specification (SIMSFr): ").append(Configuration.simsAttributeSpecificationURI(entry, false)).append("\n");
-						builder.append("Associated metadata attribute property (SIMSFr): ").append(Configuration.simsAttributePropertyURI(entry, false));
-						builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, false)).append(")\n");
-					}
-				} else { // Property added in SIMSFr
-					builder.append("Attribute added in SIMSFr\n");
-					builder.append("Associated metadata attribute specification: ").append(Configuration.simsAttributeSpecificationURI(entry, false)).append("\n");
-					builder.append("Associated metadata attribute property: ").append(Configuration.simsAttributePropertyURI(entry, false));
-					builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, false)).append(")\n");					
-				}
+				continue;
 			}
+			if (entry.isQualityMetric()) {
+				// Quality indicator, not part of metadata report
+				builder.append("Quality metric");
+				if (entry.getMetric() != null) builder.append(", type: " + entry.getMetric());
+				builder.append("\n");
+				continue;
+			}
+			// The remaining entries correspond to SIMS/SIMSFr metadata attributes
+			if (entry.isOriginal()) { // SIMS entry
+				if (!entry.isAddedOrModified()) { // entry not modified in SIMSFr
+					builder.append("SIMS original attribute, unchanged in SIMSFr\n");
+					builder.append("Associated metadata attribute specification: ").append(Configuration.simsAttributeSpecificationURI(entry, true)).append("\n");
+					builder.append("Associated metadata attribute property: ").append(Configuration.simsAttributePropertyURI(entry, true));
+					builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, true)).append(")\n");
+				} else { // entry modified in SIMSFr
+					builder.append("SIMS original attribute, modified in SIMSFr\n");
+					builder.append("Associated metadata attribute specification (SIMS): ").append(Configuration.simsAttributeSpecificationURI(entry, true)).append("\n");
+					builder.append("Associated metadata attribute property (SIMS): ").append(Configuration.simsAttributePropertyURI(entry, true));
+					builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, true)).append(")\n");
+					builder.append("Associated metadata attribute specification (SIMSFr): ").append(Configuration.simsAttributeSpecificationURI(entry, false)).append("\n");
+					builder.append("Associated metadata attribute property (SIMSFr): ").append(Configuration.simsAttributePropertyURI(entry, false));
+					builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, false)).append(")\n");
+				}
+			} else { // Property added in SIMSFr
+				builder.append("Attribute added in SIMSFr\n");
+				builder.append("Associated metadata attribute specification: ").append(Configuration.simsAttributeSpecificationURI(entry, false)).append("\n");
+				builder.append("Associated metadata attribute property: ").append(Configuration.simsAttributePropertyURI(entry, false));
+				builder.append(" (range: ").append(SIMSModelMaker.getRange(entry, false)).append(")\n");					
+			}
+
 		}
 		return builder.toString();
 	}

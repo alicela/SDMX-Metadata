@@ -14,14 +14,26 @@ import fr.insee.semweb.sdmx.metadata.SIMSEntry;
 public class SIMSEntryTest {
 
 	@Test
-	public void testGetParentNotation() {
+	public void testGetIndex() {
+		SIMSEntry testEntry = new SIMSEntry("I.1.1.1");
+		assertEquals(testEntry.getIndex(), "1.1.1");		
+		testEntry.setNotation("C.3.7.1");
+		assertEquals(testEntry.getIndex(), "3.7.1");		
+		testEntry.setNotation("S.19");
+		assertEquals(testEntry.getIndex(), "19");		
+		testEntry.setNotation("PLUTO");
+		assertNull(testEntry.getIndex());
+	}
+		
+	@Test
+	public void testGetParentIndex() {
 
 		SIMSEntry testEntry = new SIMSEntry("I.1.1.1");
-		assertEquals(testEntry.getParentNotation(), "I.1.1");
-		testEntry.setNotation("S.18");
-		assertEquals(testEntry.getParentNotation(), "S");
+		assertEquals(testEntry.getParentIndex(), "1.1");
+		testEntry.setNotation("S.18.1");
+		assertEquals(testEntry.getParentIndex(), "18");
 		testEntry.setNotation("ZERO");
-		assertNull(testEntry.getParentNotation());
+		assertNull(testEntry.getParentIndex());
 	}
 
 	@Test

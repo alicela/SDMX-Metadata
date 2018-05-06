@@ -53,7 +53,10 @@ public class SIMSEntry {
 
 		// Representation is in column E (SIMSFr: J), can be empty
 		cellValue = row.getCell(indexes[4], MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
-		if (cellValue.length() > 0) entry.setRepresentation(cellValue);
+		if (cellValue.length() > 0) {
+			entry.setRepresentation(cellValue);
+			if (cellValue.toLowerCase().startsWith("quality")) entry.setType(EntryType.METRIC);
+		}
 
 		// The next attributes are only available in the base format
 		if (!fromFr) {
@@ -67,35 +70,19 @@ public class SIMSEntry {
 	}
 
 	/**
-	 * Returns the notation of the parent concept or <code>null</code> for top level concepts.
+	 * Returns the index of the parent concept or <code>null</code> for top level concepts.
 	 * 
-	 * It is assumed that the SIMS notations are composite codes with dot separators.
+	 * It is assumed that the SIMS notations are composite codes with dot separators, where the first code is not used in the hierarchy.
 	 * 
-	 * @param notation The notation of the concept whose parent is sought.
-	 * @return The notation of the parent concept or <code>null</code> for top level concepts.
+	 * @param index The index (notation without the first segment) of the concept whose parent is sought.
+	 * @return The index of the parent concept or <code>null</code> for top level concepts.
 	 */
-	public static String getParentNotation(String notation) {
+	public static String getParentIndex(String index) {
 
-		if (notation ==  null) return null;
-		int lastDot = notation.lastIndexOf('.');
-		if (lastDot >= 0) return notation.substring(0, lastDot);
+		if (index ==  null) return null;
+		int lastDot = index.lastIndexOf('.');
+		if (lastDot >= 0) return index.substring(0, lastDot);
 
-		return null;
-	}
-
-	/**
-	 * Returns the notation of the highest ancestor of a concept.
-	 * 
-	 * The highest ancestor is a DQV Category instance.
-	 * 
-	 * @param notation The notation of the concept whose category is sought.
-	 * @return The notation of the category (highest ancestor) for the concept.
-	 */
-	public static String getCategoryNotation(String notation) {
-
-		if (notation ==  null) return null;
-		String[] tokens = notation.split("\\.");
-		if (tokens.length > 1) return tokens[0] + "." + tokens[1];
 		return null;
 	}
 
@@ -143,13 +130,28 @@ public class SIMSEntry {
 	}
 
 	/**
-	 * Returns the notation of the parent concept or <code>null</code> for top level concepts.
+	 * Returns the index of the concept.
+	 * The index is equal to the notation without the first segment; it can be used to compute hierarchical relations.
 	 * 
-	 * @return The notation of the parent concept or <code>null</code> for top level concepts.
+	 * @return The index of the concept (for example '3.7.1' for concept with notation 'C.3.7.1').
 	 */
-	public String getParentNotation() {
+	public String getIndex() {
 
-		return getParentNotation(this.notation);
+		if (this.notation ==  null) return null;
+		int firstDot = this.notation.indexOf('.');
+		if (firstDot >= 0) return this.notation.substring(firstDot + 1);
+
+		return null;
+	}
+
+	/**
+	 * Returns the index of the parent concept or <code>null</code> for top level concepts.
+	 * 
+	 * @return The index of the parent concept or <code>null</code> for top level concepts.
+	 */
+	public String getParentIndex() {
+
+		return getParentIndex(this.getIndex());
 	}
 
 	// Getters and setters
@@ -221,6 +223,7 @@ public class SIMSEntry {
 	public enum EntryType {
 		CATEGORY,
 		DIMENSION,
+		METRIC,
 		UNKNOWN;
 
 		@Override
@@ -228,6 +231,7 @@ public class SIMSEntry {
 			switch(this) {
 				case CATEGORY: return "category";
 				case DIMENSION: return "dimension";
+				case METRIC: return "metric"; // Only meaningful when reading form SIMSFr
 				default: return "unknown";
 			}
 		}

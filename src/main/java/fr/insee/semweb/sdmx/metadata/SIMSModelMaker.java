@@ -153,6 +153,7 @@ public class SIMSModelMaker {
 		if (addFrench) simsCS.addProperty(SKOS.prefLabel, skosCSModel.createLiteral(Configuration.simsConceptSchemeName(simsStrict, true), "fr"));
 
 		Resource simsConcept = null;
+		Resource currentCategory = null;
 		for (SIMSFrEntry entry : simsFr.getEntries()) {
 
 			// We don't create concepts for direct entries (identity properties)
@@ -185,12 +186,14 @@ public class SIMSModelMaker {
 				if (entry.getFrenchDescription() != null) simsConcept.addProperty(SKOS.definition, skosCSModel.createLiteral(entry.getFrenchDescription(), "fr"));
 			}
 			if (createDQV) {
-				if (entry.getType() == EntryType.CATEGORY) simsConcept.addProperty(RDF.type, DQV.Category); // Add type DQV category
+				if (entry.getType() == EntryType.CATEGORY) {
+					currentCategory = simsConcept.addProperty(RDF.type, DQV.Category); // Add type DQV category
+					logger.debug("This concept is a DQV category");
+				}
 				if (entry.getType() == EntryType.DIMENSION) {
 					simsConcept.addProperty(RDF.type, DQV.Dimension); // Add type DQV dimension
-					// NB: only case of a 'I' category is I.20, but it has no dimensions
-					String categoryURI = Configuration.simsConceptURI(SIMSEntry.getCategoryNotation(entry.getNotation()));
-					simsConcept.addProperty(DQV.inCategory, skosCSModel.createResource(categoryURI)); // Add inCategory property from dimension to category
+					simsConcept.addProperty(DQV.inCategory, currentCategory); // Add inCategory property from dimension to current category (which should not be null at this point)
+					logger.debug("This concept is a DQV dimension in category " + currentCategory.getURI());
 				}
 			}
 			simsConcept.addProperty(SKOS.inScheme, simsCS);

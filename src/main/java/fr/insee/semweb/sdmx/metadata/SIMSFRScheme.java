@@ -26,14 +26,14 @@ public class SIMSFrScheme {
 	}
 
 	/**
-	 * Checks if the scheme contains an entry with a given notation.
+	 * Checks if the scheme contains an entry with a given index.
 	 * 
-	 * @param notation The notation to look for in the scheme entries.
-	 * @return <code>true</code> if the notation was found, <code>false</code> otherwise.
+	 * @param index The index to look for in the scheme entries.
+	 * @return <code>true</code> if the index was found, <code>false</code> otherwise.
 	 */
-	public boolean containsNotation(String notation) {
+	public boolean containsIndex(String index) {
 		for (SIMSFrEntry entry : this.entries) {
-			if (entry.getNotation().equals(notation)) return true;
+			if (entry.getIndex().equals(index)) return true;
 		}
 		return false;
 	}
@@ -48,41 +48,29 @@ public class SIMSFrScheme {
 		StringBuilder report = new StringBuilder();
 
 		for (SIMSFrEntry entry : this.entries) {
-			String parentNotation = entry.getParentNotation();
-			// The SIMSFr actually does not contain highest level concepts 'I' and 'S', hence the second test
-			if ((parentNotation != null) && (parentNotation.length() > 1) && !this.containsNotation(parentNotation))
+			String parentIndex = entry.getParentIndex();
+			if ((parentIndex != null) && !this.containsIndex(parentIndex))
 				report.append("No parent found for entry with notation " + entry.getNotation() + "\n");
 		}
 		return report.toString();
 	}
 
 	/**
-	 * Gets the parent entry of the entry with a given notation.
+	 * Gets the parent entry of a given entry.
 	 * 
-	 * @param notation The notation of the entry whose parent is sought.
-	 * @return The parent entry (<code>SIMSEntry</code> object) or <code>null</code> if no parent is found.
+	 * @param childEntry The entry (<code>SIMSEntry</code> object) whose parent is sought.
+	 * @return The parent entry (<code>SIMSFrEntry</code> object) or <code>null</code> if no parent is found.
 	 */
-	public SIMSFrEntry getParent(String notation) {
+	public SIMSFrEntry getParent(SIMSEntry childEntry) {
 
-		String parentNotation = SIMSFrEntry.getParentNotation(notation);
-		if (parentNotation!= null) {
+		if ((childEntry == null) || (childEntry.getNotation() == null)) return null;
+		String parentIndex = childEntry.getParentIndex();
+		if (parentIndex!= null) {
 			for (SIMSFrEntry entry : this.entries) {
-				if (entry.getNotation().equals(parentNotation)) return entry;
+				if (entry.getIndex().equals(parentIndex)) return entry;
 			}
 		}
 		return null;
-	}
-
-	/**
-	 * Gets the parent entry of a given entry.
-	 * 
-	 * @param notation The entry (<code>SIMSEntry</code> object) whose parent is sought.
-	 * @return The parent entry (<code>SIMSEntry</code> object) or <code>null</code> if no parent is found.
-	 */
-	public SIMSFrEntry getParent(SIMSEntry entry) {
-
-		if ((entry == null) || (entry.getNotation() == null)) return null;
-		return getParent(entry.getNotation());
 	}
 
 	/**

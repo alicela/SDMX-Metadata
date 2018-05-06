@@ -126,7 +126,7 @@ public class SIMSFrEntry extends SIMSEntry {
 	public boolean isQualityMetric() {
 
 		// What is typed 'Quality indicator' in the SIMSFr is what is actually called Metric in DQV
-		return (this.representation != null) && (this.representation.toLowerCase().startsWith("quality"));
+		return (this.type == EntryType.METRIC);
 	}
 
 	// Getters and setters

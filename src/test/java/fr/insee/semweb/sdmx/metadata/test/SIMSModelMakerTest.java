@@ -3,7 +3,10 @@ package fr.insee.semweb.sdmx.metadata.test;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 
+import org.apache.jena.rdf.model.Model;
 import org.apache.jena.vocabulary.ORG;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.XSD;
@@ -18,9 +21,12 @@ import fr.insee.stamina.utils.DQV;
 public class SIMSModelMakerTest {
 
 	@Test
-	public void testReadSIMSFrFromExcel() {
+	public void testCreateConceptScheme() throws IOException {
 
-		SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+		SIMSFrScheme simsFrScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+		Model simsSKOSModel = SIMSModelMaker.createConceptScheme(simsFrScheme, false, true, true);
+		simsSKOSModel.write(new FileWriter(Configuration.SIMS_CS_TURTLE_FILE_NAME), "TTL");
+		simsSKOSModel.close();
 	}
 
 	@Test

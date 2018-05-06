@@ -61,6 +61,8 @@ public class Configuration {
 	public static String BASE_SIMS_FR_URI = "http://id.insee.fr/qualite/simsv2fr/";
 	/** Base URI for SIMS metadata reports */
 	protected static String REPORT_BASE_URI = "http://id.insee.fr/qualite/rapport/";
+	/** Base URI for SIMS quality metrics */
+	protected static String METRIC_BASE_URI = BASE_SIMS_URI + "metric/";
 	/** Prefix for the SDMX metadata model vocabulary */
 	public static String SDMX_MM_PREFIX = "sdmx-mm";
 	/** Base URI for the SDMX metadata model vocabulary */
@@ -292,6 +294,11 @@ public class Configuration {
 	/** URI of a SIMS quality report */
 	public static String simsReportURI(String documentationId) {
 		return REPORT_BASE_URI + documentationId;
+	}
+
+	/** URI of a SIMS quality metric (called actually indicator) */
+	public static String simsQualityMetricURI(String metricId) {
+		return METRIC_BASE_URI + metricId;
 	}
 
 	/** URI of a CASD dataset */

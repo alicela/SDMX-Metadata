@@ -58,7 +58,7 @@ public class SIMSModelMaker {
 			System.exit(1);
 		}
 
-		// Create the SKOS concept scheme for SIMSv2 (strict) with DQV dimensions and categories
+		// Create the SKOS concept scheme for SIMSv2 (strict) without the French labels and with the DQV constructs
 		Model simsSKOSModel = createConceptScheme(simsFrScheme, true, false, true);
 		try {
 			simsSKOSModel.write(new FileWriter(Configuration.SIMS_CS_TURTLE_FILE_NAME), "TTL");
@@ -67,7 +67,7 @@ public class SIMSModelMaker {
 			System.exit(1);
 		}
 
-		// Create the SKOS concept scheme for SIMSv2Fr with DQV dimensions and categories
+		// Create the SKOS concept scheme for SIMSv2Fr with the French labels and the DQV constructs
 		simsSKOSModel = createConceptScheme(simsFrScheme, false, true, true);
 		try {
 			simsSKOSModel.write(new FileWriter(Configuration.SIMS_FR_CS_TURTLE_FILE_NAME), "TTL");
@@ -142,6 +142,7 @@ public class SIMSModelMaker {
 		logger.info("About to create the concept scheme for the " + (simsStrict ? " SIMSv2" : "SIMSv2Fr") + " model");
 
 		Model skosCSModel = ModelFactory.createDefaultModel();
+		skosCSModel.setNsPrefix("rdfs", RDFS.getURI());
 		skosCSModel.setNsPrefix("skos", SKOS.getURI());
 		if (createDQV) skosCSModel.setNsPrefix("dqv", DQV.getURI());
 
@@ -151,18 +152,37 @@ public class SIMSModelMaker {
 		simsCS.addProperty(SKOS.prefLabel, skosCSModel.createLiteral(Configuration.simsConceptSchemeName(simsStrict, false), "en"));
 		if (addFrench) simsCS.addProperty(SKOS.prefLabel, skosCSModel.createLiteral(Configuration.simsConceptSchemeName(simsStrict, true), "fr"));
 
+		Resource simsConcept = null;
 		for (SIMSFrEntry entry : simsFr.getEntries()) {
 
+			// We don't create concepts for direct entries (identity properties)
 			if (simsStrict && entry.getNotation().startsWith("I")) continue; // All strict SIMS entries have notations starting with 'S'
-			if (entry.getNotation().equals("I.1") || entry.getNotation().startsWith("I.1.")) continue; // Even in non-strict mode, entries in the 'Identity' section are direct properties on the operation rather than metadata attributes
+			if (entry.isDirect()) continue;
+			// Process quality metrics: we don't create a concept, but we create a DQV metric and attach it to the latest Dimension
+			if (entry.isQualityMetric()) {
+				if (createDQV) {
+					logger.debug("Creating DQV metric for entry " + entry.getNotation() + " (" + entry.getCode() + ") in dimension " + simsConcept.getURI()); // simsConcept should not be null at this point
+					Resource qualityMetric = skosCSModel.createResource(Configuration.simsQualityMetricURI(entry.getNotation()), DQV.Metric);
+					qualityMetric.addProperty(RDFS.label, skosCSModel.createLiteral(entry.getName(), "en"));
+					if (entry.getDescription() != null) qualityMetric.addProperty(RDFS.comment, skosCSModel.createLiteral(entry.getDescription(), "en"));
+					if (addFrench) {
+						qualityMetric.addProperty(RDFS.label, skosCSModel.createLiteral(entry.getFrenchName(), "fr")); // FIXME Names are not translated for some metrics
+						if (entry.getFrenchDescription() != null) qualityMetric.addProperty(RDFS.comment, skosCSModel.createLiteral(entry.getFrenchDescription(), "fr"));
+					}
+					qualityMetric.addProperty(DQV.inDimension, simsConcept); // TODO Add expectedDataType property, but corresponding colum content should be improved first
+				}
+				continue;
+			}
 
 			logger.debug("Creating SKOS concept for entry " + entry.getNotation() + " (" + entry.getCode() + ")");
 
-			Resource simsConcept = skosCSModel.createResource(Configuration.simsConceptURI(entry), SKOS.Concept);
+			simsConcept = skosCSModel.createResource(Configuration.simsConceptURI(entry), SKOS.Concept);
 			simsConcept.addProperty(SKOS.notation, entry.getNotation());
 			simsConcept.addProperty(SKOS.prefLabel, skosCSModel.createLiteral(entry.getName(), "en"));
+			if (entry.getDescription() != null) simsConcept.addProperty(SKOS.definition, skosCSModel.createLiteral(entry.getDescription(), "en"));
 			if (addFrench) {
 				simsConcept.addProperty(SKOS.prefLabel, skosCSModel.createLiteral(entry.getFrenchName(), "fr"));				
+				if (entry.getFrenchDescription() != null) simsConcept.addProperty(SKOS.definition, skosCSModel.createLiteral(entry.getFrenchDescription(), "fr"));
 			}
 			if (createDQV) {
 				if (entry.getType() == EntryType.CATEGORY) simsConcept.addProperty(RDF.type, DQV.Category); // Add type DQV category
@@ -184,7 +204,7 @@ public class SIMSModelMaker {
 				parentConcept.addProperty(SKOS.narrower, simsConcept);
 			}
 		}
-		logger.debug("Model correctly created");
+		logger.debug("SKOS model correctly created");
 		return skosCSModel;
 	}
 

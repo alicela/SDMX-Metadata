@@ -4,9 +4,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -17,13 +19,6 @@ import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
 import fr.insee.semweb.sdmx.metadata.Configuration;
 
 public class CodelistModelMakerTest {
-
-	@Test
-	public void testReadCodelists() throws IOException {
-
-		Model codes = CodelistModelMaker.readCodelists(new File(Configuration.CL_XLSX_FILE_NAME));
-		codes.write(new FileWriter(Configuration.SIMS_CL_TURTLE_FILE_NAME), "TTL");
-	}
 
 	@Test
 	public void testReadCodelistDataset() throws IOException {
@@ -75,4 +70,10 @@ public class CodelistModelMakerTest {
 		themes.write(new FileWriter(Configuration.THEMES_TURTLE_FILE_NAME), "TTL");
 	}
 
+	@Test
+	public void testGetNotationConceptMappings() {
+
+		Map<String, Resource> mappings = CodelistModelMaker.getNotationConceptMappings();
+		for (String clNotation : mappings.keySet()) System.out.println(clNotation + " - " + mappings.get(clNotation));
+	}
 }

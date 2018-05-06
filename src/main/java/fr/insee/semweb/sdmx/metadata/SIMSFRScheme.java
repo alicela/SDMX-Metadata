@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.jena.rdf.model.Resource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.poi.ss.usermodel.Row;
@@ -119,6 +121,10 @@ public class SIMSFrScheme {
 	 * Returns a string representation of the SIMSFr scheme.
 	 */
 	public String toString() {
+
+		// We will need the code mappings for the range calculations
+		Map<String, Resource> clMappings = CodelistModelMaker.getNotationConceptMappings();
+
 		StringBuilder builder = new StringBuilder();
 		builder.append("Scheme ").append(name).append(" (source: '").append(source).append("')\n");
 		for (SIMSFrEntry entry : this.getEntries()) {
@@ -144,21 +150,21 @@ public class SIMSFrScheme {
 					builder.append("SIMS original attribute, unchanged in SIMSFr\n");
 					builder.append("Associated metadata attribute specification: ").append(Configuration.simsAttributeSpecificationURI(entry, true)).append("\n");
 					builder.append("Associated metadata attribute property: ").append(Configuration.simsAttributePropertyURI(entry, true));
-					builder.append(" (range: ").append(entry.getRange(true)).append(")\n");
+					builder.append(" (range: ").append(entry.getRange(true, clMappings)).append(")\n");
 				} else { // entry modified in SIMSFr
 					builder.append("SIMS original attribute, modified in SIMSFr\n");
 					builder.append("Associated metadata attribute specification (SIMS): ").append(Configuration.simsAttributeSpecificationURI(entry, true)).append("\n");
 					builder.append("Associated metadata attribute property (SIMS): ").append(Configuration.simsAttributePropertyURI(entry, true));
-					builder.append(" (range: ").append(entry.getRange(true)).append(")\n");
+					builder.append(" (range: ").append(entry.getRange(true, clMappings)).append(")\n");
 					builder.append("Associated metadata attribute specification (SIMSFr): ").append(Configuration.simsAttributeSpecificationURI(entry, false)).append("\n");
 					builder.append("Associated metadata attribute property (SIMSFr): ").append(Configuration.simsAttributePropertyURI(entry, false));
-					builder.append(" (range: ").append(entry.getRange(true)).append(")\n");
+					builder.append(" (range: ").append(entry.getRange(false, clMappings)).append(")\n");
 				}
 			} else { // Property added in SIMSFr
 				builder.append("Attribute added in SIMSFr\n");
 				builder.append("Associated metadata attribute specification: ").append(Configuration.simsAttributeSpecificationURI(entry, false)).append("\n");
 				builder.append("Associated metadata attribute property: ").append(Configuration.simsAttributePropertyURI(entry, false));
-				builder.append(" (range: ").append(entry.getRange(true)).append(")\n");					
+				builder.append(" (range: ").append(entry.getRange(false, clMappings)).append(")\n");					
 			}
 		}
 		return builder.toString();

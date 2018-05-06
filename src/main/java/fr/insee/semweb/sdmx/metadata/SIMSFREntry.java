@@ -1,10 +1,14 @@
 package fr.insee.semweb.sdmx.metadata;
 
+import java.util.Map;
+
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.vocabulary.ORG;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.XSD;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
 
@@ -16,6 +20,8 @@ import fr.insee.stamina.utils.DQV;
  * @author Franck Cotton
  */
 public class SIMSFrEntry extends SIMSEntry {
+
+	private static Logger logger = LogManager.getLogger(SIMSFrEntry.class);
 
 	private String title; // TODO This variable should be named otherwise
 	private String metric; // Unfortunate naming here also, this is more the type of the metric (indicator)
@@ -140,11 +146,14 @@ public class SIMSFrEntry extends SIMSEntry {
 	 * Determines the range of the metadata attribute property corresponding to the entry, based on the information on the representation of its values.
 	 * 
 	 * @param simsStrict A boolean indicating if the context is restricted to the SIMS or extended to SIMSFr.
+	 * @param clMappings The mappings between the code list notations and the associated concepts (can be null for strict mode).
 	 * @return The range of the property represented as a (non-null) Jena <code>Resource</code>.
 	 */
-	public Resource getRange(boolean simsStrict) {
+	public Resource getRange(boolean simsStrict, Map<String, Resource> clMappings) {
 
 		Resource range = null;
+
+		logger.debug("Calculating range for entry " + this.getNotation());
 
 		// For presentational properties, so the metadata attribute property will have ReportedAttribute for range (valid both strict and not strict)
 		if (this.isPresentational()) return ResourceFactory.createResource(Configuration.SDMX_MM_BASE_URI + "ReportedAttribute");
@@ -167,6 +176,7 @@ public class SIMSFrEntry extends SIMSEntry {
 		if (simsStrict) return range;
 
 		// In SIMSFr mode, we have to look at the Insee representation if it exists, but this field is not well normalized (see SIMSFrSchemeTest test class for listing the values)
+		if (this.getInseeRepresentation() == null) return range; // No Insee representation: we stick with the range previously calculated
 		type = this.getInseeRepresentation().trim().toLowerCase();
 
 		// All that starts with 'text' or 'expression' (for 'expression régulière') is treated as string datatype property
@@ -183,8 +193,15 @@ public class SIMSFrEntry extends SIMSEntry {
 				// Extract the name of the code list (can be followed by space or new line)
 				int firstSpace = type.indexOf("\n", index);
 				if (firstSpace == -1) firstSpace = type.indexOf(" ", index);
-				String clConceptNotation = (firstSpace < 0) ? type.substring(index) : type.substring(index, firstSpace);
-				return ResourceFactory.createResource(Configuration.codeConceptURI(clConceptNotation));
+				String clNotation = (firstSpace < 0) ? type.substring(index) : type.substring(index, firstSpace);
+				clNotation = clNotation.toUpperCase();
+				// FIXME Some code lists do not have the correct in the SIMS spreadsheet
+				if (clNotation.equals("CL_FREQ_FR")) clNotation = "CL_FREQ";
+				if (clNotation.equals("CL_STATUS")) clNotation = "CL_SURVEY_STATUS";
+				if (!clMappings.containsKey(clNotation)) {
+					logger.error("No mapping concept found for code list " + clNotation);
+					return null;
+				} else return clMappings.get(clNotation);
 			} else {
 				// Code list is in fact a list of organizations, so the property range will be org:Organization
 				return ORG.Organization;

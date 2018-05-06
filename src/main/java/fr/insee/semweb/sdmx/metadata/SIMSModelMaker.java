@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.jena.ontology.DatatypeProperty;
 import org.apache.jena.ontology.ObjectProperty;
@@ -42,10 +43,6 @@ public class SIMSModelMaker {
 	 * @param args Not used.
 	 */
 	public static void main(String[] args) {
-
-		// Read the SDMX metadata model RDF vocabulary in the OntModel
-		logger.debug("About to read the SDMX metadata model RDF vocabulary");
-		sdmxModel = readSDMXModel(Configuration.SDMX_MM_TURTLE_FILE_NAME, true);
 
 		// Read the SIMS Excel file into a SIMSFrScheme object
 		SIMSFrScheme simsFrScheme = null;
@@ -221,6 +218,13 @@ public class SIMSModelMaker {
 
 		logger.info("About to create the model for the " + (simsStrict ? " SIMS" : "SIMSFr") + " Metadata Structure Definition");
 
+		// Read the SDMX metadata model RDF vocabulary in the OntModel
+		logger.debug("About to read the SDMX metadata model RDF vocabulary");
+		sdmxModel = readSDMXModel(Configuration.SDMX_MM_TURTLE_FILE_NAME, true);
+
+		// We will need the code mappings for the range calculations
+		Map<String, Resource> clMappings = CodelistModelMaker.getNotationConceptMappings();
+
 		Model msdModel = ModelFactory.createDefaultModel();
 		msdModel.setNsPrefix("rdfs", RDFS.getURI());
 		msdModel.setNsPrefix("owl", OWL.getURI());
@@ -265,14 +269,15 @@ public class SIMSModelMaker {
 			attributeProperty.addProperty(RDFS.domain, sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "ReportedAttribute"));
 			attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "metadataAttributeProperty"), attributeProperty);
 			// The type of the property depends on the values of the representation variables (SIMS and Insee)
-			Resource propertyRange = entry.getRange(simsStrict);
+			Resource propertyRange = entry.getRange(simsStrict, clMappings);
 			if (propertyRange == null) logger.error("Range undertermined for SIMSEntry " + entry.getNotation());
 			else {
 				if (propertyRange.equals(XSD.xstring) || propertyRange.equals(XSD.date)) attributeProperty.addProperty(RDF.type, OWL.DatatypeProperty);
 				else attributeProperty.addProperty(RDF.type, OWL.ObjectProperty);				
 				if (!propertyRange.equals(RDFS.Resource)) attributeProperty.addProperty(RDFS.range, propertyRange);
 			}
-			logger.debug("Created MetadataAttributeProperty " + attributeProperty.getURI() + " with range " + propertyRange.getLocalName());
+			//logger.debug("Created MetadataAttributeProperty " + attributeProperty.getURI() + " with range " + propertyRange.getLocalName());
+			logger.debug("Created MetadataAttributeProperty " + attributeProperty.getURI() + " with range " + propertyRange);
 		}
 		return msdModel;
 	}

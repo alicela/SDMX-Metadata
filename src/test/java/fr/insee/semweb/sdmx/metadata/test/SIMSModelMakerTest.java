@@ -23,6 +23,15 @@ public class SIMSModelMakerTest {
 	}
 
 	@Test
+	public void testCreateMetadataStructureDefinition() throws IOException {
+
+		SIMSFrScheme simsFrScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+		Model simsMSDModel = SIMSModelMaker.createMetadataStructureDefinition(simsFrScheme, false, true);
+		simsMSDModel.write(new FileWriter(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME), "TTL");
+		simsMSDModel.close();
+	}
+
+	@Test
 	public void testReadSDMXModel() {
 
 		SIMSModelMaker.readSDMXModel(Configuration.SDMX_MM_TURTLE_FILE_NAME, true);

@@ -2,13 +2,16 @@ package fr.insee.semweb.sdmx.metadata;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SKOS;
@@ -62,36 +65,6 @@ public class CodelistModelMaker {
 		concepts.close();
 		codes.close();
 		return dataset;
-	}
-
-	/**
-	 * Reads all the code lists from the dedicated Excel file into a Jena model.
-	 * 
-	 * @param xlsxFile The Excel file containing the code lists (<code>File</code> object).
-	 * @return A Jena <code>Model</code> containing the code lists as SKOS concept schemes.
-	 */
-	public static Model readCodelists(File xlsxFile) {
-
-		Workbook clWorkbook = null;
-		try {
-			clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
-		} catch (Exception e) {
-			logger.fatal("Error while opening Excel file - " + e.getMessage());
-			return null;
-		}
-
-		Model codeLists = ModelFactory.createDefaultModel();
-
-		// Each code list should be on a dedicated sheet of the spreadsheet
-		Iterator<Sheet> sheets = clWorkbook.sheetIterator();
-		while (sheets.hasNext()) {
-			Sheet sheet = sheets.next();
-			if (sheet.getSheetName().contains("CL_TOPICS")) codeLists.add(readThemesConceptScheme(sheet));
-			else codeLists.add(readCodelist(sheet));
-		}
-		try { clWorkbook.close(); } catch (IOException ignored) { }
-
-		return codeLists;
 	}
 
 	/**
@@ -200,6 +173,41 @@ public class CodelistModelMaker {
 		}
 
 		return themes;
+	}
+
+	/**
+	 * Creates a mapping between the notation of each code list (e.g. CL_COLLECTION_MODE) and the corresponding concept (e.g. http://id.insee.fr/codes/concept/ModeCollecte)
+	 * 
+	 * @return A <code>Map</code> between the code list notations and the corresponding concept expressed as a <code>Resource</code>.
+	 */
+	public static Map<String, Resource> getNotationConceptMappings() {
+
+		Workbook clWorkbook = null;
+		try {
+			clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
+		} catch (Exception e) {
+			logger.fatal("Error while opening Excel file - " + e.getMessage());
+			return null;
+		}
+
+		Map<String, Resource> mappings = new HashMap<String, Resource>();
+
+		Iterator<Sheet> sheets = clWorkbook.sheetIterator();
+		while (sheets.hasNext()) {
+			Sheet sheet = sheets.next();
+			String clNotation = sheet.getSheetName();
+			if (clNotation.contains("CL_TOPICS")) continue; // We exclude the category list
+
+			Iterator<Row> rows = sheet.rowIterator();
+			rows.next();
+			Row csRow = rows.next(); // Get French label on the second line
+			String frenchLabel = csRow.getCell(2, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
+			Resource codeClass = ResourceFactory.createResource(Configuration.codeConceptURI(frenchLabel));
+			mappings.put(clNotation, codeClass);
+		}
+		try { clWorkbook.close(); } catch (IOException ignored) { }
+
+		return mappings;
 	}
 
 	/**

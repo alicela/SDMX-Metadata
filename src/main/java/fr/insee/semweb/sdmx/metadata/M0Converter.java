@@ -62,8 +62,8 @@ public class M0Converter {
 
 	/** The reported attribute */
 	protected static Resource SIMS_REPORTED_ATTRIBUTE = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#ReortedAttribute");
-	/** The DQV quality measurement */
-	protected static Resource DQV_QUALITY_MEASUREMENT = ResourceFactory.createResource("http://www.w3.org/ns/dqv#QualityMeasurement");
+	/** The DQV quality metric */
+	protected static Resource DQV_METRIC = ResourceFactory.createResource("http://www.w3.org/ns/dqv#Metric");
 
 	/** The M0 dataset containing all the models */
 	static Dataset dataset = null;
@@ -120,7 +120,7 @@ public class M0Converter {
 		for (String m0Id : m0Ids) {
 			// Create model for the current source
 			Model sourceModel = M0SIMSConverter.extractM0ResourceModel(m0SIMSModel, "http://baseUri/documentations/documentation/" + m0Id);
-			sourceModel.write(new FileOutputStream("src/main/resources/models/m0-"+ m0Id + ".ttl"), "TTL");
+			sourceModel.write(new FileOutputStream("src/main/resources/data/models/m0-"+ m0Id + ".ttl"), "TTL");
 			sourceModel.close();
 		}
 	}

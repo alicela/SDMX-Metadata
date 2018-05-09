@@ -213,9 +213,10 @@ public class M0ConverterTest {
 	@Test
 	public void testConvertToSIMS() throws IOException {
 
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(Arrays.asList(1519), false);
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1519.trig"), simsDataset, Lang.TRIG);
-		
+		boolean namedGraphs = false;
+
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(Arrays.asList(1509), namedGraphs);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1509" + (namedGraphs ? "trig" : "ttl")), simsDataset, Lang.TRIG); // TODO Check if Lang.TRIG is OK for both cases
 	}
 
 	@Test
@@ -266,7 +267,7 @@ public class M0ConverterTest {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0SIMSModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "documentations");
-		List<String> m0IdList = Arrays.asList("1502", "1508");
+		List<String> m0IdList = Arrays.asList("1502", "1508", "1509");
 		M0Converter.m0SplitAndSave(m0SIMSModel, m0IdList);
 	}
 

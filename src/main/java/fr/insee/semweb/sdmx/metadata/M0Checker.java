@@ -8,6 +8,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.graph.Node;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.ResIterator;
@@ -325,6 +327,67 @@ public class M0Checker {
 		});
 	    m0Model.close();
 	    documentationM0Model.close();
+	}
+
+	/**
+	 * Returns the list of distinct values of a given properties in the 'documentations' graph.
+	 * 
+	 * @param propertyName The name of the property to look for.
+	 * @return The set of the distinct values of the property.
+	 */
+	public static Set<String> listPropertyValues(String propertyName) {
+
+		Set<String> valueSet = new HashSet<String>();
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model documentations = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+
+		Selector selector = new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null) {
+			// Override 'selects' method to retain only statements whose subject URI ends with the expected property name
+	        public boolean selects(Statement statement) {
+	        	if (statement.getSubject().getURI().endsWith("/" + propertyName)) return true; // To avoid mixing STATUS and VALIDATION_STATUS, for example
+	        	return false;
+	        }
+	    };
+	    documentations.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				valueSet.add(statement.getObject().toString());
+			}
+		});
+
+		return valueSet;
+	}
+
+	/**
+	 * Check that a given property in the 'documentations' graph takes its values from a list of valid values.
+	 * 
+	 * @param propertyName The name of the property to check.
+	 * @return The set of the distinct values of the property.
+	 */
+	public static Model checkPropertyValues(String propertyName, Set<String> validValues) {
+
+		Model invalidStatements = ModelFactory.createDefaultModel();
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model documentations = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+
+		Selector selector = new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null) {
+			// Override 'selects' method to retain only statements whose subject URI ends with the expected property name
+	        public boolean selects(Statement statement) {
+	        	if (statement.getSubject().getURI().endsWith("/" + propertyName)) return true;
+	        	return false;
+	        }
+	    };
+	    documentations.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String codeValue = statement.getObject().toString();
+				if (!validValues.contains(codeValue)) invalidStatements.add(statement);
+			}
+		});
+
+		return invalidStatements;
 	}
 
 	private static String nodeToAbbreviatedString(RDFNode node) {

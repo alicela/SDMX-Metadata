@@ -91,16 +91,16 @@ public class M0SIMSConverter extends M0Converter {
 	 * @return A Jena <code>Model</code> containing the metadata in SIMSFr format.
 	 */
 	public static Model m0ConvertToSIMS(Model m0Model) {
-	
+
 		// Retrieve base URI (the base resource is a skos:Concept) and the corresponding M0 identifier
 		Resource m0BaseResource = m0Model.listStatements(null, RDF.type, SKOS.Concept).toList().get(0).getSubject(); // Should raise an exception in case of problem
 		String m0Id = m0BaseResource.getURI().substring(m0BaseResource.getURI().lastIndexOf('/') + 1);
 	
 		// Will be handy for parsing dates
 		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-	
-		logger.debug("Creating metadata report model for m0 documentation " + m0Id);
-	
+
+		logger.debug("Creating metadata report model for m0 documentation " + m0Id + ", base M0 model has " + m0Model.size() + " statements");
+
 		Model simsModel = ModelFactory.createDefaultModel();
 		simsModel.setNsPrefix("rdf", RDF.getURI());
 		simsModel.setNsPrefix("rdfs", RDFS.getURI());
@@ -108,7 +108,7 @@ public class M0SIMSConverter extends M0Converter {
 		simsModel.setNsPrefix("dcterms", DCTerms.getURI());
 		simsModel.setNsPrefix("skos", SKOS.getURI());
 		simsModel.setNsPrefix("insee", Configuration.BASE_INSEE_ONTO_URI);
-	
+
 		// Create the metadata report
 		Resource report = simsModel.createResource(Configuration.simsReportURI(m0Id), simsModel.createResource(Configuration.SDMX_MM_BASE_URI + "MetadataReport"));
 		report.addProperty(RDFS.label, simsModel.createLiteral("Metadata report " + m0Id, "en"));
@@ -177,8 +177,9 @@ public class M0SIMSConverter extends M0Converter {
 					logger.error("Unparseable date value " + stringValue + " for M0 resource " + m0EntryResource.getURI());
 				}
 			}
-			else if (propertyRange.equals(DQV_QUALITY_MEASUREMENT)) {
-				// This case should not exist
+			else if (propertyRange.equals(DQV_METRIC)) {
+				// This case should not exist, since quality indicators have been filtered out
+				logger.error("Property range should not be equal to dqv:Metric");
 			}
 			else {
 				// Only remaining case is code list (check that)

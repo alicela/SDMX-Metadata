@@ -1,6 +1,6 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -11,7 +11,6 @@ import java.util.Set;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
-import org.apache.jena.vocabulary.RDFS;
 import org.junit.Test;
 
 import fr.insee.semweb.sdmx.metadata.M0Checker;

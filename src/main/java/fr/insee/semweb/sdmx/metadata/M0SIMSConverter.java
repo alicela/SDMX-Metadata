@@ -182,7 +182,16 @@ public class M0SIMSConverter extends M0Converter {
 				logger.error("Property range should not be equal to dqv:Metric");
 			}
 			else {
-				// Only remaining case is code list (check that)
+				// The only remaining case should be code list, with the range equal to the concept associated to the code list
+				String propertyRangeString = propertyRange.getURI();
+				if (!propertyRangeString.startsWith(Configuration.INSEE_CODE_CONCEPTS_BASE_URI)) logger.error("Unrecognized property range: " + propertyRangeString);
+				else {
+					// We don't verify at this stage that the value is a valid code in the code list, but just sanitize the value (by taking the first word) to avoid URI problems
+					String sanitizedCode = (stringValue.indexOf(' ') == -1) ? stringValue : stringValue.split(" ", 2)[0];
+					String codeURI = Configuration.INSEE_CODES_BASE_URI + propertyRangeString.substring(propertyRangeString.lastIndexOf('/') + 1) + "/" + sanitizedCode;
+					report.addProperty(metadataAttributeProperty, simsModel.createResource(codeURI));
+					logger.debug("Code list value " + codeURI + " assigned to attribute property");
+				}
 			}
 		}
 	

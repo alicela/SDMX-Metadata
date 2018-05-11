@@ -75,6 +75,8 @@ public class Configuration {
 	public static String INSEE_OPS_BASE_URI = "http://id.insee.fr/operations/";
 	/** Base URI for Insee codes */
 	public static String INSEE_CODES_BASE_URI = "http://id.insee.fr/codes/";
+	/** Base URI for Insee code concepts */
+	public static String INSEE_CODE_CONCEPTS_BASE_URI = INSEE_CODES_BASE_URI + "concept/";
 	/** Base URI for organizations */
 	public static String INSEE_ORG_BASE_URI = "http://id.insee.fr/organisations/";
 	// Numbers of the columns where the SIMS information is stored in SIMS and SIMSFr Excel formats
@@ -206,7 +208,7 @@ public class Configuration {
 
 	/** URI of the concept associated to a code list */
 	public static String codeConceptURI(String conceptName) {
-		return INSEE_CODES_BASE_URI + "concept/" + camelCase(conceptName, false, false); // Upper camel case and singular
+		return INSEE_CODE_CONCEPTS_BASE_URI + camelCase(conceptName, false, false); // Upper camel case and singular
 	}
 
 	/** URI of the concept associated to a SDMX code list */

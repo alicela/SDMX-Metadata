@@ -1127,7 +1127,6 @@ public class M0Converter {
 	    return relationMappings;
 	}
 
-
 	/**
 	 * Reads all the relations stating that an indicator is produced from a series and stores them as a map.
 	 * The map keys will be the indicators and the values the lists of series they are produced from, all expressed as M0 URIs.
@@ -1233,7 +1232,7 @@ public class M0Converter {
 	/**
 	 * Reads the complete M0 dataset if it has not been read already.
 	 */
-	private static void readDataset() {
+	protected static void readDataset() {
 		if (dataset == null) {
 			dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 			logger.debug("M0 dataset read from file " + Configuration.M0_FILE_NAME);

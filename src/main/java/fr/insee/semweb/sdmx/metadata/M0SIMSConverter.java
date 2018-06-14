@@ -4,10 +4,14 @@ import java.io.File;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.function.Consumer;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.ontology.OntModel;
 import org.apache.jena.ontology.OntProperty;
@@ -126,7 +130,7 @@ public class M0SIMSConverter extends M0Converter {
 				logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());
 				continue;
 			}
-			if (objectValues.size() > 1) {
+			if (objectValues.size() > 1) { // TODO Some coded attributes (survey unit, collection mode) can actually be multi-valued
 				// Several values for the resource, we have a problem
 				logger.error("Error: there are multiple values in the M0 documentation model for SIMSFr attribute " + entry.getCode());
 				continue;
@@ -188,7 +192,7 @@ public class M0SIMSConverter extends M0Converter {
 				else {
 					// We don't verify at this stage that the value is a valid code in the code list, but just sanitize the value (by taking the first word) to avoid URI problems
 					String sanitizedCode = (stringValue.indexOf(' ') == -1) ? stringValue : stringValue.split(" ", 2)[0];
-					String codeURI = Configuration.INSEE_CODES_BASE_URI + propertyRangeString.substring(propertyRangeString.lastIndexOf('/') + 1) + "/" + sanitizedCode;
+					String codeURI = Configuration.INSEE_CODES_BASE_URI + StringUtils.uncapitalize(propertyRangeString.substring(propertyRangeString.lastIndexOf('/') + 1)) + "/" + sanitizedCode;
 					report.addProperty(metadataAttributeProperty, simsModel.createResource(codeURI));
 					logger.debug("Code list value " + codeURI + " assigned to attribute property");
 				}
@@ -266,4 +270,78 @@ public class M0SIMSConverter extends M0Converter {
 
 		return m0DocumentIdSet;
 	}
+
+	/**
+	 * Reads all the associations between SIMS properties and link objects and stores them as a map.
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and links numbers as values.
+	 * Example: <1580, <SEE_ALSO, 54>>
+	 * 
+	 * @return A map containing the relations.
+	 */
+	public static Map<Integer, Map<String, Integer>> extractLinkRelations() {
+
+		// Read the M0 'associations' model
+		readDataset();
+		logger.debug("Extracting the information on relations between SIMS properties and link objects from dataset " + Configuration.M0_FILE_NAME);
+		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		Map<Integer, Map<String, Integer>> linkMappings = extractLinkRelations(m0Model);
+	    m0Model.close();
+
+	    return linkMappings;
+	}
+
+	/**
+	 * Reads all the associations between SIMS properties and link objects and stores them as a map.
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and links numbers as values.
+	 * Example: <1580, <SEE_ALSO, 54>>
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @return A map containing the relations.
+	 */
+	public static Map<Integer, Map<String, Integer>> extractLinkRelations(Model m0AssociationModel) {
+
+		// The relations between SIMS properties and link objects are in the 'associations' graph and have the following structure:
+		// <http://baseUri/liens/lien/54/SEE_ALSO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/documentations/documentation/1580/SEE_ALSO> .
+
+		logger.debug("Extracting relations between SIMS properties and link objects");
+		Map<Integer, Map<String, Integer>> linkMappings = new HashMap<Integer, Map<String, Integer>>();
+
+		final String LINK_URI_BASE = "http://baseUri/liens/lien/";
+		final String DOCUMENTATION_URI_BASE = "http://baseUri/documentations/documentation/";
+
+		//if (m0AssociationModel == null) return extractOrganizationalRelations(organizationRole);
+		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
+			// Override 'selects' method to retain only statements whose subject and object URIs conform to what we expect
+	        public boolean selects(Statement statement) {
+	        	return ((statement.getSubject().getURI().startsWith(LINK_URI_BASE)) && (statement.getObject().isResource())
+	        			&& (statement.getObject().asResource().getURI().startsWith(DOCUMENTATION_URI_BASE)));
+	        }
+	    };
+	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				// The documentation identifier and SIMS attribute are the two last elements of the documentation URI
+				String[] pathElements = statement.getObject().asResource().getURI().replace(DOCUMENTATION_URI_BASE, "").split("/");
+				// Check that the documentation URI contains an attribute name and that the attributes in both subject and object URIs are the same
+				if ((pathElements.length != 2) || (!pathElements[1].equals(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/")))) {
+					logger.error("Unexpected statement ignored: " + statement);
+					return;
+				}
+				// Hopefully the identifiers are really integers
+				System.out.println(statement);
+				try {
+					Integer documentationNumber = Integer.parseInt(pathElements[0]);
+					Integer linkNumber = Integer.parseInt(statement.getSubject().getURI().replace(LINK_URI_BASE, "").split("/")[0]);
+					if (!linkMappings.containsKey(documentationNumber)) linkMappings.put(documentationNumber, new HashMap<String, Integer>());
+					linkMappings.get(documentationNumber).put(pathElements[1], linkNumber);
+				} catch (Exception e) {
+					logger.error("Statement ignored (invalid integer): " + statement);
+					return;
+				}
+			}
+		});
+
+		return linkMappings;	
+	}
+
 }

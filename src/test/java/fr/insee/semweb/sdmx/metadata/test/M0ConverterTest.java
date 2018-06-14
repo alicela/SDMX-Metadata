@@ -151,6 +151,13 @@ public class M0ConverterTest {
  	}
 
 	@Test
+	public void testExtractLinkRelations() throws IOException {
+
+		Map<Integer, Map<String, Integer>> relations = M0SIMSConverter.extractLinkRelations();
+		for (Integer documentationId : relations.keySet()) System.out.println("Documentation " + documentationId + " has the following links: " + relations.get(documentationId));
+ 	}
+
+	@Test
 	public void testExtractProductionRelations() throws IOException {
 
 		Map<String, List<String>> relations = M0Converter.extractProductionRelations();
@@ -216,7 +223,7 @@ public class M0ConverterTest {
 		boolean namedGraphs = false;
 
 		Dataset simsDataset = M0SIMSConverter.convertToSIMS(Arrays.asList(1502), namedGraphs);
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1502" + (namedGraphs ? "trig" : "ttl")), simsDataset, Lang.TRIG); // TODO Check if Lang.TRIG is OK for both cases
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1502." + (namedGraphs ? "trig" : "ttl")), simsDataset, Lang.TRIG); // TODO Check if Lang.TRIG is OK for both cases
 	}
 
 	@Test

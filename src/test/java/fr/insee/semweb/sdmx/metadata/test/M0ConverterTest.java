@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
 import java.util.function.Consumer;
 
 import org.apache.jena.query.Dataset;
@@ -153,7 +154,7 @@ public class M0ConverterTest {
 	@Test
 	public void testExtractLinkRelations() throws IOException {
 
-		Map<Integer, Map<String, Integer>> relations = M0SIMSConverter.extractLinkRelations();
+		SortedMap<Integer, SortedMap<String, Integer>> relations = M0SIMSConverter.extractLinkRelations();
 		for (Integer documentationId : relations.keySet()) System.out.println("Documentation " + documentationId + " has the following links: " + relations.get(documentationId));
  	}
 

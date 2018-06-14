@@ -7,7 +7,9 @@ import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
 import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Consumer;
 
@@ -278,13 +280,13 @@ public class M0SIMSConverter extends M0Converter {
 	 * 
 	 * @return A map containing the relations.
 	 */
-	public static Map<Integer, Map<String, Integer>> extractLinkRelations() {
+	public static SortedMap<Integer, SortedMap<String, Integer>> extractLinkRelations() {
 
 		// Read the M0 'associations' model
 		readDataset();
 		logger.debug("Extracting the information on relations between SIMS properties and link objects from dataset " + Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		Map<Integer, Map<String, Integer>> linkMappings = extractLinkRelations(m0Model);
+		SortedMap<Integer, SortedMap<String, Integer>> linkMappings = extractLinkRelations(m0Model);
 	    m0Model.close();
 
 	    return linkMappings;
@@ -298,13 +300,13 @@ public class M0SIMSConverter extends M0Converter {
 	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
 	 * @return A map containing the relations.
 	 */
-	public static Map<Integer, Map<String, Integer>> extractLinkRelations(Model m0AssociationModel) {
+	public static SortedMap<Integer, SortedMap<String, Integer>> extractLinkRelations(Model m0AssociationModel) {
 
 		// The relations between SIMS properties and link objects are in the 'associations' graph and have the following structure:
 		// <http://baseUri/liens/lien/54/SEE_ALSO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/documentations/documentation/1580/SEE_ALSO> .
 
 		logger.debug("Extracting relations between SIMS properties and link objects");
-		Map<Integer, Map<String, Integer>> linkMappings = new HashMap<Integer, Map<String, Integer>>();
+		SortedMap<Integer, SortedMap<String, Integer>> linkMappings = new TreeMap<Integer, SortedMap<String, Integer>>();
 
 		final String LINK_URI_BASE = "http://baseUri/liens/lien/";
 		final String DOCUMENTATION_URI_BASE = "http://baseUri/documentations/documentation/";
@@ -332,7 +334,7 @@ public class M0SIMSConverter extends M0Converter {
 				try {
 					Integer documentationNumber = Integer.parseInt(pathElements[0]);
 					Integer linkNumber = Integer.parseInt(statement.getSubject().getURI().replace(LINK_URI_BASE, "").split("/")[0]);
-					if (!linkMappings.containsKey(documentationNumber)) linkMappings.put(documentationNumber, new HashMap<String, Integer>());
+					if (!linkMappings.containsKey(documentationNumber)) linkMappings.put(documentationNumber, new TreeMap<String, Integer>());
 					linkMappings.get(documentationNumber).put(pathElements[1], linkNumber);
 				} catch (Exception e) {
 					logger.error("Statement ignored (invalid integer): " + statement);

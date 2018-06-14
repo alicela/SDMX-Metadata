@@ -38,6 +38,12 @@ public class M0CheckerTest {
 	}
 
 	@Test
+	public void testStudyLinks() {
+
+		M0Checker.studyLinks();
+	}
+
+	@Test
 	public void testExtractModels() throws IOException {
 
 		M0Checker.extractModels();

@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -90,7 +91,6 @@ public class M0Checker {
 			m0Properties.addAll(propertiesByDocumentation.get(id));
 		}
 		System.out.println(m0Properties.size() + " properties used in M0 'documentation' graph: " + m0Properties);
-
 
 		// Find the differences between the properties listed here and the SIMS/SIMS+ properties
 		SIMSFrScheme simsPlusScheme = null;
@@ -233,6 +233,48 @@ public class M0Checker {
 				if (!idMetierValues.get(0).toString().startsWith("OPE-")) System.out.println("Unexpected value for ID_DDS in operation " + id + ": " + idMetierValues.get(0).toString());
 			}
 		}
+	}
+
+	public static void studyLinks() {
+
+		String baseURI = "http://baseUri/liens/lien/";
+		List<String> ignoredAttributes = Arrays.asList("VALIDATION_STATUS");
+
+		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model links = dataset.getNamedModel("http://rdf.insee.fr/graphe/liens");
+
+		SortedSet<String> propertyList = new TreeSet<String>();
+		SortedSet<Integer> numberList = new TreeSet<Integer>();
+		SortedMap<Integer, SortedSet<String>> propertiesByLink = new TreeMap<Integer, SortedSet<String>>();
+
+		// List all M0 attributes used in the 'liens' model
+		StmtIterator statementIterator = links.listStatements();
+		statementIterator.forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String subjectURI = statement.getSubject().getURI();
+				String endPath = subjectURI.substring(subjectURI.lastIndexOf("/") + 1);
+				try {
+					Integer serialNumber = Integer.parseInt(endPath);
+					numberList.add(serialNumber);
+				} catch (NumberFormatException e) {
+					if (!"sequence".equals(endPath)) {
+						propertyList.add(subjectURI.substring(subjectURI.lastIndexOf("/") + 1));
+						String[] lastPathElements = subjectURI.substring(baseURI.length()).split("/");
+						if (!ignoredAttributes.contains(lastPathElements[1])) {
+							Integer serialNumber = Integer.parseInt(lastPathElements[0]);
+							if (!propertiesByLink.containsKey(serialNumber)) propertiesByLink.put(serialNumber, new TreeSet<String>());
+							propertiesByLink.get(serialNumber).add(lastPathElements[1]);							
+						}
+					}
+				}
+			}
+		});
+		System.out.println("Attributes used in the 'liens' model:");
+		for (String attributeName : propertyList) System.out.println(attributeName);
+		System.out.println("\nSerial numbers used in the 'liens' model: " + numberList);
+		System.out.println("\nList of properties for each link: ");
+		for (Integer linkIndex : propertiesByLink.keySet()) System.out.println(linkIndex + "\t\t" + propertiesByLink.get(linkIndex));
 	}
 
 	/**

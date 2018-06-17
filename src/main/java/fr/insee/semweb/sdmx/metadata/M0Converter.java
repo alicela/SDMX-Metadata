@@ -83,7 +83,7 @@ public class M0Converter {
 		readDataset();
 		Model m0SIMSModel = dataset.getNamedModel(M0_BASE_GRAPH_URI + "documentations");
 
-		Model m01508Model = M0SIMSConverter.extractM0ResourceModel(m0SIMSModel, "http://baseUri/operations/operation/1508");
+		Model m01508Model = extractM0ResourceModel(m0SIMSModel, "http://baseUri/operations/operation/1508");
 		Model sims1508Model = M0SIMSConverter.m0ConvertToSIMS(m01508Model);
 		sims1508Model.write(new FileOutputStream("src/main/resources/models/sims-1508.ttl"), "TTL");
 
@@ -119,10 +119,35 @@ public class M0Converter {
 		logger.debug("Splitting M0 model into " + m0Ids.size() + " models");
 		for (String m0Id : m0Ids) {
 			// Create model for the current source
-			Model sourceModel = M0SIMSConverter.extractM0ResourceModel(m0SIMSModel, "http://baseUri/documentations/documentation/" + m0Id);
+			Model sourceModel = extractM0ResourceModel(m0SIMSModel, "http://baseUri/documentations/documentation/" + m0Id);
 			sourceModel.write(new FileOutputStream("src/main/resources/data/models/m0-"+ m0Id + ".ttl"), "TTL");
 			sourceModel.close();
 		}
+	}
+
+	/**
+	 * Extracts from the base M0 model all the statements related to a given base resource (series, operation, etc.).
+	 * The statements extracted are those whose subject URI begins with the base resource URI.
+	 * 
+	 * @param m0Model A Jena <code>Model</code> in M0 format from which the statements will be extracted.
+	 * @param m0URI The URI of the M0 base resource for which the statements must to extracted.
+	 * @return A Jena <code>Model</code> containing the statements of the extract in M0 format.
+	 */
+	public static Model extractM0ResourceModel(Model m0Model, String m0URI) {
+	
+		M0SIMSConverter.logger.debug("Extracting M0 model for resource: " + m0URI);
+	
+		Model extractModel = ModelFactory.createDefaultModel();
+		Selector selector = new SimpleSelector(null, null, (RDFNode) null) {
+									// Override 'selects' method to retain only statements whose subject URI begins with the wanted URI
+							        public boolean selects(Statement statement) {
+							        	return statement.getSubject().getURI().startsWith(m0URI);
+							        }
+							    };
+		// Copy the relevant statements to the extract model
+		extractModel.add(m0Model.listStatements(selector));
+	
+		return extractModel;
 	}
 
 	/**
@@ -984,72 +1009,6 @@ public class M0Converter {
 		});
 
 		return hierarchyMappings;	
-	}
-
-	/**
-	 * Reads all the relations between SIMS metadata sets and series and operations (and possibly indicators), and returns them as a map.
-	 * The map keys will be the SIMS 'documentation' and the values the series, operation or indicator, both expressed as M0 URIs.
-	 * 
-	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @return A map containing the attachment relations.
-	 */
-	public static Map<String, String> extractSIMSAttachments(boolean includeIndicators) {
-
-		// Read the M0 'associations' model
-		readDataset();
-		logger.debug("Extracting the information on SIMS metadata sets attachment from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		Map<String, String> attachmentMappings = extractSIMSAttachments(m0Model, includeIndicators);
-	    m0Model.close();
-
-	    return attachmentMappings;
-	}
-
-	/**
-	 * Reads all the relations between SIMS metadata sets and series and operations (and possibly indicators), and returns them as a map.
-	 * The map keys will be the SIMS 'documentation' and the values the series, operation or indicator, both expressed as M0 URIs.
-	 * 
-	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @param includeIndicators If <code>true</code>, the attachments to indicators will also be returned, otherwise only series and operations are considered.
-	 * @return A map containing the attachment relations.
-	 */
-	public static Map<String, String> extractSIMSAttachments(Model m0AssociationModel, boolean includeIndicators) {
-
-		// The attachment relations are in the 'associations' graph and have the following structure:
-		// <http://baseUri/documentations/documentation/1527/ASSOCIE_A> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/operations/operation/1/ASSOCIE_A>
-
-		logger.debug("Extracting the information on attachment between SIMS metadata sets and series or operations");
-		Map<String, String> attachmentMappings = new HashMap<String, String>();
-
-		if (m0AssociationModel == null) return extractSIMSAttachments(includeIndicators);
-		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
-			// Override 'selects' method to retain only statements whose subject and object URIs end with 'ASSOCIE_A' and begin with expected objects
-	        public boolean selects(Statement statement) {
-	        	String subjectURI = statement.getSubject().getURI();
-	        	String objectURI = statement.getObject().asResource().getURI();
-	        	if (!((subjectURI.endsWith("ASSOCIE_A")) && (objectURI.endsWith("ASSOCIE_A")))) return false;
-	        	if (subjectURI.startsWith("http://baseUri/documentations")) {
-	        		if (objectURI.startsWith("http://baseUri/series")) return true;
-	        		if (objectURI.startsWith("http://baseUri/operations")) return true;
-	        		if (includeIndicators && objectURI.startsWith("http://baseUri/indicateurs")) return true;
-	        	}
-	        	return false;
-	        }
-	    };
-	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
-			@Override
-			public void accept(Statement statement) {
-				String simsSet = StringUtils.removeEnd(statement.getSubject().getURI(), "/ASSOCIE_A");
-				String operation = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/ASSOCIE_A");
-				// We can check that each operation or series has not more than one SIMS metadata set attached
-				if (attachmentMappings.containsValue(operation)) logger.warn("Several SIMS metadata sets are attached to " + operation);
-				// Each SIMS metadata set should be attached to only one series/operation
-				if (attachmentMappings.containsKey(simsSet)) logger.error("SIMS metadata set " + simsSet + " is attached to both " + operation + " and " + attachmentMappings.get(simsSet));
-				else attachmentMappings.put(simsSet, operation);
-			}
-		});
-
-		return attachmentMappings;	
 	}
 
 	/**

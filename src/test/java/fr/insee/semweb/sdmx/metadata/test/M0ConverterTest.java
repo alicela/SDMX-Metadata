@@ -114,7 +114,7 @@ public class M0ConverterTest {
 	public void testExtractOneCodeList() throws IOException {
 
 		Model extract = M0Converter.extractCodeLists();
-		Model subExtract = M0SIMSConverter.extractM0ResourceModel(extract, "http://baseUri/codelists/codelist/3");
+		Model subExtract = M0Converter.extractM0ResourceModel(extract, "http://baseUri/codelists/codelist/3");
 		subExtract.write(new FileOutputStream("src/test/resources/m0-codelist-3.ttl"), "TTL");
 	}
 
@@ -241,7 +241,7 @@ public class M0ConverterTest {
 	@Test
 	public void testExtractSIMSAttachments() throws IOException {
 
-		Map<String, String> attachments = M0Converter.extractSIMSAttachments(true);
+		Map<String, String> attachments = M0SIMSConverter.extractSIMSAttachments(true);
 		for (String simsSet : attachments.keySet()) System.out.println(attachments.get(simsSet) + " has SIMS metadata set " + simsSet);
 		System.out.println(attachments.size() + " attachments");
  	}

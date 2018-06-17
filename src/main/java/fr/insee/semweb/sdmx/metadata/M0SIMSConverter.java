@@ -77,7 +77,7 @@ public class M0SIMSConverter extends M0Converter {
 		Dataset simsDataset = DatasetFactory.create();
 		for (Integer docIdentifier : docIdentifiers) {
 			// Extract the M0 model containing the resource of the current documentation
-			Model docModel = extractM0ResourceModel(m0DocumentationModel, M0_DOCUMENTATION_BASE_URI + docIdentifier);
+			Model docModel = M0Converter.extractM0ResourceModel(m0DocumentationModel, M0_DOCUMENTATION_BASE_URI + docIdentifier);
 			// Convert to SIMS format
 			Model simsModel = m0ConvertToSIMS(docModel);
 			if (!namedModels) simsDataset.getDefaultModel().add(simsModel);
@@ -205,28 +205,69 @@ public class M0SIMSConverter extends M0Converter {
 	}
 
 	/**
-	 * Extracts from the base M0 model all the statements related to a given base resource (series, operation, etc.).
-	 * The statements extracted are those whose subject URI begins with the base resource URI.
+	 * Reads all the relations between SIMS metadata sets and series and operations (and possibly indicators), and returns them as a map.
+	 * The map keys will be the SIMS 'documentation' and the values the series, operation or indicator, both expressed as M0 URIs.
 	 * 
-	 * @param m0Model A Jena <code>Model</code> in M0 format from which the statements will be extracted.
-	 * @param m0URI The URI of the M0 base resource for which the statements must to extracted.
-	 * @return A Jena <code>Model</code> containing the statements of the extract in M0 format.
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @return A map containing the attachment relations.
 	 */
-	public static Model extractM0ResourceModel(Model m0Model, String m0URI) {
-	
-		logger.debug("Extracting M0 model for resource: " + m0URI);
-	
-		Model extractModel = ModelFactory.createDefaultModel();
-		Selector selector = new SimpleSelector(null, null, (RDFNode) null) {
-									// Override 'selects' method to retain only statements whose subject URI begins with the wanted URI
-							        public boolean selects(Statement statement) {
-							        	return statement.getSubject().getURI().startsWith(m0URI);
-							        }
-							    };
-		// Copy the relevant statements to the extract model
-		extractModel.add(m0Model.listStatements(selector));
-	
-		return extractModel;
+	public static Map<String, String> extractSIMSAttachments(boolean includeIndicators) {
+
+		// Read the M0 'associations' model
+		readDataset();
+		logger.debug("Extracting the information on SIMS metadata sets attachment from dataset " + Configuration.M0_FILE_NAME);
+		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		Map<String, String> attachmentMappings = extractSIMSAttachments(m0Model, includeIndicators);
+	    m0Model.close();
+
+	    return attachmentMappings;
+	}
+
+	/**
+	 * Reads all the relations between SIMS metadata sets and series and operations (and possibly indicators), and returns them as a map.
+	 * The map keys will be the SIMS 'documentation' and the values the series, operation or indicator, both expressed as M0 URIs.
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @param includeIndicators If <code>true</code>, the attachments to indicators will also be returned, otherwise only series and operations are considered.
+	 * @return A map containing the attachment relations.
+	 */
+	public static Map<String, String> extractSIMSAttachments(Model m0AssociationModel, boolean includeIndicators) {
+
+		// The attachment relations are in the 'associations' graph and have the following structure:
+		// <http://baseUri/documentations/documentation/1527/ASSOCIE_A> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/operations/operation/1/ASSOCIE_A>
+
+		logger.debug("Extracting the information on attachment between SIMS metadata sets and series or operations");
+		Map<String, String> attachmentMappings = new HashMap<String, String>();
+
+		if (m0AssociationModel == null) return extractSIMSAttachments(includeIndicators);
+		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
+			// Override 'selects' method to retain only statements whose subject and object URIs end with 'ASSOCIE_A' and begin with expected objects
+	        public boolean selects(Statement statement) {
+	        	String subjectURI = statement.getSubject().getURI();
+	        	String objectURI = statement.getObject().asResource().getURI();
+	        	if (!((subjectURI.endsWith("ASSOCIE_A")) && (objectURI.endsWith("ASSOCIE_A")))) return false;
+	        	if (subjectURI.startsWith("http://baseUri/documentations")) {
+	        		if (objectURI.startsWith("http://baseUri/series")) return true;
+	        		if (objectURI.startsWith("http://baseUri/operations")) return true;
+	        		if (includeIndicators && objectURI.startsWith("http://baseUri/indicateurs")) return true;
+	        	}
+	        	return false;
+	        }
+	    };
+	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String simsSet = StringUtils.removeEnd(statement.getSubject().getURI(), "/ASSOCIE_A");
+				String operation = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/ASSOCIE_A");
+				// We can check that each operation or series has not more than one SIMS metadata set attached
+				if (attachmentMappings.containsValue(operation)) logger.warn("Several SIMS metadata sets are attached to " + operation);
+				// Each SIMS metadata set should be attached to only one series/operation
+				if (attachmentMappings.containsKey(simsSet)) logger.error("SIMS metadata set " + simsSet + " is attached to both " + operation + " and " + attachmentMappings.get(simsSet));
+				else attachmentMappings.put(simsSet, operation);
+			}
+		});
+
+		return attachmentMappings;	
 	}
 
 	/**

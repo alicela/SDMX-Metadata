@@ -183,7 +183,7 @@ public class SIMSFrEntry extends SIMSEntry {
 		if (type.startsWith("text") || type.startsWith("expression")) return XSD.xstring;
 		// 'Rich text' alone (without reference) is also string for now (could be HTLM text)
 		if (type.equals("rich text")) return XSD.xstring;
-		// The other cases of 'rich text' ('Rich text + other material...') are associated with references: we simply return RDF resource in this case
+		// The other cases of 'rich text' ('Rich text + other material...') are associated with references: we simply return RDF resource in this case (can be adjusted downstream)
 		if (type.startsWith("rich text")) return RDFS.Resource;
 		// If representation starts with 'code list', either the list is indicated with CL_*, or it is the list of SSMs
 		// FIXME There are also cases where the representation contains only the code list name (CL_FREQ_FR, CL_COLLECTION_MODE)
@@ -195,7 +195,7 @@ public class SIMSFrEntry extends SIMSEntry {
 				if (firstSpace == -1) firstSpace = type.indexOf(" ", index);
 				String clNotation = (firstSpace < 0) ? type.substring(index) : type.substring(index, firstSpace);
 				clNotation = clNotation.toUpperCase();
-				// FIXME Some code lists do not have the correct in the SIMS spreadsheet
+				// FIXME Some code lists do not have the correct notation in the SIMS spreadsheet
 				if (clNotation.equals("CL_FREQ_FR")) clNotation = "CL_FREQ";
 				if (clNotation.equals("CL_STATUS")) clNotation = "CL_SURVEY_STATUS";
 				if (!clMappings.containsKey(clNotation)) {

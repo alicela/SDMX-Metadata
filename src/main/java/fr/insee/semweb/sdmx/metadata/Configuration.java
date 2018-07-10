@@ -32,7 +32,7 @@ public class Configuration {
 	/** Turtle file containing the SDMX metadata model vocabulary */
 	public static String SDMX_MM_TURTLE_FILE_NAME = "src/main/resources/data/sdmx-metadata.ttl";
 	/** TriG file containing the "M0" (temporary model) RDF dataset */
-	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20180613.trig";
+	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20180625.trig";
 	/** Excel file containing the information on operations */
 	public static String OPERATIONS_XLSX_FILE_NAME = "src/main/resources/data/Liste sources_20170612_CASD.xlsx";
 	/** Excel file containing the information on organizations */
@@ -153,14 +153,14 @@ public class Configuration {
 
 	/** URI of a SIMSv2/SIMSv2FR metadata attribute specification */
 	public static String simsAttributeSpecificationURI(SIMSFrEntry entry, boolean simsStrict) {
-		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "attributeSpecification/" + entry.getNotation();
-		else return BASE_SIMS_URI + "attributeSpecification/" + entry.getNotation();
+		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "specificationAttribut/" + entry.getNotation().toLowerCase();
+		else return BASE_SIMS_URI + "attributeSpecification/" + entry.getNotation().toLowerCase();
 	}
 
 	/** URI of a SIMSv2/SIMSv2FR metadata attribute property */
 	public static String simsAttributePropertyURI(SIMSFrEntry entry, boolean simsStrict) {
-		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "attribute/" + entry.getNotation();
-		return BASE_SIMS_URI + "attribute/" + entry.getNotation();
+		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "attribut/" + entry.getNotation().toLowerCase();
+		return BASE_SIMS_URI + "attribute/" + entry.getNotation().toLowerCase();
 	}
 
 	// Methods for concept schemes components
@@ -226,6 +226,11 @@ public class Configuration {
 	/** URI of a SIMSv2 concept as a function of its notation */
 	public static String simsConceptURI(String notation) {
 		return BASE_SIMS_URI + "concept/" + notation;
+	}
+
+	/** URI of the graph containing a SIMSv2Fr report */
+	public static String simsReportGraphURI(String reportId) {
+		return "http://rdf.insee.fr/graphes/qualite/rapport/" + reportId;
 	}
 
 	/** URI of a SIMSv2/SIMSv2Fr represented by a SIMSFrEntry */

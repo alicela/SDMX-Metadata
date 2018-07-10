@@ -255,6 +255,7 @@ public class SIMSModelMaker {
 
 			Resource attributeSpec = msdModel.createResource(Configuration.simsAttributeSpecificationURI(entry, simsStrict), sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "MetadataAttributeSpecification"));
 			attributeSpec.addProperty(RDFS.label, msdModel.createLiteral("Metadata Attribute Specification for concept " + entry.getName(), "en"));
+			attributeSpec.addProperty(RDFS.label, msdModel.createLiteral("Spécification d'attribut de métadonnées pour le concept " + entry.getFrenchName(), "fr"));
 			if (entry.isPresentational()) {
 				attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "isPresentational"), msdModel.createTypedLiteral(true));
 			}
@@ -265,6 +266,7 @@ public class SIMSModelMaker {
 			reportStructure.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "metadataAttributeSpecification"), attributeSpec);
 			Resource attributeProperty = msdModel.createResource(Configuration.simsAttributePropertyURI(entry, simsStrict), sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "MetadataAttributeProperty"));
 			attributeProperty.addProperty(RDFS.label, msdModel.createLiteral("Metadata Attribute Property for concept " + entry.getName(), "en"));
+			attributeProperty.addProperty(RDFS.label, msdModel.createLiteral("Metadata Attribute Property for concept " + entry.getFrenchName(), "fr"));
 			attributeProperty.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "concept"), msdModel.createResource(Configuration.simsConceptURI(entry)));
 			attributeProperty.addProperty(RDFS.domain, sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "ReportedAttribute"));
 			attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "metadataAttributeProperty"), attributeProperty);
@@ -272,11 +274,13 @@ public class SIMSModelMaker {
 			Resource propertyRange = entry.getRange(simsStrict, clMappings);
 			if (propertyRange == null) logger.error("Range undertermined for SIMSEntry " + entry.getNotation());
 			else {
+				// Add the type of OWL property (datatype or object)
 				if (propertyRange.equals(XSD.xstring) || propertyRange.equals(XSD.date)) attributeProperty.addProperty(RDF.type, OWL.DatatypeProperty);
-				else attributeProperty.addProperty(RDF.type, OWL.ObjectProperty);				
-				if (!propertyRange.equals(RDFS.Resource)) attributeProperty.addProperty(RDFS.range, propertyRange);
+				else attributeProperty.addProperty(RDF.type, OWL.ObjectProperty);
+				// Determine the range of the property, with RDFS resource ("rich text + URI") further specified as ReportedAttribute
+				if (propertyRange.equals(RDFS.Resource)) attributeProperty.addProperty(RDFS.range, sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "ReportedAttribute"));
+				else attributeProperty.addProperty(RDFS.range, propertyRange);
 			}
-			//logger.debug("Created MetadataAttributeProperty " + attributeProperty.getURI() + " with range " + propertyRange.getLocalName());
 			logger.debug("Created MetadataAttributeProperty " + attributeProperty.getURI() + " with range " + propertyRange);
 		}
 		return msdModel;

@@ -82,7 +82,7 @@ public class M0SIMSConverter extends M0Converter {
 			Model simsModel = m0ConvertToSIMS(docModel);
 			if (!namedModels) simsDataset.getDefaultModel().add(simsModel);
 			else {
-				simsDataset.addNamedModel("http://rdf.insee.fr/graphe/qualite/sims" + docIdentifier, simsModel);
+				simsDataset.addNamedModel(Configuration.simsReportGraphURI(docIdentifier.toString()), simsModel);
 			}
 			simsModel.close();
 			docModel.close();
@@ -312,6 +312,20 @@ public class M0SIMSConverter extends M0Converter {
 		logger.debug("Found a total of " + m0DocumentIdSet.size() + " documentations in the M0 model");
 
 		return m0DocumentIdSet;
+	}
+
+	/**
+	 * Converts the information on external links from a model in M0 format to a model in the target format.
+	 * 
+	 * @param m0Model The source model in M0 format containing the information on external links.
+	 * @return The model in the target format containing the information on external links.
+	 */
+	public static Model convertLinksToSIMS(Model m0Model) {
+
+		Model simsLinkModel = ModelFactory.createDefaultModel();
+
+		return simsLinkModel; 
+
 	}
 
 	/**

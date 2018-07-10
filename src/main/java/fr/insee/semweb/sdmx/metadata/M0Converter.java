@@ -410,6 +410,8 @@ public class M0Converter {
 		mappings.put(135, Configuration.operationResourceURI("1241", "serie"));
 		mappings.put(136, Configuration.operationResourceURI("1371", "serie")); // Changed from 1195, see mail 2/20
 		mappings.put(137, Configuration.operationResourceURI("1284", "serie"));
+		// HACK Add new mapping (mail RC 3/7)
+		mappings.put(21, Configuration.operationResourceURI("1229", "serie"));
 
 		return mappings;
 	}

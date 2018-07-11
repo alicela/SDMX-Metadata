@@ -1,5 +1,6 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,15 +14,23 @@ import java.util.SortedMap;
 import java.util.function.Consumer;
 
 import org.apache.jena.query.Dataset;
+import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.poi.EncryptedDocumentException;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.Test;
 
+import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
 import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.M0Converter;
 import fr.insee.semweb.sdmx.metadata.M0Converter.OrganizationRole;
 import fr.insee.semweb.sdmx.metadata.M0SIMSConverter;
+import fr.insee.semweb.sdmx.metadata.OrganizationModelMaker;
 
 public class M0ConverterTest {
 
@@ -94,6 +103,24 @@ public class M0ConverterTest {
 
 		Model extract = M0Converter.extractCodeLists();
 		extract.write(new FileOutputStream("src/test/resources/m0-codes.ttl"), "TTL");
+	}
+
+	@Test
+	public void testCreateWholeDataset() throws Exception {
+
+		// Code lists
+		Dataset dataset = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes");
+		// Families, series, operations
+		dataset.addNamedModel("http://rdf.insee.fr/graphes/operations", M0Converter.extractAllOperations());
+		// Indicators
+		dataset.addNamedModel("http://rdf.insee.fr/graphes/produits", M0Converter.extractIndicators());
+		// Organizations
+		Workbook orgWorkbook = WorkbookFactory.create(new File(Configuration.ORGANIZATIONS_XLSX_FILE_NAME));
+		Model orgModel = OrganizationModelMaker.createSSMModel(orgWorkbook);
+		orgModel.add(OrganizationModelMaker.createInseeModel(orgWorkbook));
+		dataset.addNamedModel("http://rdf.insee.fr/graphes/organisations", orgModel);
+		
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-data.trig"), dataset, Lang.TRIG);
 	}
 
 	@Test

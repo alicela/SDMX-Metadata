@@ -235,6 +235,9 @@ public class M0Checker {
 		}
 	}
 
+	/**
+	 * Study of the 'liens' model.
+	 */
 	public static void studyLinks() {
 
 		String baseURI = "http://baseUri/liens/lien/";
@@ -243,8 +246,8 @@ public class M0Checker {
 		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model links = dataset.getNamedModel("http://rdf.insee.fr/graphe/liens");
 
-		SortedSet<String> propertyList = new TreeSet<String>();
-		SortedSet<Integer> numberList = new TreeSet<Integer>();
+		SortedSet<String> propertyList = new TreeSet<String>(); // List of all SIMS attributes that appear in the 'liens' model
+		SortedSet<Integer> numberList = new TreeSet<Integer>(); // List of all the sequence numbers used to identify links
 		SortedMap<Integer, SortedSet<String>> propertiesByLink = new TreeMap<Integer, SortedSet<String>>();
 
 		// List all M0 attributes used in the 'liens' model

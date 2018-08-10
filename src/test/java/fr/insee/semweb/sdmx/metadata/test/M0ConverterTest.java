@@ -14,13 +14,9 @@ import java.util.SortedMap;
 import java.util.function.Consumer;
 
 import org.apache.jena.query.Dataset;
-import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
-import org.apache.poi.EncryptedDocumentException;
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.Test;
@@ -150,6 +146,13 @@ public class M0ConverterTest {
 
 		Model extract = M0Converter.extractFamilies();
 		extract.write(new FileOutputStream("src/test/resources/m0-families.ttl"), "TTL");
+	}
+
+	@Test
+	public void testGetFamilyThemesRelations() {
+
+		Map<String, List<String>> relations = M0Converter.getFamilyThemesRelations();
+		for (String family : relations.keySet()) System.out.println(family + " has theme(s) " + relations.get(family));
 	}
 
 	@Test

@@ -37,6 +37,8 @@ public class Configuration {
 	public static String OPERATIONS_XLSX_FILE_NAME = "src/main/resources/data/Liste sources_20170612_CASD.xlsx";
 	/** Excel file containing the information on organizations */
 	public static String ORGANIZATIONS_XLSX_FILE_NAME = "src/main/resources/data/OrganisationScheme_20170719.xlsx";
+	/** Excel file containing the links between families and themes */
+	public static String FAMILY_THEMES_XLSX_FILE_NAME = "src/main/resources/data/themes-familles.xlsx";
 
 	// Output files
 	/** Concepts and concept schemes associated to the SIMS attributes */

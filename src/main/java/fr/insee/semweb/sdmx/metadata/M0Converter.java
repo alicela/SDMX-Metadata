@@ -1,10 +1,12 @@
 package fr.insee.semweb.sdmx.metadata;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -34,6 +36,10 @@ import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SKOS;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import fr.insee.stamina.utils.PROV;
 
@@ -61,7 +67,7 @@ public class M0Converter {
 	static Property M0_RELATED_TO_EN = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedToGb");
 
 	/** The reported attribute */
-	protected static Resource SIMS_REPORTED_ATTRIBUTE = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#ReortedAttribute");
+	protected static Resource SIMS_REPORTED_ATTRIBUTE = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#ReportedAttribute");
 	/** The DQV quality metric */
 	protected static Resource DQV_METRIC = ResourceFactory.createResource("http://www.w3.org/ns/dqv#Metric");
 
@@ -493,6 +499,7 @@ public class M0Converter {
 
 	/**
 	 * Extracts the informations on the families from the M0 model and restructures them according to the target model.
+	 * Also adds the references to the themes.
 	 * 
 	 * @return A Jena <code>Model</code> containing the target RDF model for families.
 	 */
@@ -1127,6 +1134,48 @@ public class M0Converter {
 			}
 		});
 		logger.debug("Number of 'PRODUCED_FROM' relations found: " + relationMappings.size());
+		return relationMappings;
+	}
+
+	/**
+	 * Reads from an external spreadsheet the relations between the families and the statistical themes and stores them as a map.
+	 * The map keys will be the family URIs and the values the lists of theme URIs.
+	 * 
+	 * @return A map containing the relations or <code>null</code> in case of error.
+	 */
+	public static Map<String, List<String>> getFamilyThemesRelations() {
+
+		Map<String, List<String>> relationMappings = new HashMap<String, List<String>>();
+
+		Workbook familyThemesWorkbook = null;
+		File xlsxFile = new File(Configuration.FAMILY_THEMES_XLSX_FILE_NAME);
+		try {
+			logger.info("Reading family-themes relations from Excel file " + xlsxFile.getAbsolutePath());
+			familyThemesWorkbook = WorkbookFactory.create(xlsxFile);
+		} catch (Exception e) {
+			logger.fatal("Error while opening Excel file - " + e.getMessage());
+			return null;
+		}
+
+		Iterator<Row> rows = familyThemesWorkbook.getSheetAt(0).rowIterator();
+		while (rows.hasNext()) {
+			Row row = rows.next();
+			// Family URI is in column B
+			String familyURI = row.getCell(1).toString();
+			relationMappings.put(familyURI, new ArrayList<String>());
+			// First theme identifier is in column D, never empty
+			String themeId = row.getCell(3).toString();
+			relationMappings.get(familyURI).add(Configuration.themeURI(themeId));
+			// Second theme identifier is in column E, can be empty
+			Cell themeCell = row.getCell(4);
+			if (themeCell != null) {
+				themeId = themeCell.toString();
+				relationMappings.get(familyURI).add(Configuration.themeURI(themeId));
+			}
+			logger.debug("Themes registered for family " + familyURI + ": " + relationMappings.get(familyURI));
+		}
+		try { familyThemesWorkbook.close(); } catch (IOException ignored) { }
+
 		return relationMappings;
 	}
 

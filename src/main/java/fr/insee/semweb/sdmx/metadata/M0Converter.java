@@ -499,7 +499,7 @@ public class M0Converter {
 
 	/**
 	 * Extracts the informations on the families from the M0 model and restructures them according to the target model.
-	 * Also adds the references to the themes.
+	 * Also adds the references to statistical themes.
 	 * 
 	 * @return A Jena <code>Model</code> containing the target RDF model for families.
 	 */
@@ -508,6 +508,8 @@ public class M0Converter {
 		// Read the M0 model and create the URI mappings if necessary
 		readDataset();
 		if (allURIMappings == null) allURIMappings = createURIMappings(); // Not indispensable for families
+		// Get the family-themes relations
+		Map<String, List<String>> familyThemesRelations = getFamilyThemesRelations();
 
 		logger.debug("Extracting the information on families from dataset " + Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "familles");
@@ -537,6 +539,14 @@ public class M0Converter {
 			Resource targetResource = familyModel.createResource(targetURI, OperationModelMaker.statisticalOperationFamily);
 			logger.info("Creating target family " + targetURI + " from M0 resource " + m0Resource.getURI());
 			fillLiteralProperties(targetResource, m0Model, m0Resource);
+			// Add relation from family to theme(s)
+			if (familyThemesRelations.containsKey(targetURI)) {
+				for (String themeURI : familyThemesRelations.get(targetURI)) {
+					targetResource.addProperty(DCTerms.subject, familyModel.createResource(themeURI));
+					logger.debug("Adding theme " + themeURI + " to family");
+				}
+			} else logger.warn("No statistical theme found for family " + targetURI);
+			
 		}
 		logger.info(familyRealNumber + " families extracted");
 		m0Model.close();

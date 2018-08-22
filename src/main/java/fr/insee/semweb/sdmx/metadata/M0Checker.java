@@ -2,8 +2,10 @@ package fr.insee.semweb.sdmx.metadata;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,8 +37,15 @@ import org.apache.jena.rdf.model.SimpleSelector;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.SKOS;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import difflib.Delta;
 import difflib.DiffUtils;
@@ -281,6 +290,128 @@ public class M0Checker {
 	}
 
 	/**
+	 * Study of the 'documents' model.
+	 */
+	public static void studyDocuments(File export, PrintStream output) {
+
+		if (output == null) output = System.out;
+
+		SortedSet<String> attributeSetFr = new TreeSet<String>();
+		SortedSet<String> attributeSetEn = new TreeSet<String>();
+		SortedMap<String, Integer> attributeCounts = new TreeMap<String, Integer>();
+
+		String baseURI = "http://baseUri/documents/document/";
+		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model documents = dataset.getNamedModel("http://rdf.insee.fr/graphe/documents");
+		Model associations = dataset.getNamedModel("http://rdf.insee.fr/graphe/associations");
+
+		// Selects on the French relations, and refine to those that only start from a 'document' resource 
+		Selector selectorFr = new SimpleSelector(null, M0Converter.M0_RELATED_TO, (RDFNode) null) {
+	        public boolean selects(Statement statement) {
+	        	return (statement.getSubject().getURI().startsWith(baseURI));
+	        }
+	    };
+		// Selects on the English relations, and refine to those that only start from a 'document' resource 
+		Selector selectorEn = new SimpleSelector(null, M0Converter.M0_RELATED_TO_EN, (RDFNode) null) {
+	        public boolean selects(Statement statement) {
+	        	return (statement.getSubject().getURI().startsWith(baseURI));
+	        }
+	    };
+
+		associations.listStatements(selectorFr).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				attributeSetFr.add(StringUtils.substringAfterLast(statement.getSubject().toString(), "/"));
+			}
+		});
+		associations.listStatements(selectorEn).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				attributeSetEn.add(StringUtils.substringAfterLast(statement.getSubject().toString(), "/"));
+			}
+		});
+
+		// List all documents (NB: the selection on skos:Concept eliminates the 'sequence' resource
+		SortedMap<Integer, SortedSet<String>> propertiesByDocument = new TreeMap<Integer, SortedSet<String>>();
+		documents.listStatements(new SimpleSelector(null, RDF.type, SKOS.Concept)).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				Integer documentNumber = Integer.parseInt(StringUtils.substringAfterLast(statement.getSubject().toString(), "/"));
+				propertiesByDocument.put(documentNumber, new TreeSet<String>());
+			}
+		});
+		// Now list all non-SIMS attributes for each document (NB: no M0_VALUES_EN properties in the 'documents' model
+		documents.listStatements(new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String variablePart = statement.getSubject().toString().replace(baseURI, "");
+				String attributeName = variablePart.split("/")[1];
+				if (attributeSetFr.contains(attributeName) || attributeSetEn.contains(attributeName)) return; // We only want the direct attributes
+				if (("VALIDATION_STATUS".equals(attributeName)) || ("ID_METIER".equals(attributeName))) return; // We are not interested in the validation status or redundant ID_METIER attribute
+				// Increment attribute count
+				if (!attributeCounts.containsKey(attributeName)) attributeCounts.put(attributeName, 0);
+				attributeCounts.put(attributeName, attributeCounts.get(attributeName) + 1);
+				Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
+				if (!propertiesByDocument.containsKey(documentNumber)) output.println("Error: document number " + documentNumber + " not found (appears in " + baseURI + variablePart + ")");
+				else propertiesByDocument.get(documentNumber).add(attributeName);
+			}
+		});
+
+		output.println("Number of documents: " + propertiesByDocument.size());
+		output.println("\nSIMS attributes to which French documents are attached:\n" + attributeSetFr);
+		output.println("SIMS attributes to which English documents are attached:\n" + attributeSetEn);
+		output.println("\nDetail of attributes by document (excluding ID_METIER and VALIDATION_STATUS):\n");
+		for (Integer number : propertiesByDocument.keySet()) output.println("Document number " + number + ":\t" + propertiesByDocument.get(number));
+		output.println("\nFreqencies of use of the attributes:\n");
+		for (String attribute : attributeCounts.keySet()) output.println(attribute + " is used in " + attributeCounts.get(attribute) + " documents");
+
+		if (export != null) {
+			Workbook workbook = new XSSFWorkbook();
+			Sheet docSheet = workbook.createSheet("Documents");
+			Row headerRow = docSheet.createRow(0);
+			// Create header
+			int index = 0;
+			headerRow.createCell(index++, CellType.STRING).setCellValue("Number");
+			for (String attribute : attributeCounts.keySet()) {
+				headerRow.createCell(index, CellType.STRING).setCellValue(attribute);
+				attributeCounts.put(attribute, index++); // Reuse attributeCounts for column indexes
+			}
+			// Create all the rows and first column
+			SortedMap<Integer, Integer> rowIndexes = new TreeMap<Integer, Integer>();
+			index = 1;
+			for (Integer number : propertiesByDocument.keySet()) {
+				docSheet.createRow(index).createCell(0, CellType.NUMERIC).setCellValue(number);
+				rowIndexes.put(number, index++);
+			}
+			documents.listStatements(new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
+				@Override
+				public void accept(Statement statement) {
+					String variablePart = statement.getSubject().toString().replace(baseURI, "");
+					String attributeName = variablePart.split("/")[1];
+					if (attributeSetFr.contains(attributeName) || attributeSetEn.contains(attributeName)) return; // Same as above
+					if (("VALIDATION_STATUS".equals(attributeName)) || ("ID_METIER".equals(attributeName))) return; // Same as above
+					Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
+					// Create cell
+					String attributeValue = statement.getObject().toString();
+					docSheet.getRow(rowIndexes.get(documentNumber)).createCell(attributeCounts.get(attributeName), CellType.STRING).setCellValue(attributeValue);
+				}
+			});
+			// Adjust columns before writing the spreadsheet
+			for (index = 0 ; index < attributeCounts.keySet().size(); index++) docSheet.autoSizeColumn(index);
+			try {
+				workbook.write(new FileOutputStream(export));
+				output.println("\nExcel export written to " + export.getAbsolutePath());
+			} catch (IOException e) {
+				output.println("\nError: could not write Excel export");
+			} finally {
+				try {
+					workbook.close();
+				} catch (Exception ignored) { }
+			}
+		}
+	}
+
+	/**
 	 * Check that all attributes referenced in the SIMS M0 triples are valid SIMSFr attributes.
 	 */
 	public static void checkSIMSAttributes() {
@@ -403,6 +534,7 @@ public class M0Checker {
 
 		return valueSet;
 	}
+
 
 	/**
 	 * Check that a given property in the 'documentations' graph takes its values from a list of valid values.

@@ -2,6 +2,7 @@ package fr.insee.semweb.sdmx.metadata.test;
 
 import static org.junit.Assert.fail;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -20,6 +21,11 @@ public class M0CheckerTest {
 	@Test
 	public void testStudyDocumentations() {
 		fail("Not yet implemented");
+	}
+
+	@Test
+	public void testStudyDocuments() {
+		M0Checker.studyDocuments(new File("src/test/resources/documents.xslx"), null);
 	}
 
 	@Test

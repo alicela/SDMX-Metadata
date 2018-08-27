@@ -247,16 +247,21 @@ public class M0Checker {
 	/**
 	 * Study of the 'liens' model.
 	 */
-	public static void studyLinks() {
+	public static void studyLinks(File export, PrintStream output) {
 
-		String baseURI = "http://baseUri/liens/lien/";
-		List<String> ignoredAttributes = Arrays.asList("VALIDATION_STATUS");
+		if (output == null) output = System.out;
+
+		String baseURILink = "http://baseUri/liens/lien/";
+		String baseURIDoc = "http://baseUri/documentations/documentation/";
+		List<String> ignoredAttributes = Arrays.asList("ID", "ID_METIER", "VALIDATION_STATUS");
+		List<String> directAttributes = Arrays.asList("SUMMARY", "TITLE", "TYPE", "URI");
+		List<String> exportedAttributes = Arrays.asList("TITLE","TYPE", "URI", "SUMMARY");
 
 		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model links = dataset.getNamedModel("http://rdf.insee.fr/graphe/liens");
+		Model associations = dataset.getNamedModel("http://rdf.insee.fr/graphe/associations");
 
 		SortedSet<String> propertyList = new TreeSet<String>(); // List of all SIMS attributes that appear in the 'liens' model
-		SortedSet<Integer> numberList = new TreeSet<Integer>(); // List of all the sequence numbers used to identify links
 		SortedMap<Integer, SortedSet<String>> propertiesByLink = new TreeMap<Integer, SortedSet<String>>();
 
 		// List all M0 attributes used in the 'liens' model
@@ -267,12 +272,11 @@ public class M0Checker {
 				String subjectURI = statement.getSubject().getURI();
 				String endPath = subjectURI.substring(subjectURI.lastIndexOf("/") + 1);
 				try {
-					Integer serialNumber = Integer.parseInt(endPath);
-					numberList.add(serialNumber);
+					Integer.parseInt(endPath); // Will raise an exception for the URIs ending with attribute name
 				} catch (NumberFormatException e) {
 					if (!"sequence".equals(endPath)) {
 						propertyList.add(subjectURI.substring(subjectURI.lastIndexOf("/") + 1));
-						String[] lastPathElements = subjectURI.substring(baseURI.length()).split("/");
+						String[] lastPathElements = subjectURI.substring(baseURILink.length()).split("/");
 						if (!ignoredAttributes.contains(lastPathElements[1])) {
 							Integer serialNumber = Integer.parseInt(lastPathElements[0]);
 							if (!propertiesByLink.containsKey(serialNumber)) propertiesByLink.put(serialNumber, new TreeSet<String>());
@@ -282,11 +286,117 @@ public class M0Checker {
 				}
 			}
 		});
-		System.out.println("Attributes used in the 'liens' model:");
-		for (String attributeName : propertyList) System.out.println(attributeName);
-		System.out.println("\nSerial numbers used in the 'liens' model: " + numberList);
-		System.out.println("\nList of properties for each link: ");
-		for (Integer linkIndex : propertiesByLink.keySet()) System.out.println(linkIndex + "\t\t" + propertiesByLink.get(linkIndex));
+		output.println("Attributes used in the 'liens' model:");
+		for (String attributeName : propertyList) output.println(attributeName);
+		output.println("\nList of attributes for each link (ID, ID_METIER and VALIDATION_STATUS are ignored): ");
+		for (Integer linkIndex : propertiesByLink.keySet()) output.println(linkIndex + "\t\t" + propertiesByLink.get(linkIndex));
+		output.println("\nList of non-direct attributes for each link (excluded: " + directAttributes + "): ");
+		for (Integer linkIndex : propertiesByLink.keySet()) {
+			propertiesByLink.get(linkIndex).removeAll(directAttributes);
+			output.println(linkIndex + "\t\t" + propertiesByLink.get(linkIndex));
+		}
+
+		// List the associations
+		// Selects on the French relations, and refine to those that start from a 'lien' resource 
+		Selector selectorFr = new SimpleSelector(null, M0Converter.M0_RELATED_TO, (RDFNode) null) {
+	        public boolean selects(Statement statement) {
+	        	return (statement.getSubject().getURI().startsWith(baseURILink));
+	        }
+	    };
+		// Selects on the English relations, and refine to those that only start from a 'lien' resource 
+		Selector selectorEn = new SimpleSelector(null, M0Converter.M0_RELATED_TO_EN, (RDFNode) null) {
+	        public boolean selects(Statement statement) {
+	        	return (statement.getSubject().getURI().startsWith(baseURILink));
+	        }
+	    };
+		SortedMap<String, SortedSet<String>> linksByDocumentation = new TreeMap<String, SortedSet<String>>();
+		SortedMap<String, SortedSet<String>> documentationsByLink = new TreeMap<String, SortedSet<String>>();
+		associations.listStatements(selectorFr).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String documentationPart = statement.getObject().toString().replaceAll(baseURIDoc, "");
+				String linkPart = statement.getSubject().toString().replaceAll(baseURILink, "");
+				if (!linksByDocumentation.containsKey(documentationPart)) linksByDocumentation.put(documentationPart, new TreeSet<String>());
+				linksByDocumentation.get(documentationPart).add(linkPart);
+				if (!documentationsByLink.containsKey(linkPart)) documentationsByLink.put(linkPart, new TreeSet<String>());
+				documentationsByLink.get(linkPart).add(documentationPart);
+			}
+		});
+		output.println("\nAssociations between documentations and French links:");
+		for (String documentationPart : linksByDocumentation.keySet()) output.println(documentationPart + "\t" + linksByDocumentation.get(documentationPart));
+		output.println("\nAssociations between French links and documentations:");
+		for (String linkPart : documentationsByLink.keySet()) output.println(linkPart + "\t" + documentationsByLink.get(linkPart));
+
+		associations.listStatements(selectorEn).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String documentationPart = statement.getObject().toString().replaceAll(baseURIDoc, "");
+				String linkPart = statement.getSubject().toString().replaceAll(baseURILink, "");
+				if (!linksByDocumentation.containsKey(documentationPart)) linksByDocumentation.put(documentationPart, new TreeSet<String>());
+				linksByDocumentation.get(documentationPart).add(linkPart);
+				if (!documentationsByLink.containsKey(linkPart)) documentationsByLink.put(linkPart, new TreeSet<String>());
+				documentationsByLink.get(linkPart).add(documentationPart);
+			}
+		});
+		output.println("\nAssociations between documentations and English links:");
+		for (String documentationPart : linksByDocumentation.keySet()) output.println(documentationPart + "\t" + linksByDocumentation.get(documentationPart));
+		output.println("\nAssociations between English links and documentations:");
+		for (String linkPart : documentationsByLink.keySet()) output.println(linkPart + "\t" + documentationsByLink.get(linkPart));
+
+		if (export != null) {
+			Workbook workbook = new XSSFWorkbook();
+			Sheet docSheet = workbook.createSheet("Documents");
+			Row headerRow = docSheet.createRow(0);
+			// Create header
+			headerRow.createCell(0, CellType.STRING).setCellValue("Number");
+			for (String attribute : exportedAttributes) {
+				headerRow.createCell(exportedAttributes.indexOf(attribute) + 1, CellType.STRING).setCellValue(attribute);
+			}
+			// Create all the rows and first column
+			SortedMap<Integer, Integer> rowIndexes = new TreeMap<Integer, Integer>();
+			links.listStatements(new SimpleSelector(null, RDF.type, SKOS.Concept)).forEachRemaining(new Consumer<Statement>() {
+				@Override
+				public void accept(Statement statement) {
+					Integer linkNumber = Integer.parseInt(StringUtils.substringAfterLast(statement.getSubject().toString(), "/"));
+					rowIndexes.put(linkNumber, 0);
+				}
+			});
+			int index = 1;
+			for (Integer number : rowIndexes.keySet()) {
+				docSheet.createRow(index).createCell(0, CellType.NUMERIC).setCellValue(number);
+				rowIndexes.put(number, index++);
+			}
+
+			// Create cells for the values of the exported attributes
+			links.listStatements().forEachRemaining(new Consumer<Statement>() {
+				@Override
+				public void accept(Statement statement) {
+					// Select statements with 'values' and 'valuesGb' properties
+					if (!(statement.getPredicate().equals(M0Converter.M0_VALUES) || statement.getPredicate().equals(M0Converter.M0_VALUES_EN))) return;
+					// All subjects should start with the base links URI
+					String variablePart = statement.getSubject().toString().replace(baseURILink, "");
+					if (variablePart.length() == statement.getSubject().toString().length()) logger.warn("Unexpected subject URI in statement " + statement);
+					String attributeName = variablePart.split("/")[1];
+					if (!exportedAttributes.contains(attributeName)) return;
+					Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
+					// Create cell
+					String attributeValue = statement.getObject().toString();
+					docSheet.getRow(rowIndexes.get(documentNumber)).createCell(exportedAttributes.indexOf(attributeName) + 1, CellType.STRING).setCellValue(attributeValue);
+				}
+			});
+			// Adjust columns before writing the spreadsheet
+			for (index = 0 ; index <= exportedAttributes.size(); index++) docSheet.autoSizeColumn(index);
+			try {
+				workbook.write(new FileOutputStream(export));
+				output.println("\nExcel export written to " + export.getAbsolutePath());
+			} catch (IOException e) {
+				output.println("\nError: could not write Excel export");
+			} finally {
+				try {
+					workbook.close();
+				} catch (Exception ignored) { }
+			}
+		}
 	}
 
 	/**
@@ -301,6 +411,9 @@ public class M0Checker {
 		SortedMap<String, Integer> attributeCounts = new TreeMap<String, Integer>();
 
 		String baseURI = "http://baseUri/documents/document/";
+
+		List<String> ignoredAttributes = Arrays.asList("ID", "ID_METIER", "VALIDATION_STATUS");
+
 		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model documents = dataset.getNamedModel("http://rdf.insee.fr/graphe/documents");
 		Model associations = dataset.getNamedModel("http://rdf.insee.fr/graphe/associations");
@@ -341,18 +454,21 @@ public class M0Checker {
 			}
 		});
 		// Now list all non-SIMS attributes for each document (NB: no M0_VALUES_EN properties in the 'documents' model
+		// Take this opportunity to create the list of all direct attributes (appearing in the document model but not in the association model)
+		Set<String> allDirectAttributes = new TreeSet<String>(ignoredAttributes);
 		documents.listStatements(new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				String variablePart = statement.getSubject().toString().replace(baseURI, "");
 				String attributeName = variablePart.split("/")[1];
 				if (attributeSetFr.contains(attributeName) || attributeSetEn.contains(attributeName)) return; // We only want the direct attributes
-				if (("VALIDATION_STATUS".equals(attributeName)) || ("ID_METIER".equals(attributeName))) return; // We are not interested in the validation status or redundant ID_METIER attribute
+				if (ignoredAttributes.contains(attributeName)) return; // We are not interested in the validation status, ID, or redundant ID_METIER attribute
+				allDirectAttributes.add(attributeName);
 				// Increment attribute count
 				if (!attributeCounts.containsKey(attributeName)) attributeCounts.put(attributeName, 0);
 				attributeCounts.put(attributeName, attributeCounts.get(attributeName) + 1);
 				Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
-				if (!propertiesByDocument.containsKey(documentNumber)) output.println("Error: document number " + documentNumber + " not found (appears in " + baseURI + variablePart + ")");
+				if (!propertiesByDocument.containsKey(documentNumber)) logger.error("Error: document number " + documentNumber + " not found (appears in " + baseURI + variablePart + ")");
 				else propertiesByDocument.get(documentNumber).add(attributeName);
 			}
 		});
@@ -360,42 +476,128 @@ public class M0Checker {
 		output.println("Number of documents: " + propertiesByDocument.size());
 		output.println("\nSIMS attributes to which French documents are attached:\n" + attributeSetFr);
 		output.println("SIMS attributes to which English documents are attached:\n" + attributeSetEn);
-		output.println("\nDetail of attributes by document (excluding ID_METIER and VALIDATION_STATUS):\n");
+		output.println("All direct document attributes: " + allDirectAttributes);
+		output.println("\nDetail of direct attributes by document (excluding ID, ID_METIER and VALIDATION_STATUS):\n");
 		for (Integer number : propertiesByDocument.keySet()) output.println("Document number " + number + ":\t" + propertiesByDocument.get(number));
-		output.println("\nFreqencies of use of the attributes:\n");
+		output.println("\nFrequencies of use of the attributes:\n");
 		for (String attribute : attributeCounts.keySet()) output.println(attribute + " is used in " + attributeCounts.get(attribute) + " documents");
 
-		if (export != null) {
-			Workbook workbook = new XSSFWorkbook();
-			Sheet docSheet = workbook.createSheet("Documents");
-			Row headerRow = docSheet.createRow(0);
-			// Create header
-			int index = 0;
-			headerRow.createCell(index++, CellType.STRING).setCellValue("Number");
-			for (String attribute : attributeCounts.keySet()) {
-				headerRow.createCell(index, CellType.STRING).setCellValue(attribute);
-				attributeCounts.put(attribute, index++); // Reuse attributeCounts for column indexes
+		// Go over the 'documents' model again to find the list of SIMS attributes for each document
+		propertiesByDocument.clear();
+		Property varSIMSProperty = ResourceFactory.createProperty("http://rem.org/schema#varSims");
+		documents.listStatements(new SimpleSelector(null, varSIMSProperty, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String variablePart = statement.getSubject().toString().replace(baseURI, "");
+				if (!variablePart.contains("/")) return; // That is a root document URI
+				String attributeName = variablePart.split("/")[1];
+				if (allDirectAttributes.contains(attributeName)) return; // We only want the SIMS attributes
+				Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
+				if (!propertiesByDocument.containsKey(documentNumber)) propertiesByDocument.put(documentNumber, new TreeSet<String>());
+				propertiesByDocument.get(documentNumber).add(attributeName);
 			}
-			// Create all the rows and first column
-			SortedMap<Integer, Integer> rowIndexes = new TreeMap<Integer, Integer>();
-			index = 1;
-			for (Integer number : propertiesByDocument.keySet()) {
-				docSheet.createRow(index).createCell(0, CellType.NUMERIC).setCellValue(number);
-				rowIndexes.put(number, index++);
-			}
-			documents.listStatements(new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
-				@Override
-				public void accept(Statement statement) {
-					String variablePart = statement.getSubject().toString().replace(baseURI, "");
-					String attributeName = variablePart.split("/")[1];
-					if (attributeSetFr.contains(attributeName) || attributeSetEn.contains(attributeName)) return; // Same as above
-					if (("VALIDATION_STATUS".equals(attributeName)) || ("ID_METIER".equals(attributeName))) return; // Same as above
-					Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
-					// Create cell
-					String attributeValue = statement.getObject().toString();
-					docSheet.getRow(rowIndexes.get(documentNumber)).createCell(attributeCounts.get(attributeName), CellType.STRING).setCellValue(attributeValue);
+		});
+		output.println("\nDetail of SIMS attributes by document (excluded: " + ignoredAttributes + "):\n");
+		for (Integer number : propertiesByDocument.keySet()) output.println("Document number " + number + ":\t" + propertiesByDocument.get(number));
+		// Same thing, eliminating the ASSOCIE_A attribute
+		Set<String> attributesToRemove = new TreeSet<String>(Arrays.asList("ASSOCIE_A"));
+		int exclusions = 0;
+		for (Integer number : propertiesByDocument.keySet()) if (propertiesByDocument.get(number).removeAll(attributesToRemove)) exclusions++;
+		output.println("\nDetail of SIMS attributes by document (further excluded: " + attributesToRemove + ", " + exclusions + " exclusions):\n");
+		for (Integer number : propertiesByDocument.keySet()) output.println("Document number " + number + ":\t" + propertiesByDocument.get(number));
+
+		// Finally, let us check that the association endpoints in 'documents' and 'associations' match
+		SortedSet<String> orphans = new TreeSet<String>();
+		// We have to keep track of already paired endpoints to avoid problem when 'relatedTo' and 'relatedToGb' exist for the same document/attribute
+		SortedSet<String> paired = new TreeSet<String>();
+		associations.listStatements().forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				// All properties in the 'associations' model are 'relatedTo' or 'relatedToGb', so no selection is needed
+				if (!statement.getSubject().toString().startsWith(baseURI)) return; // Select statements about documents
+				String variablePart = statement.getSubject().toString().replace(baseURI, "");
+				String attributeName = variablePart.split("/")[1];
+				if (allDirectAttributes.contains(attributeName)) return; // We only want the SIMS attributes
+				Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
+				if (!propertiesByDocument.containsKey(documentNumber)) {
+					orphans.add("Document " + documentNumber);
+					return;
 				}
-			});
+				if (!propertiesByDocument.get(documentNumber).remove(attributeName)) {
+					// When 'relatedTo' and 'relatedToGb' exist for the same attribute, the endpoint might already have been removed
+					if (paired.contains(variablePart)) return;
+					orphans.add("Document " + documentNumber + ", attribute " + attributeName);
+					return;
+				}
+				paired.add(variablePart);
+			}
+		});
+		output.println("Coherence between 'documents' and 'associations' graphs:\n");
+		if (orphans.size() == 0) output.println("All endpoints found in the 'associations' graph match an endpoint in the 'documents' graph");
+		else {
+			output.println(orphans.size() + " endpoints referenced in the 'associations' graph but missing from the 'documents' graph");
+			for (String orphan : orphans) output.println(orphan);
+		}
+		output.println();
+		orphans.clear();
+		for (Integer documentNumber : propertiesByDocument.keySet()) if (propertiesByDocument.get(documentNumber).size() != 0) orphans.add(String.valueOf(documentNumber + ": " + propertiesByDocument.get(documentNumber)));
+		if (orphans.size() == 0) output.println("All endpoints found in the 'documents' graph match an endpoint in the 'associations' graph");
+		else {
+			output.println(orphans.size() + " documents with endpoints referenced in the 'documents' graph but not matching an endpoint in the 'associations' graph");
+			for (String orphan : orphans) output.println(orphan);
+		}
+		
+		// For convenience reasons, the workbook is created even if it is not saved at the end
+		Workbook workbook = new XSSFWorkbook();
+		Sheet docSheet = workbook.createSheet("Documents");
+		Row headerRow = docSheet.createRow(0);
+		// Create header
+		int index = 0;
+		headerRow.createCell(index++, CellType.STRING).setCellValue("Number");
+		for (String attribute : attributeCounts.keySet()) {
+			headerRow.createCell(index, CellType.STRING).setCellValue(attribute);
+			attributeCounts.put(attribute, index++); // Reuse attributeCounts for column indexes
+		}
+		// Create all the rows and first column
+		SortedMap<Integer, Integer> rowIndexes = new TreeMap<Integer, Integer>();
+		index = 1;
+		for (Integer number : propertiesByDocument.keySet()) {
+			docSheet.createRow(index).createCell(0, CellType.NUMERIC).setCellValue(number);
+			rowIndexes.put(number, index++);
+		}
+		orphans.clear();
+		documents.listStatements(new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String variablePart = statement.getSubject().toString().replace(baseURI, "");
+				String attributeName = variablePart.split("/")[1];
+				if (attributeSetFr.contains(attributeName) || attributeSetEn.contains(attributeName)) return; // Same as above
+				if (ignoredAttributes.contains(attributeName) || attributesToRemove.contains(attributeName)) return; // Same as above
+				Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
+				// Create cell
+				String attributeValue = statement.getObject().toString();
+				if (!rowIndexes.containsKey(documentNumber)) {
+					// This is the case when a document has only direct attributes (no SIMS attributes)
+					if (!orphans.contains(String.valueOf(documentNumber))) {
+						// Avoids to create a new line for each direct attribute
+						orphans.add(String.valueOf(documentNumber));
+						int lastIndex = docSheet.getLastRowNum() + 1;
+						rowIndexes.put(documentNumber, lastIndex);
+						Row row = docSheet.createRow(lastIndex);
+						row.createCell(0, CellType.NUMERIC).setCellValue(documentNumber);
+					}
+				}
+				docSheet.getRow(rowIndexes.get(documentNumber)).createCell(attributeCounts.get(attributeName), CellType.STRING).setCellValue(attributeValue);
+			}
+		});
+
+		if (orphans.size() == 0) output.println("\nAll document found in the 'documents' graph have at least one SIMS attribute");
+		else {
+			output.println("\n" + orphans.size() + " documents present in the 'documents' graph have no SIMS attribute, and thus no correspondence in the 'associations' graph: " + orphans);
+			if (export != null) output.println("Details on these documents can be found at the end of the export spreadsheet");
+		}
+
+		if (export != null) {
 			// Adjust columns before writing the spreadsheet
 			for (index = 0 ; index < attributeCounts.keySet().size(); index++) docSheet.autoSizeColumn(index);
 			try {
@@ -407,7 +609,7 @@ public class M0Checker {
 				try {
 					workbook.close();
 				} catch (Exception ignored) { }
-			}
+			}				
 		}
 	}
 

@@ -4,6 +4,7 @@ import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -24,8 +25,10 @@ public class M0CheckerTest {
 	}
 
 	@Test
-	public void testStudyDocuments() {
-		M0Checker.studyDocuments(new File("src/test/resources/documents.xslx"), null);
+	public void testStudyDocuments() throws IOException {
+		PrintStream outStream = new PrintStream("src/test/resources/documents.txt");
+		M0Checker.studyDocuments(new File("src/test/resources/documents.xslx"), outStream);
+		outStream.close();
 	}
 
 	@Test
@@ -44,9 +47,11 @@ public class M0CheckerTest {
 	}
 
 	@Test
-	public void testStudyLinks() {
+	public void testStudyLinks() throws IOException {
 
-		M0Checker.studyLinks();
+		PrintStream outStream = new PrintStream("src/test/resources/links.txt");
+		M0Checker.studyLinks(new File("src/test/resources/links.xslx"), outStream);
+		outStream.close();
 	}
 
 	@Test

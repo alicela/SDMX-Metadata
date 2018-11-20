@@ -310,6 +310,11 @@ public class Configuration {
 		return METRIC_BASE_URI + metricId;
 	}
 
+	/** URI of the FOAF document representing a 'link' object */
+	public static String linkURI(int linkNumber) {
+		return "http://id.insee.fr/documents/page/" + linkNumber;
+	}
+
 	/** URI of a CASD dataset */
 	public static String datasetURI(String name, String operation) {
 		return CASD_PRODUCTS_BASE_URI + "dataset/" + slug(operation) + "-" + slug(name);

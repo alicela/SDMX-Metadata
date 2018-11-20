@@ -4,6 +4,7 @@ import java.io.File;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,7 @@ import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
@@ -28,7 +30,9 @@ import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Selector;
 import org.apache.jena.rdf.model.SimpleSelector;
 import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.sparql.vocabulary.FOAF;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
@@ -42,6 +46,7 @@ public class M0SIMSConverter extends M0Converter {
 	public static Logger logger = LogManager.getLogger(M0SIMSConverter.class);
 
 	public static String M0_DOCUMENTATION_BASE_URI = "http://baseUri/documentations/documentation/";
+	public static String M0_LINK_BASE_URI = "http://baseUri/liens/lien/";
 
 	/** The SIMS-FR metadata structure definition */
 	protected static OntModel simsFrMSD = null;
@@ -317,80 +322,116 @@ public class M0SIMSConverter extends M0Converter {
 	/**
 	 * Converts the information on external links from a model in M0 format to a model in the target format.
 	 * 
-	 * @param m0Model The source model in M0 format containing the information on external links.
 	 * @return The model in the target format containing the information on external links.
 	 */
-	public static Model convertLinksToSIMS(Model m0Model) {
+	public static Model convertLinksToSIMS() {
 
+		readDataset();
+		Model m0LinkModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/liens");
 		Model simsLinkModel = ModelFactory.createDefaultModel();
+		simsLinkModel.setNsPrefix("foaf", FOAF.getURI());
+		simsLinkModel.setNsPrefix("rdfs", RDFS.getURI());
+		Map<String, Property> propertyMappings = new HashMap<String, Property>();
+		propertyMappings.put("TITLE", RDFS.label);
+		propertyMappings.put("TYPE", RDFS.comment); // Should be eventually replaced by SUMMARY
+		propertyMappings.put("URI", ResourceFactory.createProperty("https://schema.org/url"));
+
+		// The direct attributes for the links are URI, TITLE and SUMMARY (temporarily replaced by TYPE)
+		// First get the list of valid associations between documentations and links (French or English)
+		SortedMap<Integer, SortedMap<String, List<Integer>>> frenchAssociations = extractLinkRelations("fr");
+		SortedMap<Integer, SortedMap<String, List<Integer>>> englishAssociations = extractLinkRelations("en");
+		// Go through the M0 'links' model and enrich the link objects
+		StmtIterator statementIterator = m0LinkModel.listStatements(null, M0_VALUES, (RDFNode) null);
+		statementIterator.forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String variablePart = statement.getSubject().toString().replace(M0_LINK_BASE_URI, "");
+				if (variablePart.length() == statement.getSubject().toString().length()) logger.warn("Unexpected subject URI in statement " + statement);
+				String attributeName = variablePart.split("/")[1];
+				if (!propertyMappings.keySet().contains(attributeName)) return;
+				Integer linkNumber = Integer.parseInt(variablePart.split("/")[0]);
+				String languageTag = null;
+				if (frenchAssociations.containsKey(linkNumber)) languageTag = "fr";
+				else if (englishAssociations.containsKey(linkNumber)) languageTag = "en";
+				if (languageTag == null) return; // We create only links that are associated to a documentation
+				Resource linkResource = simsLinkModel.createResource(Configuration.linkURI(linkNumber), FOAF.Document); // Will be executed multiple times, but it is OK
+				if ("URI".equals(attributeName)) linkResource.addProperty(propertyMappings.get(attributeName), simsLinkModel.createResource(statement.getObject().toString()));
+				else linkResource.addProperty(propertyMappings.get(attributeName), simsLinkModel.createLiteral(statement.getObject().toString(), languageTag));
+				// TODO Add dc:language
+			}
+		});
+		// Now create associations to documentations
 
 		return simsLinkModel; 
-
 	}
 
 	/**
-	 * Reads all the associations between SIMS properties and link objects and stores them as a map.
-	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and links numbers as values.
-	 * Example: <1580, <SEE_ALSO, 54>>
+	 * Reads all the associations between SIMS properties and link objects in a given language and stores them as a map.
+	 * The map keys will be the link identifiers and the values will be maps with attribute names as keys and documentation numbers as values.
+	 * Example: <54, <SEE_ALSO, 1580>>
 	 * 
+	 * @param language The language tag corresponding to the language of the link (should be 'fr' or 'en', defaults to 'fr').
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, Integer>> extractLinkRelations() {
+	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractLinkRelations(String language) {
 
 		// Read the M0 'associations' model
 		readDataset();
 		logger.debug("Extracting the information on relations between SIMS properties and link objects from dataset " + Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		SortedMap<Integer, SortedMap<String, Integer>> linkMappings = extractLinkRelations(m0Model);
+		SortedMap<Integer, SortedMap<String, List<Integer>>> linkMappings = extractLinkRelations(m0Model, language);
 	    m0Model.close();
 
 	    return linkMappings;
 	}
 
 	/**
-	 * Reads all the associations between SIMS properties and link objects and stores them as a map.
-	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and links numbers as values.
-	 * Example: <1580, <SEE_ALSO, 54>>
+	 * Reads all the associations between SIMS properties and link objects in a given language and stores them as a map.
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link numbers as values.
+	 * Example: <1580, <SEE_ALSO, <54, 55>>>
 	 * 
 	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @param language The language tag corresponding to the language of the link (should be 'fr' or 'en', defaults to 'fr').
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, Integer>> extractLinkRelations(Model m0AssociationModel) {
+	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractLinkRelations(Model m0AssociationModel, String language) {
 
-		// The relations between SIMS properties and link objects are in the 'associations' graph and have the following structure:
-		// <http://baseUri/liens/lien/54/SEE_ALSO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/documentations/documentation/1580/SEE_ALSO> .
+		// The relations between SIMS properties and link objects are in the 'associations' graph and have the following structure (replace by relatedToGb for English):
+		// <http://baseUri/documentations/documentation/1580/SEE_ALSO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/liens/lien/54/SEE_ALSO> .
 
-		logger.debug("Extracting relations between SIMS properties and link objects");
-		SortedMap<Integer, SortedMap<String, Integer>> linkMappings = new TreeMap<Integer, SortedMap<String, Integer>>();
+		logger.debug("Extracting relations between SIMS properties and link objects for language '" + language + "'");
+		SortedMap<Integer, SortedMap<String, List<Integer>>> linkMappings = new TreeMap<Integer, SortedMap<String, List<Integer>>>();
 
-		final String LINK_URI_BASE = "http://baseUri/liens/lien/";
-		final String DOCUMENTATION_URI_BASE = "http://baseUri/documentations/documentation/";
+		Property associationProperty = "en".equalsIgnoreCase(language) ? M0_RELATED_TO_EN : M0_RELATED_TO;
 
-		//if (m0AssociationModel == null) return extractOrganizationalRelations(organizationRole);
-		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
+		// Will select triples of the form indicated above
+		Selector selector = new SimpleSelector(null, associationProperty, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject and object URIs conform to what we expect
 	        public boolean selects(Statement statement) {
-	        	return ((statement.getSubject().getURI().startsWith(LINK_URI_BASE)) && (statement.getObject().isResource())
-	        			&& (statement.getObject().asResource().getURI().startsWith(DOCUMENTATION_URI_BASE)));
+	        	return ((statement.getSubject().getURI().startsWith(M0_DOCUMENTATION_BASE_URI)) && (statement.getObject().isResource())
+	        			&& (statement.getObject().asResource().getURI().startsWith(M0_LINK_BASE_URI)));
 	        }
 	    };
 	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				// The documentation identifier and SIMS attribute are the two last elements of the documentation URI
-				String[] pathElements = statement.getObject().asResource().getURI().replace(DOCUMENTATION_URI_BASE, "").split("/");
-				// Check that the documentation URI contains an attribute name and that the attributes in both subject and object URIs are the same
+				// The link identifier and SIMS attribute are the two last elements of the link URI
+				String[] pathElements = statement.getObject().asResource().getURI().replace(M0_LINK_BASE_URI, "").split("/");
+				// Check that the link URI contains an attribute name and that the attributes in both subject and object URIs are the same
 				if ((pathElements.length != 2) || (!pathElements[1].equals(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/")))) {
 					logger.error("Unexpected statement ignored: " + statement);
 					return;
 				}
 				// Hopefully the identifiers are really integers
-				System.out.println(statement);
 				try {
-					Integer documentationNumber = Integer.parseInt(pathElements[0]);
-					Integer linkNumber = Integer.parseInt(statement.getSubject().getURI().replace(LINK_URI_BASE, "").split("/")[0]);
-					if (!linkMappings.containsKey(documentationNumber)) linkMappings.put(documentationNumber, new TreeMap<String, Integer>());
-					linkMappings.get(documentationNumber).put(pathElements[1], linkNumber);
+					Integer linkNumber = Integer.parseInt(pathElements[0]);
+					Integer documentationNumber = Integer.parseInt(statement.getSubject().getURI().replace(M0_DOCUMENTATION_BASE_URI, "").split("/")[0]);
+					String attributeName = pathElements[1];
+					if (!linkMappings.containsKey(documentationNumber)) linkMappings.put(documentationNumber, new TreeMap<String, List<Integer>>());
+					Map<String, List<Integer>> attributeMappings = linkMappings.get(documentationNumber);
+					if (!attributeMappings.containsKey(attributeName)) attributeMappings.put(attributeName, new ArrayList<Integer>());
+					
+					attributeMappings.get(attributeName).add(linkNumber);
 				} catch (Exception e) {
 					logger.error("Statement ignored (invalid integer): " + statement);
 					return;
@@ -401,4 +442,68 @@ public class M0SIMSConverter extends M0Converter {
 		return linkMappings;	
 	}
 
+	/**
+	 * Returns the languages associated to the different links.
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @return A map whose keys are the link numbers and the values the language tag.
+	 */
+	public static SortedMap<Integer, String> getLinkLanguages(Model m0AssociationModel) {
+
+		logger.debug("Extracting list of links with associated language");
+
+		SortedMap<Integer, String> linkLanguages = new TreeMap<Integer, String>();
+
+		// Will select triples corresponding to French links
+		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
+	        public boolean selects(Statement statement) {
+	        	return ((statement.getSubject().getURI().startsWith(M0_DOCUMENTATION_BASE_URI)) && (statement.getObject().isResource())
+	        			&& (statement.getObject().asResource().getURI().startsWith(M0_LINK_BASE_URI)));
+	        }
+	    };
+
+	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				// The link identifier is the penultimate element of the link URI
+				String[] pathElements = statement.getObject().asResource().getURI().replace(M0_LINK_BASE_URI, "").split("/");
+				if (pathElements.length != 2) return; // Avoid weird cases
+				try {
+					Integer linkNumber = Integer.parseInt(pathElements[0]);
+					if (!linkLanguages.containsKey(linkNumber)) linkLanguages.put(linkNumber, "fr");
+				} catch (Exception e) {
+					logger.error("Statement ignored (invalid integer): " + statement);
+					return;
+				}			
+			}
+		});
+
+		// Will select triples corresponding to English links
+		selector = new SimpleSelector(null, M0_RELATED_TO_EN, (RDFNode) null) {
+	        public boolean selects(Statement statement) {
+	        	return ((statement.getSubject().getURI().startsWith(M0_DOCUMENTATION_BASE_URI)) && (statement.getObject().isResource())
+	        			&& (statement.getObject().asResource().getURI().startsWith(M0_LINK_BASE_URI)));
+	        }
+	    };
+
+	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String[] pathElements = statement.getObject().asResource().getURI().replace(M0_LINK_BASE_URI, "").split("/");
+				if (pathElements.length != 2) return;
+				try {
+					Integer linkNumber = Integer.parseInt(pathElements[0]);
+					if (!linkLanguages.containsKey(linkNumber)) linkLanguages.put(linkNumber, "en");
+					else {
+						if (!"fr".equals(linkLanguages.get(linkNumber))) logger.warn("Link number " + linkNumber + " is both English and French");
+					}
+				} catch (Exception e) {
+					logger.error("Statement ignored (invalid integer): " + statement);
+					return;
+				}			
+			}
+		});
+
+		return linkLanguages;
+	}
 }

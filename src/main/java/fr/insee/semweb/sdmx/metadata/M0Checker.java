@@ -532,7 +532,7 @@ public class M0Checker {
 				paired.add(variablePart);
 			}
 		});
-		output.println("Coherence between 'documents' and 'associations' graphs:\n");
+		output.println("\nCoherence between 'documents' and 'associations' graphs:\n");
 		if (orphans.size() == 0) output.println("All endpoints found in the 'associations' graph match an endpoint in the 'documents' graph");
 		else {
 			output.println(orphans.size() + " endpoints referenced in the 'associations' graph but missing from the 'documents' graph");

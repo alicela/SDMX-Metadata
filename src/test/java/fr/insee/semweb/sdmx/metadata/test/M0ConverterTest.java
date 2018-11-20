@@ -184,9 +184,21 @@ public class M0ConverterTest {
 	@Test
 	public void testExtractLinkRelations() throws IOException {
 
-		SortedMap<Integer, SortedMap<String, Integer>> relations = M0SIMSConverter.extractLinkRelations();
-		for (Integer documentationId : relations.keySet()) System.out.println("Documentation " + documentationId + " has the following links: " + relations.get(documentationId));
+		SortedMap<Integer, SortedMap<String, List<Integer>>> relations = M0SIMSConverter.extractLinkRelations("fr");
+		for (Integer documentationId : relations.keySet()) System.out.println("Documentation " + documentationId + " is associated to the following French links: " + relations.get(documentationId));
+		for (Integer linkId : relations.keySet()) System.out.println("French link " + linkId + " is associated to the following documentations: " + relations.get(linkId));
+		relations = M0SIMSConverter.extractLinkRelations("en");
+		for (Integer documentationId : relations.keySet()) System.out.println("Documentation " + documentationId + " is associated to the following English links: " + relations.get(documentationId));
  	}
+
+	@Test
+	public void testGetLinkLanguages() {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0AssociationModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "associations");
+		SortedMap<Integer, String> linkLanguages = M0SIMSConverter.getLinkLanguages(m0AssociationModel);
+		for (Integer linkId : linkLanguages.keySet()) System.out.println("Link " + linkId + " is tagged with language " + linkLanguages.get(linkId));
+	}
 
 	@Test
 	public void testExtractProductionRelations() throws IOException {
@@ -246,6 +258,13 @@ public class M0ConverterTest {
 
 		Model extract = M0Converter.extractAllOperations();
 		extract.write(new FileOutputStream("src/test/resources/m0-all-operations.ttl"), "TTL");
+	}
+
+	@Test
+	public void testConvertLinksToSIMS() throws IOException {
+
+		Model linksModel = M0SIMSConverter.convertLinksToSIMS();
+		linksModel.write(new FileOutputStream("src/test/resources/sims-links.ttl"), "TTL");
 	}
 
 	@Test

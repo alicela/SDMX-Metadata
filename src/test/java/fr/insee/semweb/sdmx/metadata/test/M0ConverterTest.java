@@ -149,6 +149,14 @@ public class M0ConverterTest {
 	}
 
 	@Test
+	public void testExtractLinks() throws IOException {
+
+		Model extract = M0SIMSConverter.convertLinksToSIMS();
+		extract.write(new FileOutputStream("src/main/resources/data/links.ttl"), "TTL");
+	}
+
+
+	@Test
 	public void testGetFamilyThemesRelations() {
 
 		Map<String, List<String>> relations = M0Converter.getFamilyThemesRelations();

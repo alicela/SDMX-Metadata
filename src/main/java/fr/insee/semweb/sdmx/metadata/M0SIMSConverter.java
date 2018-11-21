@@ -33,6 +33,7 @@ import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.sparql.vocabulary.FOAF;
+import org.apache.jena.vocabulary.DC;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
@@ -330,6 +331,7 @@ public class M0SIMSConverter extends M0Converter {
 		Model m0LinkModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/liens");
 		Model simsLinkModel = ModelFactory.createDefaultModel();
 		simsLinkModel.setNsPrefix("foaf", FOAF.getURI());
+		simsLinkModel.setNsPrefix("dc", DC.getURI());
 		simsLinkModel.setNsPrefix("rdfs", RDFS.getURI());
 		Map<String, Property> propertyMappings = new HashMap<String, Property>();
 		propertyMappings.put("TITLE", RDFS.label);
@@ -337,10 +339,34 @@ public class M0SIMSConverter extends M0Converter {
 		propertyMappings.put("URI", ResourceFactory.createProperty("https://schema.org/url"));
 
 		// The direct attributes for the links are URI, TITLE and SUMMARY (temporarily replaced by TYPE)
-		// First get the list of valid associations between documentations and links (French or English)
-		SortedMap<Integer, SortedMap<String, List<Integer>>> frenchAssociations = extractLinkRelations("fr");
-		SortedMap<Integer, SortedMap<String, List<Integer>>> englishAssociations = extractLinkRelations("en");
-		// Go through the M0 'links' model and enrich the link objects
+		// First get the mapping between links and language tags (and take a copy of the keys for verifications below)
+		SortedMap<Integer, String> linkLanguages = getLinkLanguages();
+		List<Integer> linkNumbers = new ArrayList<>(linkLanguages.keySet());
+
+		// First pass through the M0 model to create the foaf:Document instances (links are SKOS concepts in M0)
+		Selector selector = new SimpleSelector(null, RDF.type, SKOS.Concept);
+		m0LinkModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				Integer linkNumber = 0;
+				try {
+					linkNumber = Integer.parseInt(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/"));
+					logger.info("Creating FOAF document for link number " + linkNumber);
+				} catch (Exception e) {
+					logger.error("Unparseable URI for a link M0 concept: cannot extract link number");
+					return;
+				}
+				Resource linkResource = simsLinkModel.createResource(Configuration.linkURI(linkNumber), FOAF.Document);
+				// We can add a dc:language property at this stage
+				if (linkLanguages.containsKey(linkNumber)) {
+					linkResource.addProperty(DC.language, linkLanguages.get(linkNumber));
+					linkNumbers.remove(linkNumber); // So we can check at the end if there are missing links
+				} else logger.warn("Cannot determine language for link number " + linkNumber);
+			}
+		});
+		for (Integer missingLink : linkNumbers) logger.warn("Link number " + missingLink + " has a language tag but is missing from model");
+
+		// Now we can iterate on the 'M0_VALUES' predicates to get the other properties of the link (NB: no 'M0_VALUES_EN' in the M0 link model)
 		StmtIterator statementIterator = m0LinkModel.listStatements(null, M0_VALUES, (RDFNode) null);
 		statementIterator.forEachRemaining(new Consumer<Statement>() {
 			@Override
@@ -350,17 +376,19 @@ public class M0SIMSConverter extends M0Converter {
 				String attributeName = variablePart.split("/")[1];
 				if (!propertyMappings.keySet().contains(attributeName)) return;
 				Integer linkNumber = Integer.parseInt(variablePart.split("/")[0]);
-				String languageTag = null;
-				if (frenchAssociations.containsKey(linkNumber)) languageTag = "fr";
-				else if (englishAssociations.containsKey(linkNumber)) languageTag = "en";
-				if (languageTag == null) return; // We create only links that are associated to a documentation
-				Resource linkResource = simsLinkModel.createResource(Configuration.linkURI(linkNumber), FOAF.Document); // Will be executed multiple times, but it is OK
+				String languageTag = linkLanguages.get(linkNumber);
+				if (languageTag == null) languageTag = "fr"; // Take 'fr' as default
+				Resource linkResource = simsLinkModel.createResource(Configuration.linkURI(linkNumber));
 				if ("URI".equals(attributeName)) linkResource.addProperty(propertyMappings.get(attributeName), simsLinkModel.createResource(statement.getObject().toString()));
 				else linkResource.addProperty(propertyMappings.get(attributeName), simsLinkModel.createLiteral(statement.getObject().toString(), languageTag));
-				// TODO Add dc:language
 			}
 		});
-		// Now create associations to documentations
+		// We check that all subjects are foaf:Documents (ie: have been created in the first pass)
+		simsLinkModel.listSubjects().forEachRemaining(new Consumer<Resource>() {
+			@Override
+			public void accept(Resource link) {
+				if (!simsLinkModel.contains(link, RDF.type, FOAF.Document)) logger.warn("Link " + link.getURI() + " not defined as FOAF Document");
+			}});
 
 		return simsLinkModel; 
 	}
@@ -440,6 +468,23 @@ public class M0SIMSConverter extends M0Converter {
 		});
 
 		return linkMappings;	
+	}
+
+	/**
+	 * Returns the languages associated to the different links in the default dataset.
+	 * 
+	 * @return A map whose keys are the link numbers and the values the language tag.
+	 */
+	public static SortedMap<Integer, String> getLinkLanguages() {
+
+		// Read the M0 'associations' model
+		readDataset();
+		logger.debug("Extracting list of links with associated language from dataset " + Configuration.M0_FILE_NAME);
+		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		SortedMap<Integer, String> linkLanguages = getLinkLanguages(m0Model);
+	    m0Model.close();
+
+	    return linkLanguages;
 	}
 
 	/**

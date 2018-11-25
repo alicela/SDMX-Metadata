@@ -32,7 +32,7 @@ public class Configuration {
 	/** Turtle file containing the SDMX metadata model vocabulary */
 	public static String SDMX_MM_TURTLE_FILE_NAME = "src/main/resources/data/sdmx-metadata.ttl";
 	/** TriG file containing the "M0" (temporary model) RDF dataset */
-	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20180806.trig";
+	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20181023.trig";
 	/** Excel file containing the information on operations */
 	public static String OPERATIONS_XLSX_FILE_NAME = "src/main/resources/data/Liste sources_20170612_CASD.xlsx";
 	/** Excel file containing the information on organizations */

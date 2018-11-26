@@ -21,6 +21,7 @@ import org.apache.jena.ontology.OntModel;
 import org.apache.jena.ontology.OntProperty;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
+import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
@@ -49,6 +50,7 @@ public class M0SIMSConverter extends M0Converter {
 
 	public static String M0_DOCUMENTATION_BASE_URI = "http://baseUri/documentations/documentation/";
 	public static String M0_LINK_BASE_URI = "http://baseUri/liens/lien/";
+	public static String M0_DOCUMENT_BASE_URI = "http://baseUri/documents/document/";
 
 	/** The SIMS-FR metadata structure definition */
 	protected static OntModel simsFrMSD = null;
@@ -334,14 +336,17 @@ public class M0SIMSConverter extends M0Converter {
 		simsLinkModel.setNsPrefix("foaf", FOAF.getURI());
 		simsLinkModel.setNsPrefix("dc", DC.getURI());
 		simsLinkModel.setNsPrefix("rdfs", RDFS.getURI());
-		Map<String, Property> propertyMappings = new HashMap<String, Property>();
-		propertyMappings.put("TITLE", RDFS.label);
-		propertyMappings.put("TYPE", RDFS.comment); // Should be eventually replaced by SUMMARY
-		propertyMappings.put("URI", ResourceFactory.createProperty("https://schema.org/url"));
+		simsLinkModel.setNsPrefix("schema", "http://schema.org/");
 
-		// The direct attributes for the links are URI, TITLE and SUMMARY (temporarily replaced by TYPE)
+		Map<String, Property> attributeMappings = new HashMap<String, Property>();
+		attributeMappings.put("TITLE", RDFS.label);
+		attributeMappings.put("TYPE", RDFS.comment); // Should be eventually replaced by SUMMARY
+		attributeMappings.put("SUMMARY", RDFS.comment); // For now, both attributes map to the same property (they are not filled at the same time)
+		attributeMappings.put("URI", ResourceFactory.createProperty("http://schema.org/url"));
+
+		// The direct attributes for the links are URI, TITLE and SUMMARY (or TYPE)
 		// First get the mapping between links and language tags (and take a copy of the keys for verifications below)
-		SortedMap<Integer, String> linkLanguages = getLinkLanguages();
+		SortedMap<Integer, String> linkLanguages = getLanguageTags(true);
 		List<Integer> linkNumbers = new ArrayList<>(linkLanguages.keySet());
 
 		// First pass through the M0 model to create the foaf:Document instances (links are SKOS concepts in M0)
@@ -375,13 +380,13 @@ public class M0SIMSConverter extends M0Converter {
 				String variablePart = statement.getSubject().toString().replace(M0_LINK_BASE_URI, "");
 				if (variablePart.length() == statement.getSubject().toString().length()) logger.warn("Unexpected subject URI in statement " + statement);
 				String attributeName = variablePart.split("/")[1];
-				if (!propertyMappings.keySet().contains(attributeName)) return;
+				if (!attributeMappings.keySet().contains(attributeName)) return;
 				Integer linkNumber = Integer.parseInt(variablePart.split("/")[0]);
 				String languageTag = linkLanguages.get(linkNumber);
 				if (languageTag == null) languageTag = "fr"; // Take 'fr' as default
 				Resource linkResource = simsLinkModel.createResource(Configuration.linkURI(linkNumber));
-				if ("URI".equals(attributeName)) linkResource.addProperty(propertyMappings.get(attributeName), simsLinkModel.createResource(statement.getObject().toString()));
-				else linkResource.addProperty(propertyMappings.get(attributeName), simsLinkModel.createLiteral(statement.getObject().toString(), languageTag));
+				if ("URI".equals(attributeName)) linkResource.addProperty(attributeMappings.get(attributeName), simsLinkModel.createResource(statement.getObject().toString()));
+				else linkResource.addProperty(attributeMappings.get(attributeName), simsLinkModel.createLiteral(statement.getObject().toString(), languageTag));
 			}
 		});
 		// We check that all subjects are foaf:Documents (ie: have been created in the first pass)
@@ -407,89 +412,98 @@ public class M0SIMSConverter extends M0Converter {
 		simsDocumentModel.setNsPrefix("foaf", FOAF.getURI());
 		simsDocumentModel.setNsPrefix("dc", DC.getURI());
 		simsDocumentModel.setNsPrefix("rdfs", RDFS.getURI());
+		simsDocumentModel.setNsPrefix("schema", "http://schema.org/");
 		Map<String, Property> propertyMappings = new HashMap<String, Property>();
 		// TYPE, FORMAT and TAILLE are ignored
 		propertyMappings.put("TITLE", RDFS.label);
-		propertyMappings.put("TYPE", RDFS.comment); // Should be eventually replaced by SUMMARY
 		propertyMappings.put("URI", ResourceFactory.createProperty("https://schema.org/url"));
+		propertyMappings.put("DATE", ResourceFactory.createProperty("http://purl.org/pav/lastRefreshedOn"));
 
-		// The direct attributes for the links are URI, TITLE and SUMMARY (temporarily replaced by TYPE)
-		// First get the mapping between links and language tags (and take a copy of the keys for verifications below)
-		SortedMap<Integer, String> linkLanguages = getLinkLanguages();
-		List<Integer> linkNumbers = new ArrayList<>(linkLanguages.keySet());
+		// The direct attributes for the documents are URI, TITLE and DATE/DATE_PUBLICATION
+		// First get the mapping between documents and language tags (and take a copy of the keys for verifications below)
+		SortedMap<Integer, String> documentLanguages = getLanguageTags(false);
+		List<Integer> documentNumbers = new ArrayList<>(documentLanguages.keySet());
+		// We will also need the value of the 'date' attribute (calculated from DATE and DATE_PUBLICATION
+		SortedMap<Integer, Date> documentDates = getDocumentDates(m0DocumentModel);
 
-		// First pass through the M0 model to create the foaf:Document instances (links are SKOS concepts in M0)
+		// First pass through the M0 model to create the foaf:Document instances (documents are SKOS concepts in M0)
 		Selector selector = new SimpleSelector(null, RDF.type, SKOS.Concept);
 		m0DocumentModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				Integer linkNumber = 0;
+				Integer documentNumber = 0;
 				try {
-					linkNumber = Integer.parseInt(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/"));
-					logger.info("Creating FOAF document for link number " + linkNumber);
+					documentNumber = Integer.parseInt(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/"));
+					logger.info("Creating FOAF document for document number " + documentNumber);
 				} catch (Exception e) {
-					logger.error("Unparseable URI for a link M0 concept: cannot extract link number");
+					logger.error("Unparseable URI for a link M0 concept: cannot extract document number");
 					return;
 				}
-				Resource linkResource = simsDocumentModel.createResource(Configuration.linkURI(linkNumber), FOAF.Document);
+				Resource documentResource = simsDocumentModel.createResource(Configuration.documentURI(documentNumber), FOAF.Document);
 				// We can add a dc:language property at this stage
-				if (linkLanguages.containsKey(linkNumber)) {
-					linkResource.addProperty(DC.language, linkLanguages.get(linkNumber));
-					linkNumbers.remove(linkNumber); // So we can check at the end if there are missing links
-				} else logger.warn("Cannot determine language for link number " + linkNumber);
+				if (documentLanguages.containsKey(documentNumber)) {
+					documentResource.addProperty(DC.language, documentLanguages.get(documentNumber));
+					documentNumbers.remove(documentNumber); // So we can check at the end if there are missing links
+				} else logger.warn("Cannot determine language for document number " + documentNumber);
+				// We can also add the 'date' property
+				if (documentDates.containsKey(documentNumber)) {
+					Literal dateLiteral = simsDocumentModel.createTypedLiteral(documentDates.get(documentNumber), XSDDatatype.XSDdate);
+					documentResource.addProperty(propertyMappings.get("DATE"), dateLiteral);
+				}
 			}
 		});
-		for (Integer missingLink : linkNumbers) logger.warn("Link number " + missingLink + " has a language tag but is missing from model");
 
-		// Now we can iterate on the 'M0_VALUES' predicates to get the other properties of the link (NB: no 'M0_VALUES_EN' in the M0 link model)
+		// Now we can iterate on the 'M0_VALUES' predicates to get the other properties of the document (NB: no 'M0_VALUES_EN' in the M0 link model)
+		// That is actually only TITLE and URI for now.
 		StmtIterator statementIterator = m0DocumentModel.listStatements(null, M0_VALUES, (RDFNode) null);
 		statementIterator.forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				String variablePart = statement.getSubject().toString().replace(M0_LINK_BASE_URI, "");
+				String variablePart = statement.getSubject().toString().replace(M0_DOCUMENT_BASE_URI, "");
 				if (variablePart.length() == statement.getSubject().toString().length()) logger.warn("Unexpected subject URI in statement " + statement);
 				String attributeName = variablePart.split("/")[1];
 				if (!propertyMappings.keySet().contains(attributeName)) return;
-				Integer linkNumber = Integer.parseInt(variablePart.split("/")[0]);
-				String languageTag = linkLanguages.get(linkNumber);
+				if (attributeName.startsWith("DATE")) return; // Already done above
+				Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
+				String languageTag = documentLanguages.get(documentNumber);
 				if (languageTag == null) languageTag = "fr"; // Take 'fr' as default
-				Resource linkResource = simsDocumentModel.createResource(Configuration.linkURI(linkNumber));
-				if ("URI".equals(attributeName)) linkResource.addProperty(propertyMappings.get(attributeName), simsDocumentModel.createResource(statement.getObject().toString()));
-				else linkResource.addProperty(propertyMappings.get(attributeName), simsDocumentModel.createLiteral(statement.getObject().toString(), languageTag));
+				Resource documentResource = simsDocumentModel.createResource(Configuration.documentURI(documentNumber));
+				if ("URI".equals(attributeName)) documentResource.addProperty(propertyMappings.get(attributeName), simsDocumentModel.createResource(statement.getObject().toString()));
+				else documentResource.addProperty(propertyMappings.get(attributeName), simsDocumentModel.createLiteral(statement.getObject().toString(), languageTag));
 			}
 		});
 		// We check that all subjects are foaf:Documents (ie: have been created in the first pass)
 		simsDocumentModel.listSubjects().forEachRemaining(new Consumer<Resource>() {
 			@Override
-			public void accept(Resource link) {
-				if (!simsDocumentModel.contains(link, RDF.type, FOAF.Document)) logger.warn("Link " + link.getURI() + " not defined as FOAF Document");
+			public void accept(Resource document) {
+				if (!simsDocumentModel.contains(document, RDF.type, FOAF.Document)) logger.warn("Document " + document.getURI() + " not defined as FOAF Document");
 			}});
 
 		return simsDocumentModel; 
 	}
 
 	/**
-	 * Reads all the associations between SIMS properties and link objects in a given language and stores them as a map.
-	 * The map keys will be the link identifiers and the values will be maps with attribute names as keys and documentation numbers as values.
-	 * Example: <54, <SEE_ALSO, 1580>>
+	 * Reads in the current 'associations' model all the associations between SIMS attributes in all documentations and link objects in a given language and stores them as a map.
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link numbers as values.
+	 * Example: <1580, <SEE_ALSO, <54, 55>>>
 	 * 
 	 * @param language The language tag corresponding to the language of the link (should be 'fr' or 'en', defaults to 'fr').
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractLinkRelations(String language) {
+	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractAttributeLinks(String language) {
 
 		// Read the M0 'associations' model
 		readDataset();
 		logger.debug("Extracting the information on relations between SIMS properties and link objects from dataset " + Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		SortedMap<Integer, SortedMap<String, List<Integer>>> linkMappings = extractLinkRelations(m0Model, language);
+		SortedMap<Integer, SortedMap<String, List<Integer>>> linkMappings = extractAttributeLinks(m0Model, language);
 	    m0Model.close();
 
 	    return linkMappings;
 	}
 
 	/**
-	 * Reads all the associations between SIMS properties and link objects in a given language and stores them as a map.
+	 * Reads all the associations between SIMS attributes in all documentations and link objects in a given language and stores them as a map.
 	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link numbers as values.
 	 * Example: <1580, <SEE_ALSO, <54, 55>>>
 	 * 
@@ -497,7 +511,7 @@ public class M0SIMSConverter extends M0Converter {
 	 * @param language The language tag corresponding to the language of the link (should be 'fr' or 'en', defaults to 'fr').
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractLinkRelations(Model m0AssociationModel, String language) {
+	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractAttributeLinks(Model m0AssociationModel, String language) {
 
 		// The relations between SIMS properties and link objects are in the 'associations' graph and have the following structure (replace by relatedToGb for English):
 		// <http://baseUri/documentations/documentation/1580/SEE_ALSO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/liens/lien/54/SEE_ALSO> .
@@ -515,6 +529,7 @@ public class M0SIMSConverter extends M0Converter {
 	        			&& (statement.getObject().asResource().getURI().startsWith(M0_LINK_BASE_URI)));
 	        }
 	    };
+	    // Go through the selected triples and fill the map to return
 	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
@@ -530,10 +545,12 @@ public class M0SIMSConverter extends M0Converter {
 					Integer linkNumber = Integer.parseInt(pathElements[0]);
 					Integer documentationNumber = Integer.parseInt(statement.getSubject().getURI().replace(M0_DOCUMENTATION_BASE_URI, "").split("/")[0]);
 					String attributeName = pathElements[1];
+					// HACK: some associations are made on the 'ASSOCIE_A' attribute, which is not a SIMS attribute, we don't want those associations
+					if ("ASSOCIE_A".equals(attributeName)) return;
+					// Update the map with the information from the current triple
 					if (!linkMappings.containsKey(documentationNumber)) linkMappings.put(documentationNumber, new TreeMap<String, List<Integer>>());
 					Map<String, List<Integer>> attributeMappings = linkMappings.get(documentationNumber);
 					if (!attributeMappings.containsKey(attributeName)) attributeMappings.put(attributeName, new ArrayList<Integer>());
-					
 					attributeMappings.get(attributeName).add(linkNumber);
 				} catch (Exception e) {
 					logger.error("Statement ignored (invalid integer): " + statement);
@@ -546,51 +563,54 @@ public class M0SIMSConverter extends M0Converter {
 	}
 
 	/**
-	 * Returns the languages associated to the different links in the default dataset.
+	 * Returns the languages associated to the different links or documents in the default dataset.
 	 * 
-	 * @return A map whose keys are the link numbers and the values the language tag.
+	 * @param links A boolean specifying if the tags returns should concern links (<code>true</code>) or documents.
+	 * @return A map whose keys are the link or document numbers and the values the language tags.
 	 */
-	public static SortedMap<Integer, String> getLinkLanguages() {
+	public static SortedMap<Integer, String> getLanguageTags(boolean links) {
 
 		// Read the M0 'associations' model
 		readDataset();
 		logger.debug("Extracting list of links with associated language from dataset " + Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		SortedMap<Integer, String> linkLanguages = getLinkLanguages(m0Model);
+		SortedMap<Integer, String> languageTags = getLanguageTags(m0Model, links);
 	    m0Model.close();
 
-	    return linkLanguages;
+	    return languageTags;
 	}
 
 	/**
-	 * Returns the languages associated to the different links.
+	 * Returns the languages associated to the different links or documents.
 	 * 
 	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @return A map whose keys are the link numbers and the values the language tags.
+	 * @param links A boolean specifying if the tags returns should concern links (<code>true</code>) or documents.
+	 * @return A map whose keys are the link or document numbers and the values the language tags.
 	 */
-	public static SortedMap<Integer, String> getLinkLanguages(Model m0AssociationModel) {
+	public static SortedMap<Integer, String> getLanguageTags(Model m0AssociationModel, boolean links) {
 
-		logger.debug("Extracting list of links with associated language");
+		final String m0BaseURI = ((links) ? M0_LINK_BASE_URI : M0_DOCUMENT_BASE_URI);
 
-		SortedMap<Integer, String> linkLanguages = new TreeMap<Integer, String>();
+		logger.debug("Extracting language tag for each " + ((links) ? "link" : "document"));
 
-		// Will select triples corresponding to French links
+		SortedMap<Integer, String> languageTags = new TreeMap<Integer, String>();
+
+		// Will select triples corresponding to French links or documents
 		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return ((statement.getSubject().getURI().startsWith(M0_DOCUMENTATION_BASE_URI)) && (statement.getObject().isResource())
-	        			&& (statement.getObject().asResource().getURI().startsWith(M0_LINK_BASE_URI)));
+	        			&& (statement.getObject().asResource().getURI().startsWith(m0BaseURI)));
 	        }
 	    };
-
 	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				// The link identifier is the penultimate element of the link URI
-				String[] pathElements = statement.getObject().asResource().getURI().replace(M0_LINK_BASE_URI, "").split("/");
+				// The link or document identifier is the penultimate element of the URI
+				String[] pathElements = statement.getObject().asResource().getURI().replace(m0BaseURI, "").split("/");
 				if (pathElements.length != 2) return; // Avoid weird cases
 				try {
-					Integer linkNumber = Integer.parseInt(pathElements[0]);
-					if (!linkLanguages.containsKey(linkNumber)) linkLanguages.put(linkNumber, "fr");
+					Integer objectNumber = Integer.parseInt(pathElements[0]);
+					if (!languageTags.containsKey(objectNumber)) languageTags.put(objectNumber, "fr");
 				} catch (Exception e) {
 					logger.error("Statement ignored (invalid integer): " + statement);
 					return;
@@ -598,24 +618,23 @@ public class M0SIMSConverter extends M0Converter {
 			}
 		});
 
-		// Will select triples corresponding to English links
+		// Will select triples corresponding to English links or document
 		selector = new SimpleSelector(null, M0_RELATED_TO_EN, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return ((statement.getSubject().getURI().startsWith(M0_DOCUMENTATION_BASE_URI)) && (statement.getObject().isResource())
-	        			&& (statement.getObject().asResource().getURI().startsWith(M0_LINK_BASE_URI)));
+	        			&& (statement.getObject().asResource().getURI().startsWith(m0BaseURI)));
 	        }
 	    };
-
 	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				String[] pathElements = statement.getObject().asResource().getURI().replace(M0_LINK_BASE_URI, "").split("/");
+				String[] pathElements = statement.getObject().asResource().getURI().replace(m0BaseURI, "").split("/");
 				if (pathElements.length != 2) return;
 				try {
-					Integer linkNumber = Integer.parseInt(pathElements[0]);
-					if (!linkLanguages.containsKey(linkNumber)) linkLanguages.put(linkNumber, "en");
+					Integer objectNumber = Integer.parseInt(pathElements[0]);
+					if (!languageTags.containsKey(objectNumber)) languageTags.put(objectNumber, "en");
 					else {
-						if (!"fr".equals(linkLanguages.get(linkNumber))) logger.warn("Link number " + linkNumber + " is both English and French");
+						if (!"fr".equals(languageTags.get(objectNumber))) logger.warn(((links) ? "Link" : "Document") + " number " + objectNumber + " is both English and French");
 					}
 				} catch (Exception e) {
 					logger.error("Statement ignored (invalid integer): " + statement);
@@ -624,7 +643,7 @@ public class M0SIMSConverter extends M0Converter {
 			}
 		});
 
-		return linkLanguages;
+		return languageTags;
 	}
 
 	/**

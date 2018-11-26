@@ -315,6 +315,11 @@ public class Configuration {
 		return "http://id.insee.fr/documents/page/" + linkNumber;
 	}
 
+	/** URI of the FOAF document representing a 'document' object */
+	public static String documentURI(int documentNumber) {
+		return "http://id.insee.fr/documents/document/" + documentNumber;
+	}
+
 	/** URI of a CASD dataset */
 	public static String datasetURI(String name, String operation) {
 		return CASD_PRODUCTS_BASE_URI + "dataset/" + slug(operation) + "-" + slug(name);

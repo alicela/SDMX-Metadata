@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 
 import org.apache.jena.query.Dataset;
@@ -191,22 +193,30 @@ public class M0ConverterTest {
  	}
 
 	@Test
-	public void testExtractLinkRelations() throws IOException {
+	public void testExtractAttributeLinks() throws IOException {
 
-		SortedMap<Integer, SortedMap<String, List<Integer>>> relations = M0SIMSConverter.extractLinkRelations("fr");
-		for (Integer documentationId : relations.keySet()) System.out.println("Documentation " + documentationId + " is associated to the following French links: " + relations.get(documentationId));
-		for (Integer linkId : relations.keySet()) System.out.println("French link " + linkId + " is associated to the following documentations: " + relations.get(linkId));
-		relations = M0SIMSConverter.extractLinkRelations("en");
-		for (Integer documentationId : relations.keySet()) System.out.println("Documentation " + documentationId + " is associated to the following English links: " + relations.get(documentationId));
+		// We also list the links that are actually referenced in the relations
+		SortedSet<Integer> referencedLinks = new TreeSet<Integer>();
+		SortedMap<Integer, SortedMap<String, List<Integer>>> relations = M0SIMSConverter.extractAttributeLinks("fr");
+		for (Integer documentationId : relations.keySet()) {
+			System.out.println("Documentation " + documentationId + " is associated to the following French links: " + relations.get(documentationId));
+			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
+		}
+		relations = M0SIMSConverter.extractAttributeLinks("en");
+		for (Integer documentationId : relations.keySet()) {
+			System.out.println("Documentation " + documentationId + " is associated to the following English links: " + relations.get(documentationId));
+			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
+		}
+		System.out.println("The following links are referenced in the associations " + referencedLinks);
  	}
 
 	@Test
-	public void testGetLinkLanguages() {
+	public void testGetLanguageTags() {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0AssociationModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "associations");
-		SortedMap<Integer, String> linkLanguages = M0SIMSConverter.getLinkLanguages(m0AssociationModel);
-		for (Integer linkId : linkLanguages.keySet()) System.out.println("Link " + linkId + " is tagged with language " + linkLanguages.get(linkId));
+		SortedMap<Integer, String> languageTags = M0SIMSConverter.getLanguageTags(m0AssociationModel, true);
+		for (Integer linkId : languageTags.keySet()) System.out.println("Link " + linkId + " is tagged with language " + languageTags.get(linkId));
 	}
 
 	@Test

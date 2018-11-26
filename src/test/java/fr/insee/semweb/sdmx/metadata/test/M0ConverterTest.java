@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -273,6 +274,16 @@ public class M0ConverterTest {
 
 		Model linksModel = M0SIMSConverter.convertLinksToSIMS();
 		linksModel.write(new FileOutputStream("src/test/resources/sims-links.ttl"), "TTL");
+	}
+
+	@Test
+	public void testGetDocumentDates() {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0Model = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "documents");
+
+		SortedMap<Integer, Date> documentDates = M0SIMSConverter.getDocumentDates(m0Model);
+		for (Integer documentNumber : documentDates.keySet()) System.out.println(documentNumber + "\t" + documentDates.get(documentNumber));
 	}
 
 	@Test

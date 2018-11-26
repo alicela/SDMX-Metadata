@@ -5,6 +5,7 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -394,6 +395,80 @@ public class M0SIMSConverter extends M0Converter {
 	}
 
 	/**
+	 * Converts the information on external documents from a model in M0 format to a model in the target format.
+	 * 
+	 * @return The model in the target format containing the information on external documents.
+	 */
+	public static Model convertDocumentsToSIMS() {
+
+		readDataset();
+		Model m0DocumentModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documents");
+		Model simsDocumentModel = ModelFactory.createDefaultModel();
+		simsDocumentModel.setNsPrefix("foaf", FOAF.getURI());
+		simsDocumentModel.setNsPrefix("dc", DC.getURI());
+		simsDocumentModel.setNsPrefix("rdfs", RDFS.getURI());
+		Map<String, Property> propertyMappings = new HashMap<String, Property>();
+		// TYPE, FORMAT and TAILLE are ignored
+		propertyMappings.put("TITLE", RDFS.label);
+		propertyMappings.put("TYPE", RDFS.comment); // Should be eventually replaced by SUMMARY
+		propertyMappings.put("URI", ResourceFactory.createProperty("https://schema.org/url"));
+
+		// The direct attributes for the links are URI, TITLE and SUMMARY (temporarily replaced by TYPE)
+		// First get the mapping between links and language tags (and take a copy of the keys for verifications below)
+		SortedMap<Integer, String> linkLanguages = getLinkLanguages();
+		List<Integer> linkNumbers = new ArrayList<>(linkLanguages.keySet());
+
+		// First pass through the M0 model to create the foaf:Document instances (links are SKOS concepts in M0)
+		Selector selector = new SimpleSelector(null, RDF.type, SKOS.Concept);
+		m0DocumentModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				Integer linkNumber = 0;
+				try {
+					linkNumber = Integer.parseInt(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/"));
+					logger.info("Creating FOAF document for link number " + linkNumber);
+				} catch (Exception e) {
+					logger.error("Unparseable URI for a link M0 concept: cannot extract link number");
+					return;
+				}
+				Resource linkResource = simsDocumentModel.createResource(Configuration.linkURI(linkNumber), FOAF.Document);
+				// We can add a dc:language property at this stage
+				if (linkLanguages.containsKey(linkNumber)) {
+					linkResource.addProperty(DC.language, linkLanguages.get(linkNumber));
+					linkNumbers.remove(linkNumber); // So we can check at the end if there are missing links
+				} else logger.warn("Cannot determine language for link number " + linkNumber);
+			}
+		});
+		for (Integer missingLink : linkNumbers) logger.warn("Link number " + missingLink + " has a language tag but is missing from model");
+
+		// Now we can iterate on the 'M0_VALUES' predicates to get the other properties of the link (NB: no 'M0_VALUES_EN' in the M0 link model)
+		StmtIterator statementIterator = m0DocumentModel.listStatements(null, M0_VALUES, (RDFNode) null);
+		statementIterator.forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String variablePart = statement.getSubject().toString().replace(M0_LINK_BASE_URI, "");
+				if (variablePart.length() == statement.getSubject().toString().length()) logger.warn("Unexpected subject URI in statement " + statement);
+				String attributeName = variablePart.split("/")[1];
+				if (!propertyMappings.keySet().contains(attributeName)) return;
+				Integer linkNumber = Integer.parseInt(variablePart.split("/")[0]);
+				String languageTag = linkLanguages.get(linkNumber);
+				if (languageTag == null) languageTag = "fr"; // Take 'fr' as default
+				Resource linkResource = simsDocumentModel.createResource(Configuration.linkURI(linkNumber));
+				if ("URI".equals(attributeName)) linkResource.addProperty(propertyMappings.get(attributeName), simsDocumentModel.createResource(statement.getObject().toString()));
+				else linkResource.addProperty(propertyMappings.get(attributeName), simsDocumentModel.createLiteral(statement.getObject().toString(), languageTag));
+			}
+		});
+		// We check that all subjects are foaf:Documents (ie: have been created in the first pass)
+		simsDocumentModel.listSubjects().forEachRemaining(new Consumer<Resource>() {
+			@Override
+			public void accept(Resource link) {
+				if (!simsDocumentModel.contains(link, RDF.type, FOAF.Document)) logger.warn("Link " + link.getURI() + " not defined as FOAF Document");
+			}});
+
+		return simsDocumentModel; 
+	}
+
+	/**
 	 * Reads all the associations between SIMS properties and link objects in a given language and stores them as a map.
 	 * The map keys will be the link identifiers and the values will be maps with attribute names as keys and documentation numbers as values.
 	 * Example: <54, <SEE_ALSO, 1580>>
@@ -491,7 +566,7 @@ public class M0SIMSConverter extends M0Converter {
 	 * Returns the languages associated to the different links.
 	 * 
 	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @return A map whose keys are the link numbers and the values the language tag.
+	 * @return A map whose keys are the link numbers and the values the language tags.
 	 */
 	public static SortedMap<Integer, String> getLinkLanguages(Model m0AssociationModel) {
 
@@ -550,5 +625,45 @@ public class M0SIMSConverter extends M0Converter {
 		});
 
 		return linkLanguages;
+	}
+
+	/**
+	 * Returns the dates of publication for each document.
+	 * Specification is DATE_PUBLICATION if existing, otherwise DATE if existing.
+	 * 
+	 * @param m0DocumentModel The M0 'documents' model where the information should be read.
+	 * @return A map whose keys are the document numbers and the values the dates.
+	 */
+	public static SortedMap<Integer, Date> getDocumentDates(Model m0DocumentModel) {
+
+		// In the 'documents' M0 model, dates are of the form dd/MM/yyyy (exceptionally dd-MM-yyyy)
+		DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+
+		SortedMap<Integer, Date> documentDates = new TreeMap<>();
+		Selector selector = new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null);
+		m0DocumentModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String documentDateURI = statement.getSubject().getURI();
+				if ((!documentDateURI.endsWith("/DATE_PUBLICATION")) && (!documentDateURI.endsWith("/DATE"))) return;
+				String dateValue = statement.getObject().toString().replace('-', '/').trim();
+				if (dateValue.length() == 0) return;
+				Integer documentNumber = Integer.parseInt(StringUtils.substringAfterLast(StringUtils.substringBeforeLast(documentDateURI, "/"), "/"));
+				Date date = null;
+				try {
+					date = dateFormat.parse(dateValue);
+				} catch (ParseException e) {
+					logger.error("Unparseable date value: '" + dateValue + "' for document number " + documentNumber);
+					return;
+				}
+				if (documentDateURI.endsWith("/DATE_PUBLICATION")) documentDates.put(documentNumber, date);
+				else {
+					// DATE only stored if no DATE_PUBLICATION
+					if (!documentDates.containsKey(documentNumber)) documentDates.put(documentNumber, date);
+				}
+			}
+		});
+
+		return documentDates;
 	}
 }

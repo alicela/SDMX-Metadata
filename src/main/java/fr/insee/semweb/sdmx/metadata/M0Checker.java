@@ -64,7 +64,8 @@ public class M0Checker {
 //		studySeries();
 //		studyFamilies();
 //		studyOperations();
-		studyDocumentations();
+//		studyDocumentations();
+		checkDocumentDates();
 	}
 
 	public static void studyDocumentations() {
@@ -621,7 +622,48 @@ public class M0Checker {
 	}
 
 	/**
-	 * Check that all attributes referenced in the SIMS M0 triples are valid SIMSFr attributes.
+	 * Selects the cases where documents have both a DATE and a DATE_PUBLICATION attributes, and compares the values.
+	 */
+	public static void checkDocumentDates() {
+
+		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0DocumentModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documents");
+
+		// First create the list of documents that have a DATE attribute
+		SortedMap<Integer, String> documentDates = new TreeMap<>();
+		Selector selector = new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null);
+		m0DocumentModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String documentURI = statement.getSubject().getURI();
+				if (documentURI.endsWith("/DATE")) {
+					Integer documentNumber = Integer.parseInt(StringUtils.substringAfterLast(documentURI.replace("/DATE", ""), "/"));
+					documentDates.put(documentNumber, statement.getObject().toString());
+				}
+			}
+		});
+		// Then get the list of documents that have a DATE_PUBLICATION attribute
+		SortedMap<Integer, String> documentPublicationDates = new TreeMap<>();
+		m0DocumentModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String documentURI = statement.getSubject().getURI();
+				if (documentURI.endsWith("/DATE_PUBLICATION")) {
+					Integer documentNumber = Integer.parseInt(StringUtils.substringAfterLast(documentURI.replace("/DATE_PUBLICATION", ""), "/"));
+					documentPublicationDates.put(documentNumber, statement.getObject().toString());
+				}
+			}
+		});
+
+		for (Integer documentNumber : documentDates.keySet()) {
+			if (documentPublicationDates.containsKey(documentNumber)) {
+				System.out.println(documentNumber + "\t" + documentDates.get(documentNumber) + "\t" + documentPublicationDates.get(documentNumber));
+			}
+		}
+	}
+
+	/**
+	 * Checks that all attributes referenced in the SIMS M0 triples are valid SIMSFr attributes.
 	 */
 	public static void checkSIMSAttributes() {
 

@@ -197,12 +197,12 @@ public class M0ConverterTest {
 
 		// We also list the links that are actually referenced in the relations
 		SortedSet<Integer> referencedLinks = new TreeSet<Integer>();
-		SortedMap<Integer, SortedMap<String, List<Integer>>> relations = M0SIMSConverter.extractAttributeLinks("fr");
+		SortedMap<Integer, SortedMap<String, List<Integer>>> relations = M0SIMSConverter.extractAttributeReferences("fr", true);
 		for (Integer documentationId : relations.keySet()) {
 			System.out.println("Documentation " + documentationId + " is associated to the following French links: " + relations.get(documentationId));
 			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
 		}
-		relations = M0SIMSConverter.extractAttributeLinks("en");
+		relations = M0SIMSConverter.extractAttributeReferences("en", true);
 		for (Integer documentationId : relations.keySet()) {
 			System.out.println("Documentation " + documentationId + " is associated to the following English links: " + relations.get(documentationId));
 			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
@@ -211,12 +211,34 @@ public class M0ConverterTest {
  	}
 
 	@Test
+	public void testExtractAttributeDocuments() throws IOException {
+
+		// We also list the links that are actually referenced in the relations
+		SortedSet<Integer> referencedLinks = new TreeSet<Integer>();
+		SortedMap<Integer, SortedMap<String, List<Integer>>> relations = M0SIMSConverter.extractAttributeReferences("fr", false);
+		for (Integer documentationId : relations.keySet()) {
+			System.out.println("Documentation " + documentationId + " is associated to the following French documents: " + relations.get(documentationId));
+			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
+		}
+		relations = M0SIMSConverter.extractAttributeReferences("en", false);
+		for (Integer documentationId : relations.keySet()) {
+			System.out.println("Documentation " + documentationId + " is associated to the following English documents: " + relations.get(documentationId));
+			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
+		}
+		System.out.println("The following documents are referenced in the associations " + referencedLinks);
+ 	}
+
+	@Test
 	public void testGetLanguageTags() {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0AssociationModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "associations");
 		SortedMap<Integer, String> languageTags = M0SIMSConverter.getLanguageTags(m0AssociationModel, true);
+		System.out.println("Results for links:");
 		for (Integer linkId : languageTags.keySet()) System.out.println("Link " + linkId + " is tagged with language " + languageTags.get(linkId));
+		languageTags = M0SIMSConverter.getLanguageTags(m0AssociationModel, false);
+		System.out.println("\nResults for documents:");
+		for (Integer linkId : languageTags.keySet()) System.out.println("Document " + linkId + " is tagged with language " + languageTags.get(linkId));
 	}
 
 	@Test
@@ -284,6 +306,13 @@ public class M0ConverterTest {
 
 		Model linksModel = M0SIMSConverter.convertLinksToSIMS();
 		linksModel.write(new FileOutputStream("src/test/resources/sims-links.ttl"), "TTL");
+	}
+
+	@Test
+	public void testConvertDocumentsToSIMS() throws IOException {
+
+		Model linksModel = M0SIMSConverter.convertDocumentsToSIMS();
+		linksModel.write(new FileOutputStream("src/test/resources/sims-documents.ttl"), "TTL");
 	}
 
 	@Test

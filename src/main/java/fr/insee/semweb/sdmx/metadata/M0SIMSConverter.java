@@ -52,10 +52,16 @@ public class M0SIMSConverter extends M0Converter {
 	public static String M0_LINK_BASE_URI = "http://baseUri/liens/lien/";
 	public static String M0_DOCUMENT_BASE_URI = "http://baseUri/documents/document/";
 
+	// Base URL for the documents referenced in the SIMS attributes
+	public static String SIMS_DOCUMENT_BASE_URI = "http://insee.fr/documents/";
+
 	/** The SIMS-FR metadata structure definition */
 	protected static OntModel simsFrMSD = null;
 	/** The SIMS-FR scheme */
 	protected static SIMSFrScheme simsFRScheme = null;
+
+	// Will be handy for parsing dates
+	final static DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
 	/**
 	 * Converts a list (or all) of M0 'documentation' models to SIMS models.
@@ -110,9 +116,6 @@ public class M0SIMSConverter extends M0Converter {
 		// Retrieve base URI (the base resource is a skos:Concept) and the corresponding M0 identifier
 		Resource m0BaseResource = m0Model.listStatements(null, RDF.type, SKOS.Concept).toList().get(0).getSubject(); // Should raise an exception in case of problem
 		String m0Id = m0BaseResource.getURI().substring(m0BaseResource.getURI().lastIndexOf('/') + 1);
-	
-		// Will be handy for parsing dates
-		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
 		logger.debug("Creating metadata report model for m0 documentation " + m0Id + ", base M0 model has " + m0Model.size() + " statements");
 
@@ -409,14 +412,16 @@ public class M0SIMSConverter extends M0Converter {
 		readDataset();
 		Model m0DocumentModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documents");
 		Model simsDocumentModel = ModelFactory.createDefaultModel();
+		simsDocumentModel.setNsPrefix("xsd", XSD.getURI());
 		simsDocumentModel.setNsPrefix("foaf", FOAF.getURI());
 		simsDocumentModel.setNsPrefix("dc", DC.getURI());
 		simsDocumentModel.setNsPrefix("rdfs", RDFS.getURI());
 		simsDocumentModel.setNsPrefix("schema", "http://schema.org/");
+		simsDocumentModel.setNsPrefix("pav", "http://purl.org/pav/");
 		Map<String, Property> propertyMappings = new HashMap<String, Property>();
 		// TYPE, FORMAT and TAILLE are ignored
 		propertyMappings.put("TITLE", RDFS.label);
-		propertyMappings.put("URI", ResourceFactory.createProperty("https://schema.org/url"));
+		propertyMappings.put("URI", ResourceFactory.createProperty("http://schema.org/url"));
 		propertyMappings.put("DATE", ResourceFactory.createProperty("http://purl.org/pav/lastRefreshedOn"));
 
 		// The direct attributes for the documents are URI, TITLE and DATE/DATE_PUBLICATION
@@ -447,7 +452,8 @@ public class M0SIMSConverter extends M0Converter {
 				} else logger.warn("Cannot determine language for document number " + documentNumber);
 				// We can also add the 'date' property
 				if (documentDates.containsKey(documentNumber)) {
-					Literal dateLiteral = simsDocumentModel.createTypedLiteral(documentDates.get(documentNumber), XSDDatatype.XSDdate);
+					String dateString = dateFormat.format(documentDates.get(documentNumber));
+					Literal dateLiteral = simsDocumentModel.createTypedLiteral(dateString, XSDDatatype.XSDdate);
 					documentResource.addProperty(propertyMappings.get("DATE"), dateLiteral);
 				}
 			}
@@ -468,7 +474,10 @@ public class M0SIMSConverter extends M0Converter {
 				String languageTag = documentLanguages.get(documentNumber);
 				if (languageTag == null) languageTag = "fr"; // Take 'fr' as default
 				Resource documentResource = simsDocumentModel.createResource(Configuration.documentURI(documentNumber));
-				if ("URI".equals(attributeName)) documentResource.addProperty(propertyMappings.get(attributeName), simsDocumentModel.createResource(statement.getObject().toString()));
+				if ("URI".equals(attributeName)) {
+					String documentURI = SIMS_DOCUMENT_BASE_URI + statement.getObject().toString();
+					documentResource.addProperty(propertyMappings.get(attributeName), simsDocumentModel.createResource(documentURI));
+				}
 				else documentResource.addProperty(propertyMappings.get(attributeName), simsDocumentModel.createLiteral(statement.getObject().toString(), languageTag));
 			}
 		});
@@ -483,20 +492,21 @@ public class M0SIMSConverter extends M0Converter {
 	}
 
 	/**
-	 * Reads in the current 'associations' model all the associations between SIMS attributes in all documentations and link objects in a given language and stores them as a map.
-	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link numbers as values.
+	 * Reads in the current 'associations' model all the associations between SIMS attributes in all documentations and link or document objects in a given language and stores them as a map.
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document numbers as values.
 	 * Example: <1580, <SEE_ALSO, <54, 55>>>
 	 * 
 	 * @param language The language tag corresponding to the language of the link (should be 'fr' or 'en', defaults to 'fr').
+	 * @param links A boolean specifying if the tags returns should concern links (<code>true</code>) or documents.
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractAttributeLinks(String language) {
+	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractAttributeReferences(String language, boolean links) {
 
 		// Read the M0 'associations' model
 		readDataset();
 		logger.debug("Extracting the information on relations between SIMS properties and link objects from dataset " + Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		SortedMap<Integer, SortedMap<String, List<Integer>>> linkMappings = extractAttributeLinks(m0Model, language);
+		SortedMap<Integer, SortedMap<String, List<Integer>>> linkMappings = extractAttributeReferences(m0Model, language, links);
 	    m0Model.close();
 
 	    return linkMappings;
@@ -509,49 +519,52 @@ public class M0SIMSConverter extends M0Converter {
 	 * 
 	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
 	 * @param language The language tag corresponding to the language of the link (should be 'fr' or 'en', defaults to 'fr').
+	 * @param links A boolean specifying if the tags returns should concern links (<code>true</code>) or documents.
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractAttributeLinks(Model m0AssociationModel, String language) {
+	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractAttributeReferences(Model m0AssociationModel, String language, boolean links) {
 
-		// The relations between SIMS properties and link objects are in the 'associations' graph and have the following structure (replace by relatedToGb for English):
+		// The relations between SIMS properties and link/documents objects are in the 'associations' graph and have the following structure (replace by relatedToGb for English):
 		// <http://baseUri/documentations/documentation/1580/SEE_ALSO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/liens/lien/54/SEE_ALSO> .
 
-		logger.debug("Extracting relations between SIMS properties and link objects for language '" + language + "'");
-		SortedMap<Integer, SortedMap<String, List<Integer>>> linkMappings = new TreeMap<Integer, SortedMap<String, List<Integer>>>();
-
 		Property associationProperty = "en".equalsIgnoreCase(language) ? M0_RELATED_TO_EN : M0_RELATED_TO;
+		final String m0BaseURI = (links) ? M0_LINK_BASE_URI : M0_DOCUMENT_BASE_URI;
+		final String referenceType = (links) ? "link" : "document";
+
+		logger.debug("Extracting relations between SIMS attributes and " + referenceType + " objects for language '" + language + "'");
+		SortedMap<Integer, SortedMap<String, List<Integer>>> referenceMappings = new TreeMap<Integer, SortedMap<String, List<Integer>>>();
 
 		// Will select triples of the form indicated above
 		Selector selector = new SimpleSelector(null, associationProperty, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject and object URIs conform to what we expect
 	        public boolean selects(Statement statement) {
 	        	return ((statement.getSubject().getURI().startsWith(M0_DOCUMENTATION_BASE_URI)) && (statement.getObject().isResource())
-	        			&& (statement.getObject().asResource().getURI().startsWith(M0_LINK_BASE_URI)));
+	        			&& (statement.getObject().asResource().getURI().startsWith(m0BaseURI)));
 	        }
 	    };
 	    // Go through the selected triples and fill the map to return
 	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				// The link identifier and SIMS attribute are the two last elements of the link URI
-				String[] pathElements = statement.getObject().asResource().getURI().replace(M0_LINK_BASE_URI, "").split("/");
-				// Check that the link URI contains an attribute name and that the attributes in both subject and object URIs are the same
+				// The link/document identifier and SIMS attribute are the two last elements of the link/document URI
+				String[] pathElements = statement.getObject().asResource().getURI().replace(m0BaseURI, "").split("/");
+				// Check that the URI contains an attribute name and that the attributes in both subject and object URIs are the same
 				if ((pathElements.length != 2) || (!pathElements[1].equals(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/")))) {
 					logger.error("Unexpected statement ignored: " + statement);
 					return;
 				}
 				// Hopefully the identifiers are really integers
 				try {
-					Integer linkNumber = Integer.parseInt(pathElements[0]);
+					Integer referenceNumber = Integer.parseInt(pathElements[0]);
 					Integer documentationNumber = Integer.parseInt(statement.getSubject().getURI().replace(M0_DOCUMENTATION_BASE_URI, "").split("/")[0]);
 					String attributeName = pathElements[1];
 					// HACK: some associations are made on the 'ASSOCIE_A' attribute, which is not a SIMS attribute, we don't want those associations
 					if ("ASSOCIE_A".equals(attributeName)) return;
 					// Update the map with the information from the current triple
-					if (!linkMappings.containsKey(documentationNumber)) linkMappings.put(documentationNumber, new TreeMap<String, List<Integer>>());
-					Map<String, List<Integer>> attributeMappings = linkMappings.get(documentationNumber);
+					if (!referenceMappings.containsKey(documentationNumber)) referenceMappings.put(documentationNumber, new TreeMap<String, List<Integer>>());
+					Map<String, List<Integer>> attributeMappings = referenceMappings.get(documentationNumber);
 					if (!attributeMappings.containsKey(attributeName)) attributeMappings.put(attributeName, new ArrayList<Integer>());
-					attributeMappings.get(attributeName).add(linkNumber);
+					attributeMappings.get(attributeName).add(referenceNumber);
 				} catch (Exception e) {
 					logger.error("Statement ignored (invalid integer): " + statement);
 					return;
@@ -559,7 +572,7 @@ public class M0SIMSConverter extends M0Converter {
 			}
 		});
 
-		return linkMappings;	
+		return referenceMappings;	
 	}
 
 	/**

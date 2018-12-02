@@ -13,6 +13,7 @@ import org.apache.jena.ontology.OntModel;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.vocabulary.DC;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
@@ -34,7 +35,7 @@ public class SIMSModelMaker {
 
 	public static Logger logger = LogManager.getLogger(SIMSModelMaker.class);
 
-	/** Jena model for the SDMX metadata model */
+	/** Jena model for the SDMX metadata vocabulary model */
 	public static OntModel sdmxModel = null;
 
 	/**
@@ -43,6 +44,8 @@ public class SIMSModelMaker {
 	 * @param args Not used.
 	 */
 	public static void main(String[] args) {
+
+		logger.info("Starting to create the Jena models for SIMS/SIMSFr from file " + Configuration.SIMS_XLSX_FILE_NAME);
 
 		// Read the SIMS Excel file into a SIMSFrScheme object
 		SIMSFrScheme simsFrScheme = null;
@@ -72,7 +75,7 @@ public class SIMSModelMaker {
 		}
 		simsSKOSModel.close();
 
-		// Create the SIMS MSD model for SIMSv2 (strict)
+		// Create the SIMS MSD model for SIMSv2 (strict, ie without French extensions)
 		Model simsMSDModel = createMetadataStructureDefinition(simsFrScheme, true, false);
 		try {
 			simsMSDModel.write(new FileWriter(Configuration.SIMS_MSD_TURTLE_FILE_NAME), "TTL");
@@ -229,8 +232,8 @@ public class SIMSModelMaker {
 		msdModel.setNsPrefix("rdfs", RDFS.getURI());
 		msdModel.setNsPrefix("owl", OWL.getURI());
 		msdModel.setNsPrefix("xsd", XSD.getURI());
+		msdModel.setNsPrefix("dc", DC.getURI());
 		msdModel.setNsPrefix("dcterms", DCTerms.getURI());
-		msdModel.setNsPrefix("dqv", DQV.getURI());
 		msdModel.setNsPrefix(Configuration.SDMX_MM_PREFIX, Configuration.SDMX_MM_BASE_URI);
 
 		// Create the metadata structure definition
@@ -254,6 +257,7 @@ public class SIMSModelMaker {
 			logger.debug("Processing metadata attribute " + entry.getNotation() + " (" + entry.getCode() + ")");
 
 			Resource attributeSpec = msdModel.createResource(Configuration.simsAttributeSpecificationURI(entry, simsStrict), sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "MetadataAttributeSpecification"));
+			attributeSpec.addProperty(DC.identifier, entry.getNotation());
 			attributeSpec.addProperty(RDFS.label, msdModel.createLiteral("Metadata Attribute Specification for concept " + entry.getName(), "en"));
 			attributeSpec.addProperty(RDFS.label, msdModel.createLiteral("Spécification d'attribut de métadonnées pour le concept " + entry.getFrenchName(), "fr"));
 			if (entry.isPresentational()) {
@@ -264,9 +268,11 @@ public class SIMSModelMaker {
 				attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "parent"), msdModel.createResource(Configuration.simsAttributeSpecificationURI(parent, simsStrict)));
 			}
 			reportStructure.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "metadataAttributeSpecification"), attributeSpec);
+
 			Resource attributeProperty = msdModel.createResource(Configuration.simsAttributePropertyURI(entry, simsStrict), sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "MetadataAttributeProperty"));
+			attributeProperty.addProperty(DC.identifier, entry.getNotation());
 			attributeProperty.addProperty(RDFS.label, msdModel.createLiteral("Metadata Attribute Property for concept " + entry.getName(), "en"));
-			attributeProperty.addProperty(RDFS.label, msdModel.createLiteral("Metadata Attribute Property for concept " + entry.getFrenchName(), "fr"));
+			attributeProperty.addProperty(RDFS.label, msdModel.createLiteral("Propriété d'attribut de métadonnées pour le concept " + entry.getFrenchName(), "fr"));
 			attributeProperty.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "concept"), msdModel.createResource(Configuration.simsConceptURI(entry)));
 			attributeProperty.addProperty(RDFS.domain, sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "ReportedAttribute"));
 			attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "metadataAttributeProperty"), attributeProperty);

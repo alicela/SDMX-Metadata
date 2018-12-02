@@ -23,8 +23,9 @@ public class SIMSFrEntry extends SIMSEntry {
 
 	private static Logger logger = LogManager.getLogger(SIMSFrEntry.class);
 
-	private String title; // TODO This variable should be named otherwise
-	private String metric; // Unfortunate naming here also, this is more the type of the metric (indicator)
+	// SIMSFrEntry components (in addition to the SIMSv2 base ones)
+	private String dissemination;
+	private String metric; // Unfortunate naming here, this is more the type of the metric (indicator)
 	private String frenchName;
 	private String frenchDescription;
 	private String origin;
@@ -47,9 +48,9 @@ public class SIMSFrEntry extends SIMSEntry {
 
 		SIMSFrEntry entry = (SIMSFrEntry) baseEntry;
 
-		// Title is in column A, should not be empty
+		// Dissemination is in column A, should not be empty
 		String cellValue = row.getCell(0, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
-		entry.setTitle(cellValue);
+		entry.setDissemination(cellValue);
 
 		// Metric is in column D, often empty
 		cellValue = row.getCell(3, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim().replace("\n", " ");
@@ -78,7 +79,7 @@ public class SIMSFrEntry extends SIMSEntry {
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 		builder.append(super.toString()).append("\n");
-		builder.append("Title: ").append(title).append(", ");
+		builder.append("Dissemination: ").append(dissemination).append(", ");
 		builder.append("French name: ").append(frenchName);
 		if (inseeRepresentation != null) builder.append(", ").append("Insee representation: ").append(inseeRepresentation);
 		return builder.toString(); // Long string members are omitted
@@ -127,7 +128,7 @@ public class SIMSFrEntry extends SIMSEntry {
 	public boolean isPresentational() {
 
 		// Presentational original attributes have no representation, and no Insee representation for added attributes
-		// There is no case of presentational attribute in SIMS given which is given a Insee representation
+		// There is no case of presentational attribute in SIMS which is given a Insee representation
 		return (this.isOriginal() ? (this.representation == null) : (this.inseeRepresentation == null));
 	}
 
@@ -212,12 +213,12 @@ public class SIMSFrEntry extends SIMSEntry {
 	}
 
 	// Getters and setters
-	public String getTitle() {
-		return title;
+	public String getDissemination() {
+		return dissemination;
 	}
 
-	public void setTitle(String title) {
-		this.title = title;
+	public void setDissemination(String dissemination) {
+		this.dissemination = dissemination;
 	}
 
 	public String getMetric() {

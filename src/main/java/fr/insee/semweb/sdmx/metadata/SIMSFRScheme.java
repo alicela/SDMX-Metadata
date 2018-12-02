@@ -65,15 +65,17 @@ public class SIMSFrScheme {
 	/**
 	 * Gets the parent entry of a given entry.
 	 * 
-	 * @param childEntry The entry (<code>SIMSEntry</code> object) whose parent is sought.
+	 * @param childEntry The entry (<code>SIMSFrEntry</code> object) whose parent is sought.
 	 * @return The parent entry (<code>SIMSFrEntry</code> object) or <code>null</code> if no parent is found.
 	 */
-	public SIMSFrEntry getParent(SIMSEntry childEntry) {
+	public SIMSFrEntry getParent(SIMSFrEntry childEntry) {
 
 		if ((childEntry == null) || (childEntry.getNotation() == null)) return null;
+		if (childEntry.isDirect()) return null; // We do not consider hierarchies on direct attributes
 		String parentIndex = childEntry.getParentIndex();
-		if (parentIndex!= null) {
+		if (parentIndex != null) {
 			for (SIMSFrEntry entry : this.entries) {
+				if (entry.isDirect()) continue;
 				if (entry.getIndex().equals(parentIndex)) return entry;
 			}
 		}
@@ -82,6 +84,7 @@ public class SIMSFrScheme {
 
 	/**
 	 * Reads the SIMSFr scheme from an Excel file.
+	 * 
 	 * @param xlsxFile The Excel file specifying the SIMSFr.
 	 * @return The SIMSFr as a <code>SIMSFrScheme</code> object, or <code>null</code> in case of problem.
 	 */

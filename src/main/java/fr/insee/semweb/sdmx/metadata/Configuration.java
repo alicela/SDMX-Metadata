@@ -24,7 +24,7 @@ public class Configuration {
 
 	// Input files
 	/** Excel file containing the SIMS/SIMSFr models */
-	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V201804.xlsx";
+	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V20181129.xlsx";
 	/** Excel file containing the code lists */
 	public static String CL_XLSX_FILE_NAME = "src/main/resources/data/CODE_LISTS_20180110.xlsx";
 	/** Excel file containing the themes code list */
@@ -131,48 +131,48 @@ public class Configuration {
 
 	// Methods for MSD components
 
-	/** URI of the SIMSv2/SIMSv2FR metadata structure definition */
+	/** URI of the SIMSv2/SIMSFr metadata structure definition */
 	public static String simsMSDURI(boolean simsStrict) { // TODO Add a path segment?
 		return (simsStrict ? BASE_SIMS_URI : BASE_SIMS_FR_URI) + "msd";
 	}
 
-	/** Label of the SIMSv2/SIMSv2FR metadata structure definition */
+	/** Label of the SIMSv2/SIMSFr metadata structure definition */
 	public static String simsMSDLabel(boolean simsStrict, boolean inFrench) {
 		if (inFrench) return "Définition de structre de métadonnées SIMSv2" + (simsStrict ? "" : " - extension française");
 		else return "SIMSv2 Metadata Structure Definition"  + (simsStrict ? "" : " - French extension");
 	}
 
-	/** URI of the SIMSv2/SIMSv2FR structure report */
+	/** URI of the SIMSv2/SIMSFr structure report */
 	public static String simsStructureReportURI(boolean simsStrict) { // TODO Add a path segment?
 		return (simsStrict ? BASE_SIMS_URI : BASE_SIMS_FR_URI) + "reportStructure";
 	}
 
-	/** Label of the SIMSv2/SIMSv2FR structure report */
+	/** Label of the SIMSv2/SIMSFr structure report */
 	public static String simsReportStructureLabel(boolean simsStrict, boolean inFrench) {
 		if (inFrench) return "Structure de rapport de métadonnées SIMSv2" + (simsStrict ? "" : " - extension française");
 		else return "SIMSv2 Metadata Structure Report"  + (simsStrict ? "" : " - French extension");
 	}
 
-	/** URI of a SIMSv2/SIMSv2FR metadata attribute specification */
+	/** URI of a SIMSv2/SIMSFr metadata attribute specification */
 	public static String simsAttributeSpecificationURI(SIMSFrEntry entry, boolean simsStrict) {
-		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "specificationAttribut/" + entry.getNotation().toLowerCase();
-		else return BASE_SIMS_URI + "attributeSpecification/" + entry.getNotation().toLowerCase();
+		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "specificationAttribut/" + entry.getNotation();
+		else return BASE_SIMS_URI + "attributeSpecification/" + entry.getNotation();
 	}
 
-	/** URI of a SIMSv2/SIMSv2FR metadata attribute property */
+	/** URI of a SIMSv2/SIMSFr metadata attribute property */
 	public static String simsAttributePropertyURI(SIMSFrEntry entry, boolean simsStrict) {
-		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "attribut/" + entry.getNotation().toLowerCase();
-		return BASE_SIMS_URI + "attribute/" + entry.getNotation().toLowerCase();
+		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "attribut/" + entry.getNotation();
+		return BASE_SIMS_URI + "attribute/" + entry.getNotation();
 	}
 
 	// Methods for concept schemes components
 
-	/** URI of the SIMSv2/SIMSv2FR concept scheme */
+	/** URI of the SIMSv2/SIMSFr concept scheme */
 	public static String simsConceptSchemeURI(boolean simsStrict) {
 		return (simsStrict ? BASE_SIMS_URI : BASE_SIMS_FR_URI) + "sims"; // TODO Add a path segment?
 	}
 
-	/** Name of the SIMSv2/SIMSv2FR concept scheme */
+	/** Name of the SIMSv2/SIMSFr concept scheme */
 	public static String simsConceptSchemeName(boolean simsStrict, boolean inFrench) {
 		if (inFrench) return "Structure Unique Intégrée de Métadonnées v2" + (simsStrict ? "" : " - extension française");
 		return "Single Metadata Integrated Structure v2" + (simsStrict ? "" : " - French extension");

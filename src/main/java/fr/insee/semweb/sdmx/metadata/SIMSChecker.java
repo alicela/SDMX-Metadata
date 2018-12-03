@@ -3,9 +3,21 @@ package fr.insee.semweb.sdmx.metadata;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.function.Consumer;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.Selector;
+import org.apache.jena.rdf.model.SimpleSelector;
+import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.vocabulary.DC;
+import org.apache.jena.vocabulary.RDFS;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -13,17 +25,20 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 /**
- * Checks that the SIMS part of the SIMSFr model and the original SIMS model are identical.
+ * Methods for consistency checking and reporting on SIMS constructs.
  */
 public class SIMSChecker {
 
 	public static void main(String[] args) {
 
-		System.out.println(checkCoherence());
+		//System.out.println(checkCoherence());
+		System.out.println(simsFrMSDReport());
 	}
 
 	/**
 	 * Produces a coherence report between SIMS and SIMSFr.
+	 * 
+	 * @return The report as a String.
 	 */
 	public static String checkCoherence() {
 
@@ -59,6 +74,71 @@ public class SIMSChecker {
 		}
 		if (report.length() == 0) return "No differences found";
 		else return report.toString();
+	}
+
+	/**
+	 * Produces a report on the SIMSFr MSD.
+	 * 
+	 * @return The report as a String.
+	 */
+	public static String simsFrMSDReport() {
+
+		SIMSFrScheme simsFrScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+		Model simsFrMSDModel = SIMSModelMaker.createMetadataStructureDefinition(simsFrScheme, false, true);
+
+		StringBuilder report = new StringBuilder();
+		report.append("Report on MSD produced from file " + Configuration.SIMS_XLSX_FILE_NAME);
+		// First get the ordered list of MAP/MAS identifiers
+		Selector selector = new SimpleSelector(null, DC.identifier, (RDFNode) null) {
+			@Override
+			public boolean selects(Statement statement) {
+				// Retain only attribute specifications to avoid duplication on identifiers and be exhaustive
+				return (statement.getSubject().getURI().contains("pecification"));
+			}
+			
+		};
+		SortedMap<String, StringBuffer> indexes = new TreeMap<>(new SIMSComparator());
+		simsFrMSDModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String identifier = statement.getObject().toString();
+				String index = identifier.substring(2);
+				if (indexes.containsKey(index)) {
+					if (report.length() == 0) report.append("\n\nDuplicate attribute indexes:");
+					report.append("\n - " + index + " corresponds both to ").append(indexes.get(index) + " and " + identifier);
+				} else indexes.put(index, new StringBuffer(identifier));
+			}
+		});
+
+		// Go through the model to get the concept names and property ranges
+		int prefixLength = "Spécification d'attribut de métadonnées pour le concept ".length();
+		selector = new SimpleSelector(null, RDFS.label, (RDFNode) null);
+		simsFrMSDModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				// Keep only French labels of the MAS
+				if (!statement.getSubject().getURI().contains("pecification")) return;
+				if (!statement.getObject().asLiteral().getLanguage().equalsIgnoreCase("fr")) return;
+				String index = StringUtils.substringAfterLast(statement.getSubject().getURI(), "/").substring(2);
+				indexes.get(index).append("\t" + statement.getObject().asLiteral().getLexicalForm().substring(prefixLength)).append("\t");
+			}
+		});
+		selector = new SimpleSelector(null, RDFS.range, (RDFNode) null); // Only MAPs have a range (and all should have one)
+		simsFrMSDModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String index = StringUtils.substringAfterLast(statement.getSubject().getURI(), "/").substring(2);
+				String shortType = StringUtils.substringAfterLast(statement.getObject().toString(), "#");
+				if (shortType.length() == 0) shortType = StringUtils.substringAfterLast(statement.getObject().toString(), "#");
+				indexes.get(index).append(shortType);
+			}
+		});
+
+		report.append("\n\nList of identifiers and corresponding concepts:");
+		for (String index : indexes.keySet()) report.append("\n" + indexes.get(index));
+		simsFrMSDModel.close();
+
+		return report.toString();
 	}
 
 	/**
@@ -104,4 +184,33 @@ public class SIMSChecker {
 		return sims;
 	}
 
+	/**
+	 * Compares SIMSFr identifiers with structure X.n.p.q....
+	 * X is ignored, then the order is made on n, then p, then q (etc.), supposed to be integers.
+	 * If the arguments do not conform to the expected format, various exceptions can be thrown and results are unpredictable.
+	 * 
+	 * @author Franck
+	 */
+	private static class SIMSComparator implements Comparator<String> {
+
+		@Override
+		public int compare(String leftIndex, String rightIndex) {
+
+			if (leftIndex.equals(rightIndex)) return 0;
+			if (leftIndex.startsWith(rightIndex)) return 1;
+			if (rightIndex.startsWith(leftIndex)) return -1;
+			// Now we are sure that there is a difference on the common components
+			String[] leftComponents = leftIndex.split("\\.");
+			String[] rightComponents = rightIndex.split("\\.");
+			int maxCompare = Math.min(leftComponents.length, rightComponents.length);
+			for (int compareIndex = 0; compareIndex < maxCompare; compareIndex++) {
+				Integer leftInteger = Integer.parseInt(leftComponents[compareIndex]);
+				Integer rightInteger = Integer.parseInt(rightComponents[compareIndex]);
+				if (leftInteger == rightInteger) continue;
+				return leftInteger.compareTo(rightInteger);
+			}
+			return 0; // Should not be reached
+		}
+		
+	}
 }

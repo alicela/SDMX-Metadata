@@ -254,6 +254,7 @@ public class M0SIMSConverter extends M0Converter {
 		if (m0AssociationModel == null) return extractSIMSAttachments(includeIndicators);
 		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject and object URIs end with 'ASSOCIE_A' and begin with expected objects
+			@Override
 	        public boolean selects(Statement statement) {
 	        	String subjectURI = statement.getSubject().getURI();
 	        	String objectURI = statement.getObject().asResource().getURI();

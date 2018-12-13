@@ -280,12 +280,10 @@ public class SIMSModelMaker {
 			Resource propertyRange = entry.getRange(simsStrict, clMappings);
 			if (propertyRange == null) logger.error("Range undertermined for SIMSEntry " + entry.getNotation());
 			else {
+				attributeProperty.addProperty(RDFS.range, propertyRange);
 				// Add the type of OWL property (datatype or object)
 				if (propertyRange.equals(XSD.xstring) || propertyRange.equals(XSD.date)) attributeProperty.addProperty(RDF.type, OWL.DatatypeProperty);
 				else attributeProperty.addProperty(RDF.type, OWL.ObjectProperty);
-				// Determine the range of the property, with RDFS resource ("rich text + URI") further specified as ReportedAttribute
-				if (propertyRange.equals(RDFS.Resource)) attributeProperty.addProperty(RDFS.range, sdmxModel.getResource(Configuration.SDMX_MM_BASE_URI + "ReportedAttribute"));
-				else attributeProperty.addProperty(RDFS.range, propertyRange);
 			}
 			logger.debug("Created MetadataAttributeProperty " + attributeProperty.getURI() + " with range " + propertyRange);
 		}

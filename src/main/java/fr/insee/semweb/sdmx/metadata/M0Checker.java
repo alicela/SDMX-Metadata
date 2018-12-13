@@ -7,6 +7,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -628,6 +631,7 @@ public class M0Checker {
 
 		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0DocumentModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documents");
+		DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
 
 		// First create the list of documents that have a DATE attribute
 		SortedMap<Integer, String> documentDates = new TreeMap<>();
@@ -637,8 +641,15 @@ public class M0Checker {
 			public void accept(Statement statement) {
 				String documentURI = statement.getSubject().getURI();
 				if (documentURI.endsWith("/DATE")) {
+					String dateString = statement.getObject().toString();
 					Integer documentNumber = Integer.parseInt(StringUtils.substringAfterLast(documentURI.replace("/DATE", ""), "/"));
-					documentDates.put(documentNumber, statement.getObject().toString());
+					documentDates.put(documentNumber, dateString);
+					try {
+						dateFormat.parse(dateString);
+					} catch (ParseException e) {
+						System.out.println("Unparseable date value: '" + dateString + "' for attribute DATE in document number " + documentNumber);
+						return;
+					}
 				}
 			}
 		});
@@ -649,12 +660,21 @@ public class M0Checker {
 			public void accept(Statement statement) {
 				String documentURI = statement.getSubject().getURI();
 				if (documentURI.endsWith("/DATE_PUBLICATION")) {
+					String datePublicationString = statement.getObject().toString();
 					Integer documentNumber = Integer.parseInt(StringUtils.substringAfterLast(documentURI.replace("/DATE_PUBLICATION", ""), "/"));
-					documentPublicationDates.put(documentNumber, statement.getObject().toString());
+					documentPublicationDates.put(documentNumber, datePublicationString);
+					try {
+						dateFormat.parse(datePublicationString);
+					} catch (ParseException e) {
+						System.out.println("Unparseable date value: '" + datePublicationString + "' for attribute DATE_PUBLICATION in document number " + documentNumber);
+						return;
+					}
 				}
 			}
 		});
 
+		documentDates.keySet().retainAll(documentPublicationDates.keySet()); // Keep only document numbers which are in both maps
+		if (documentDates.size() > 0) System.out.println("\nBoth DATE and DATE_PUBLICATION attributes are defined for the following documents:");
 		for (Integer documentNumber : documentDates.keySet()) {
 			if (documentPublicationDates.containsKey(documentNumber)) {
 				System.out.println(documentNumber + "\t" + documentDates.get(documentNumber) + "\t" + documentPublicationDates.get(documentNumber));

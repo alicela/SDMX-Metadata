@@ -5,7 +5,6 @@ import java.util.Map;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.vocabulary.ORG;
-import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.XSD;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -184,8 +183,8 @@ public class SIMSFrEntry extends SIMSEntry {
 		if (type.startsWith("text") || type.startsWith("expression")) return XSD.xstring;
 		// 'Rich text' alone (without reference) is also string for now (could be HTLM text)
 		if (type.equals("rich text")) return XSD.xstring;
-		// The other cases of 'rich text' ('Rich text + other material...') are associated with references: we simply return RDF resource in this case (can be adjusted downstream)
-		if (type.startsWith("rich text")) return RDFS.Resource;
+		// The other cases of 'rich text' ('Rich text + other material...') are associated with references: the corresponding type is defined in the configuration class
+		if (type.startsWith("rich text")) return Configuration.RICH_TEXT_MAP_RANGE;
 		// If representation starts with 'code list', either the list is indicated with CL_*, or it is the list of SSMs
 		// FIXME There are also cases where the representation contains only the code list name (CL_FREQ_FR, CL_COLLECTION_MODE)
 		else if ((type.startsWith("code list")) || (type.startsWith("cl_"))) {

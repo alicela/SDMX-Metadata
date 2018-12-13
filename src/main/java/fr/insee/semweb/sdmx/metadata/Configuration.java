@@ -14,7 +14,9 @@ import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.vocabulary.DCTerms;
+import org.apache.jena.vocabulary.DCTypes;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SKOS;
 
@@ -24,7 +26,7 @@ public class Configuration {
 
 	// Input files
 	/** Excel file containing the SIMS/SIMSFr models */
-	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V20181129.xlsx";
+	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V20181210.xlsx";
 	/** Excel file containing the code lists */
 	public static String CL_XLSX_FILE_NAME = "src/main/resources/data/CODE_LISTS_20180110.xlsx";
 	/** Excel file containing the themes code list */
@@ -85,6 +87,9 @@ public class Configuration {
 	// Notation and name, Concept name, Concept code, Description, Representation, ESS guidelines, Quality indicators
 	public static int[] SIMS_COLUMNS_SIMS = {0, 1, 2, 3, 4, 5, 6};
 	public static int[] SIMS_COLUMNS_SIMS_FR = {1, 5, 4, 6, 9, -1, -1};
+
+	/** The range of metadata attribute properties corresponding to 'rich text' attributes */
+	public static Resource RICH_TEXT_MAP_RANGE = DCTypes.Text;
 
 	/** Static mapping between direct attributes of operations and RDF Properties */
 	public static Map<String, Property> propertyMappings;

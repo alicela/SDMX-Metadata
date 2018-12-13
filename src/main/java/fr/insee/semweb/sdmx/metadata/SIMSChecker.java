@@ -79,7 +79,7 @@ public class SIMSChecker {
 	/**
 	 * Produces a report on the SIMSFr MSD.
 	 * 
-	 * @return The report as a String.
+	 * @return A string containing the report.
 	 */
 	public static String simsFrMSDReport() {
 
@@ -127,9 +127,9 @@ public class SIMSChecker {
 		simsFrMSDModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				String index = StringUtils.substringAfterLast(statement.getSubject().getURI(), "/").substring(2);
+				String index = StringUtils.substringAfterLast(statement.getSubject().getURI(), "/").substring(2); // Attribute index
 				String shortType = StringUtils.substringAfterLast(statement.getObject().toString(), "#");
-				if (shortType.length() == 0) shortType = StringUtils.substringAfterLast(statement.getObject().toString(), "#");
+				if (shortType.length() == 0) shortType = StringUtils.substringAfterLast(statement.getObject().toString(), "/");
 				indexes.get(index).append(shortType);
 			}
 		});

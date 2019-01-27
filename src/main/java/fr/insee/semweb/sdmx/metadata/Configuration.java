@@ -64,7 +64,7 @@ public class Configuration {
 	/** Base URI for SIMSv2FR resources */
 	public static String BASE_SIMS_FR_URI = "http://id.insee.fr/qualite/simsv2fr/";
 	/** Base URI for SIMS metadata reports */
-	protected static String REPORT_BASE_URI = "http://id.insee.fr/qualite/rapport/";
+	protected static String QUALITY_BASE_URI = "http://id.insee.fr/qualite/";
 	/** Base URI for SIMS quality metrics */
 	protected static String METRIC_BASE_URI = BASE_SIMS_URI + "metric/";
 	/** Prefix for the SDMX metadata model vocabulary */
@@ -90,6 +90,9 @@ public class Configuration {
 
 	/** The range of metadata attribute properties corresponding to 'rich text' attributes */
 	public static Resource RICH_TEXT_MAP_RANGE = DCTypes.Text;
+
+	/** Specifies if reported attributes are created or if attribute properties are directly attached to the report */
+	public static boolean CREATE_REPORTED_ATTRIBUTES = true;
 
 	/** Static mapping between direct attributes of operations and RDF Properties */
 	public static Map<String, Property> propertyMappings;
@@ -168,6 +171,11 @@ public class Configuration {
 	public static String simsAttributePropertyURI(SIMSFrEntry entry, boolean simsStrict) {
 		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "attribut/" + entry.getNotation();
 		return BASE_SIMS_URI + "attribute/" + entry.getNotation();
+	}
+
+	/** URI of a DCType:Text resource corresponding to a rich text attribute */
+	public static String simsFrRichText(String m0Id, SIMSFrEntry entry) {
+		return BASE_SIMS_FR_URI + "text/" + m0Id + "/" + entry.getNotation();
 	}
 
 	// Methods for concept schemes components
@@ -307,7 +315,12 @@ public class Configuration {
 
 	/** URI of a SIMS quality report */
 	public static String simsReportURI(String documentationId) {
-		return REPORT_BASE_URI + documentationId;
+		return QUALITY_BASE_URI + "rapport/" + documentationId;
+	}
+
+	/** URI of a reported attribute */
+	public static String simsReportedAttributeURI(String documentationId, String attributeCode) {
+		return QUALITY_BASE_URI + "attribut/" + documentationId + "/" + attributeCode;
 	}
 
 	/** URI of a SIMS quality metric (called actually indicator) */

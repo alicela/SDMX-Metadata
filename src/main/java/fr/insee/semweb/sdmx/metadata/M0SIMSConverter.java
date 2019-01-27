@@ -37,6 +37,7 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.sparql.vocabulary.FOAF;
 import org.apache.jena.vocabulary.DC;
 import org.apache.jena.vocabulary.DCTerms;
+import org.apache.jena.vocabulary.DCTypes;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SKOS;
@@ -44,6 +45,11 @@ import org.apache.jena.vocabulary.XSD;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/**
+ * Extends the M0 converter with methods for the conversion of SIMS quality metadata.
+ * 
+ * @author Franck
+ */
 public class M0SIMSConverter extends M0Converter {
 
 	public static Logger logger = LogManager.getLogger(M0SIMSConverter.class);
@@ -127,18 +133,18 @@ public class M0SIMSConverter extends M0Converter {
 		simsModel.setNsPrefix("skos", SKOS.getURI());
 		simsModel.setNsPrefix("insee", Configuration.BASE_INSEE_ONTO_URI);
 
-		// Create the metadata report
+		// Create the metadata report resource
 		Resource report = simsModel.createResource(Configuration.simsReportURI(m0Id), simsModel.createResource(Configuration.SDMX_MM_BASE_URI + "MetadataReport"));
 		report.addProperty(RDFS.label, simsModel.createLiteral("Metadata report " + m0Id, "en"));
 		report.addProperty(RDFS.label, simsModel.createLiteral("Rapport de métadonnées " + m0Id, "fr"));
 		logger.debug("MetadataReport resource created for report: " + report.getURI());
-		// TODO Do we create a root Metadata Attribute?
 
+		// For each possible SIMSFr entry, check if the M0 model contains corresponding information and in that case convert it
 		for (SIMSFrEntry entry : simsFRScheme.getEntries()) {
-			// Create a m0 resource corresponding to the SIMSFr entry
+			// Create a m0 resource corresponding to the SIMSFr entry and check if the resource has values in M0 (French values are sine qua non)
 			Resource m0EntryResource = ResourceFactory.createResource(m0BaseResource.getURI() + "/" + entry.getCode());
 			logger.debug("Looking for the presence of SIMS attribute " + entry.getCode() + " (M0 URI: " + m0EntryResource + ")");
-			// Check if the resource has values in M0 (French values are sine qua non)
+			// Query for the list of valued of the M0 resource
 			List<RDFNode> objectValues = m0Model.listObjectsOfProperty(m0EntryResource, M0_VALUES).toList();
 			if (objectValues.size() == 0) {
 				logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());
@@ -163,12 +169,20 @@ public class M0SIMSConverter extends M0Converter {
 				logger.error("Error: property " + propertyURI + " not found in the SIMSFr MSD");
 				continue;
 			}
+			// If specified, create a reported attribute (otherwise, the metadata attribute properties will be attached to the report)
+			Resource targetResource = null;
+			if (Configuration.CREATE_REPORTED_ATTRIBUTES) {
+				String reportedAttributeURI = Configuration.simsReportedAttributeURI(m0Id, entry.getCode());
+				targetResource = simsModel.createResource(reportedAttributeURI, SIMS_REPORTED_ATTRIBUTE);
+				targetResource.addProperty(simsModel.createProperty(Configuration.SDMX_MM_BASE_URI + "metadataReport"), report);
+			} else targetResource = report;
+
 			Statement rangeStatement = metadataAttributeProperty.getProperty(RDFS.range);
 			Resource propertyRange = (rangeStatement == null) ? null : rangeStatement.getObject().asResource();
 			logger.debug("Target property is " + metadataAttributeProperty + " with range " + propertyRange);
-			if (propertyRange == null) {
-				// We are in the case of a 'text + seeAlso' object
-				Resource objectResource = simsModel.createResource(); // Anonymous for now
+			if (propertyRange == DCTypes.Text) {
+				// We are in the case of a 'text + seeAlso...' object
+				Resource objectResource = simsModel.createResource(Configuration.simsFrRichText(m0Id, entry));
 				objectResource.addProperty(RDF.value, simsModel.createLiteral(stringValue, "fr"));
 				report.addProperty(metadataAttributeProperty, objectResource);
 			}
@@ -177,7 +191,6 @@ public class M0SIMSConverter extends M0Converter {
 				report.addProperty(metadataAttributeProperty, simsModel.createResource(SIMS_REPORTED_ATTRIBUTE));
 			}
 			else if (propertyRange.equals(XSD.xstring)) {
-				// TODO For now we attach all properties to the report, but a hierarchy of reported attributes should be created
 				report.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "fr"));
 				// See if there is an English version
 				objectValues = m0Model.listObjectsOfProperty(m0EntryResource, M0_VALUES_EN).toList();

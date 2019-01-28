@@ -59,7 +59,7 @@ public class M0SIMSConverter extends M0Converter {
 	public static String M0_DOCUMENT_BASE_URI = "http://baseUri/documents/document/";
 
 	// Base URL for the documents referenced in the SIMS attributes
-	public static String SIMS_DOCUMENT_BASE_URI = "http://insee.fr/documents/";
+	public static String SIMS_DOCUMENT_BASE_URI = "https://www.insee.fr/fr/metadonnees/source/fichier/";
 
 	/** The SIMS-FR metadata structure definition */
 	protected static OntModel simsFrMSD = null;

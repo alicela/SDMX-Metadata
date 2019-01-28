@@ -193,6 +193,15 @@ public class M0ConverterTest {
  	}
 
 	@Test
+	public void testExtractAllAttributeReferences() {
+
+		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> relations = M0SIMSConverter.extractAllAttributeReferences();
+		for (Integer documentationId : relations.keySet())
+			for (String attributeName : relations.get(documentationId).keySet())
+				System.out.println("Attribute " + attributeName + " of documentation " + documentationId + " is associated to the following links: " + relations.get(documentationId).get(attributeName));
+ 	}
+
+	@Test
 	public void testExtractAttributeLinks() throws IOException {
 
 		// We also list the links that are actually referenced in the relations

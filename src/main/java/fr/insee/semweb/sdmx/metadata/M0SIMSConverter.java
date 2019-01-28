@@ -65,6 +65,12 @@ public class M0SIMSConverter extends M0Converter {
 	protected static OntModel simsFrMSD = null;
 	/** The SIMS-FR scheme */
 	protected static SIMSFrScheme simsFRScheme = null;
+	/** All the references from attributes to links or documents */
+	protected static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> attributeReferences = null;
+	/** The SIMS model for documents */
+	protected static Model simsDocumentsModel = null;
+	/** The SIMS model for links */
+	protected static Model simsLinksModel = null;
 
 	// Will be handy for parsing dates
 	final static DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
@@ -83,6 +89,11 @@ public class M0SIMSConverter extends M0Converter {
 		Model m0DocumentationModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 		simsFrMSD = (OntModel) ModelFactory.createOntologyModel().read(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME);
 		simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+
+		// We will also need the documents and links models, as well as all the attribute references to them
+		attributeReferences = M0SIMSConverter.extractAllAttributeReferences();
+		simsDocumentsModel = convertDocumentsToSIMS();
+		simsLinksModel = convertLinksToSIMS();
 
 		// If parameter was null, get the list of all existing M0 'documentation' models
 		SortedSet<Integer> docIdentifiers = new TreeSet<Integer>();
@@ -120,8 +131,10 @@ public class M0SIMSConverter extends M0Converter {
 	public static Model m0ConvertToSIMS(Model m0Model) {
 
 		// Retrieve base URI (the base resource is a skos:Concept) and the corresponding M0 identifier
+		// TODO Secure this part
 		Resource m0BaseResource = m0Model.listStatements(null, RDF.type, SKOS.Concept).toList().get(0).getSubject(); // Should raise an exception in case of problem
 		String m0Id = m0BaseResource.getURI().substring(m0BaseResource.getURI().lastIndexOf('/') + 1);
+		Integer documentNumber = Integer.parseInt(m0Id);
 
 		logger.debug("Creating metadata report model for m0 documentation " + m0Id + ", base M0 model has " + m0Model.size() + " statements");
 
@@ -138,6 +151,10 @@ public class M0SIMSConverter extends M0Converter {
 		report.addProperty(RDFS.label, simsModel.createLiteral("Metadata report " + m0Id, "en"));
 		report.addProperty(RDFS.label, simsModel.createLiteral("Rapport de métadonnées " + m0Id, "fr"));
 		logger.debug("MetadataReport resource created for report: " + report.getURI());
+
+		// Shortcut to the list of document and link references on attributes of the current documentation
+		SortedMap<String, SortedSet<Integer>> localReferences = attributeReferences.get(documentNumber);
+		
 
 		// For each possible SIMSFr entry, check if the M0 model contains corresponding information and in that case convert it
 		for (SIMSFrEntry entry : simsFRScheme.getEntries()) {

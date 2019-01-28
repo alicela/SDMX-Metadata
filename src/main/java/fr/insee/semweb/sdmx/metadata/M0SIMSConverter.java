@@ -506,6 +506,45 @@ public class M0SIMSConverter extends M0Converter {
 	}
 
 	/**
+	 * Reads in a given 'associations' model all the associations between SIMS attributes in all documentations and all links stores them as a map.
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document numbers as values.
+	 * Example: <1580, <SEE_ALSO, <54, 55>>>
+	 * This method actually merges the results from the more specialized methods that follow.
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @return A map containing the relations.
+	 */
+	public static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> extractAllAttributeReferences() {
+
+		readDataset();
+		logger.debug("Extracting the information on relations between SIMS properties and link or document objects from dataset " + Configuration.M0_FILE_NAME);
+		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+
+		return extractAllAttributeReferences(m0Model);
+	}
+
+	/**
+	 * Reads in the current 'associations' model all the associations between SIMS attributes in all documentations and all links stores them as a map.
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document numbers as values.
+	 * Example: <1580, <SEE_ALSO, <54, 55>>>
+	 * This method actually merges the results from the more specialized methods that follow.
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @return A map containing the relations.
+	 */
+	public static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> extractAllAttributeReferences(Model m0AssociationModel) {
+
+		List<SortedMap<Integer, SortedMap<String, SortedSet<Integer>>>> referenceMappingsList = new ArrayList<SortedMap<Integer, SortedMap<String, SortedSet<Integer>>>>();
+
+		referenceMappingsList.add(extractAttributeReferences(m0AssociationModel, "fr", true));
+		referenceMappingsList.add(extractAttributeReferences(m0AssociationModel, "fr", false));
+		referenceMappingsList.add(extractAttributeReferences(m0AssociationModel, "en", true));
+		referenceMappingsList.add(extractAttributeReferences(m0AssociationModel, "en", true));
+
+		return mergeAttributeReferences(referenceMappingsList);	
+	}
+
+	/**
 	 * Reads in the current 'associations' model all the associations between SIMS attributes in all documentations and link or document objects in a given language and stores them as a map.
 	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document numbers as values.
 	 * Example: <1580, <SEE_ALSO, <54, 55>>>
@@ -514,13 +553,13 @@ public class M0SIMSConverter extends M0Converter {
 	 * @param links A boolean specifying if the tags returns should concern links (<code>true</code>) or documents.
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractAttributeReferences(String language, boolean links) {
+	public static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> extractAttributeReferences(String language, boolean links) {
 
 		// Read the M0 'associations' model
 		readDataset();
 		logger.debug("Extracting the information on relations between SIMS properties and link objects from dataset " + Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		SortedMap<Integer, SortedMap<String, List<Integer>>> linkMappings = extractAttributeReferences(m0Model, language, links);
+		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> linkMappings = extractAttributeReferences(m0Model, language, links);
 	    m0Model.close();
 
 	    return linkMappings;
@@ -536,7 +575,7 @@ public class M0SIMSConverter extends M0Converter {
 	 * @param links A boolean specifying if the tags returns should concern links (<code>true</code>) or documents.
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, List<Integer>>> extractAttributeReferences(Model m0AssociationModel, String language, boolean links) {
+	public static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> extractAttributeReferences(Model m0AssociationModel, String language, boolean links) {
 
 		// The relations between SIMS properties and link/documents objects are in the 'associations' graph and have the following structure (replace by relatedToGb for English):
 		// <http://baseUri/documentations/documentation/1580/SEE_ALSO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/liens/lien/54/SEE_ALSO> .
@@ -546,7 +585,7 @@ public class M0SIMSConverter extends M0Converter {
 		final String referenceType = (links) ? "link" : "document";
 
 		logger.debug("Extracting relations between SIMS attributes and " + referenceType + " objects for language '" + language + "'");
-		SortedMap<Integer, SortedMap<String, List<Integer>>> referenceMappings = new TreeMap<Integer, SortedMap<String, List<Integer>>>();
+		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> referenceMappings = new TreeMap<Integer, SortedMap<String, SortedSet<Integer>>>();
 
 		// Will select triples of the form indicated above
 		Selector selector = new SimpleSelector(null, associationProperty, (RDFNode) null) {
@@ -575,9 +614,9 @@ public class M0SIMSConverter extends M0Converter {
 					// HACK: some associations are made on the 'ASSOCIE_A' attribute, which is not a SIMS attribute, we don't want those associations
 					if ("ASSOCIE_A".equals(attributeName)) return;
 					// Update the map with the information from the current triple
-					if (!referenceMappings.containsKey(documentationNumber)) referenceMappings.put(documentationNumber, new TreeMap<String, List<Integer>>());
-					Map<String, List<Integer>> attributeMappings = referenceMappings.get(documentationNumber);
-					if (!attributeMappings.containsKey(attributeName)) attributeMappings.put(attributeName, new ArrayList<Integer>());
+					if (!referenceMappings.containsKey(documentationNumber)) referenceMappings.put(documentationNumber, new TreeMap<String, SortedSet<Integer>>());
+					Map<String, SortedSet<Integer>> attributeMappings = referenceMappings.get(documentationNumber);
+					if (!attributeMappings.containsKey(attributeName)) attributeMappings.put(attributeName, new TreeSet<Integer>());
 					attributeMappings.get(attributeName).add(referenceNumber);
 				} catch (Exception e) {
 					logger.error("Statement ignored (invalid integer): " + statement);
@@ -586,7 +625,33 @@ public class M0SIMSConverter extends M0Converter {
 			}
 		});
 
-		return referenceMappings;	
+		return referenceMappings;
+	}
+
+	/**
+	 * Merges a list of attribute references maps into a unique map.
+	 * 
+	 * @param referenceMappingsList A list of attribute references maps.
+	 * @return A consolidated map of attribute references.
+	 */
+	public static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> mergeAttributeReferences(List<SortedMap<Integer, SortedMap<String, SortedSet<Integer>>>> referenceMappingsList) {
+
+		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> mergedReferenceMappings = new TreeMap<Integer, SortedMap<String, SortedSet<Integer>>>();
+
+		for (SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> referenceMappings : referenceMappingsList) {
+			for (Integer documentationNumber : referenceMappings.keySet()) {
+				if (mergedReferenceMappings.containsKey(documentationNumber)) {
+					for (String attributeName : referenceMappings.get(documentationNumber).keySet()) {
+						if (mergedReferenceMappings.get(documentationNumber).containsKey(attributeName)) {
+							mergedReferenceMappings.get(documentationNumber).get(attributeName).addAll(referenceMappings.get(documentationNumber).get(attributeName));
+						}
+						else mergedReferenceMappings.get(documentationNumber).put(attributeName, referenceMappings.get(documentationNumber).get(attributeName));
+					}
+				} else mergedReferenceMappings.put(documentationNumber, referenceMappings.get(documentationNumber));
+			}
+		}
+
+		return mergedReferenceMappings;
 	}
 
 	/**

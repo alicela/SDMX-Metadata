@@ -197,7 +197,7 @@ public class M0ConverterTest {
 
 		// We also list the links that are actually referenced in the relations
 		SortedSet<Integer> referencedLinks = new TreeSet<Integer>();
-		SortedMap<Integer, SortedMap<String, List<Integer>>> relations = M0SIMSConverter.extractAttributeReferences("fr", true);
+		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> relations = M0SIMSConverter.extractAttributeReferences("fr", true);
 		for (Integer documentationId : relations.keySet()) {
 			System.out.println("Documentation " + documentationId + " is associated to the following French links: " + relations.get(documentationId));
 			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
@@ -215,7 +215,7 @@ public class M0ConverterTest {
 
 		// We also list the links that are actually referenced in the relations
 		SortedSet<Integer> referencedLinks = new TreeSet<Integer>();
-		SortedMap<Integer, SortedMap<String, List<Integer>>> relations = M0SIMSConverter.extractAttributeReferences("fr", false);
+		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> relations = M0SIMSConverter.extractAttributeReferences("fr", false);
 		for (Integer documentationId : relations.keySet()) {
 			System.out.println("Documentation " + documentationId + " is associated to the following French documents: " + relations.get(documentationId));
 			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));

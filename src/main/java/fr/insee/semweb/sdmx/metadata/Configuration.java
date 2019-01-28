@@ -34,7 +34,7 @@ public class Configuration {
 	/** Turtle file containing the SDMX metadata model vocabulary */
 	public static String SDMX_MM_TURTLE_FILE_NAME = "src/main/resources/data/sdmx-metadata.ttl";
 	/** TriG file containing the "M0" (temporary model) RDF dataset */
-	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20181023.trig";
+	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20190117.trig";
 	/** Excel file containing the information on operations */
 	public static String OPERATIONS_XLSX_FILE_NAME = "src/main/resources/data/Liste sources_20170612_CASD.xlsx";
 	/** Excel file containing the information on organizations */
@@ -175,7 +175,7 @@ public class Configuration {
 
 	/** URI of a DCType:Text resource corresponding to a rich text attribute */
 	public static String simsFrRichText(String m0Id, SIMSFrEntry entry) {
-		return BASE_SIMS_FR_URI + "text/" + m0Id + "/" + entry.getNotation();
+		return QUALITY_BASE_URI + "attribut/" + m0Id + "/" + entry.getNotation() + "/texte";
 	}
 
 	// Methods for concept schemes components

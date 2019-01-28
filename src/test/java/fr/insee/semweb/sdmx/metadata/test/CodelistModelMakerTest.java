@@ -76,4 +76,14 @@ public class CodelistModelMakerTest {
 		Map<String, Resource> mappings = CodelistModelMaker.getNotationConceptMappings();
 		for (String clNotation : mappings.keySet()) System.out.println(clNotation + " - " + mappings.get(clNotation));
 	}
+
+	@Test
+	public void testExportAsMarkdown() {
+
+		// Create a dataset of all code lists in one unique model
+		String dummyGraphURI = "http://rdf.insee.fr/graphes/dummy";
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), dummyGraphURI, dummyGraphURI);
+		Model clModel = codes.getNamedModel(dummyGraphURI);
+		
+	}
 }

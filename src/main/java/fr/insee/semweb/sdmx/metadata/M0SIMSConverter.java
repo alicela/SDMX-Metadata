@@ -180,30 +180,30 @@ public class M0SIMSConverter extends M0Converter {
 			Statement rangeStatement = metadataAttributeProperty.getProperty(RDFS.range);
 			Resource propertyRange = (rangeStatement == null) ? null : rangeStatement.getObject().asResource();
 			logger.debug("Target property is " + metadataAttributeProperty + " with range " + propertyRange);
-			if (propertyRange == DCTypes.Text) {
+			if (propertyRange.equals(DCTypes.Text)) {
 				// We are in the case of a 'text + seeAlso...' object
-				Resource objectResource = simsModel.createResource(Configuration.simsFrRichText(m0Id, entry));
+				Resource objectResource = simsModel.createResource(Configuration.simsFrRichText(m0Id, entry), DCTypes.Text);
 				objectResource.addProperty(RDF.value, simsModel.createLiteral(stringValue, "fr"));
-				report.addProperty(metadataAttributeProperty, objectResource);
+				targetResource.addProperty(metadataAttributeProperty, objectResource);
 			}
 			else if (propertyRange.equals(SIMS_REPORTED_ATTRIBUTE)) {
 				// Just a placeholder for now, the case does not seem to exist in currently available data
-				report.addProperty(metadataAttributeProperty, simsModel.createResource(SIMS_REPORTED_ATTRIBUTE));
+				targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(SIMS_REPORTED_ATTRIBUTE));
 			}
 			else if (propertyRange.equals(XSD.xstring)) {
-				report.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "fr"));
+				targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "fr"));
 				// See if there is an English version
 				objectValues = m0Model.listObjectsOfProperty(m0EntryResource, M0_VALUES_EN).toList();
 				if (objectValues.size() == 0) {
 					stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", "");
-					if (stringValue.length() > 0) report.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "en"));
+					if (stringValue.length() > 0) targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "en"));
 				}
 			}
 			else if (propertyRange.equals(XSD.date)) {
 				// Try to parse the string value as a date (yyyy-MM-dd seems to be used in the documentations graph)
 				try {
 					dateFormat.parse(stringValue); // Just to make sure we have a valid date
-					report.addProperty(metadataAttributeProperty, simsModel.createTypedLiteral(stringValue, XSDDatatype.XSDdate));
+					targetResource.addProperty(metadataAttributeProperty, simsModel.createTypedLiteral(stringValue, XSDDatatype.XSDdate));
 				} catch (ParseException e) {
 					logger.error("Unparseable date value " + stringValue + " for M0 resource " + m0EntryResource.getURI());
 				}
@@ -220,7 +220,7 @@ public class M0SIMSConverter extends M0Converter {
 					// We don't verify at this stage that the value is a valid code in the code list, but just sanitize the value (by taking the first word) to avoid URI problems
 					String sanitizedCode = (stringValue.indexOf(' ') == -1) ? stringValue : stringValue.split(" ", 2)[0];
 					String codeURI = Configuration.INSEE_CODES_BASE_URI + StringUtils.uncapitalize(propertyRangeString.substring(propertyRangeString.lastIndexOf('/') + 1)) + "/" + sanitizedCode;
-					report.addProperty(metadataAttributeProperty, simsModel.createResource(codeURI));
+					targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(codeURI));
 					logger.debug("Code list value " + codeURI + " assigned to attribute property");
 				}
 			}

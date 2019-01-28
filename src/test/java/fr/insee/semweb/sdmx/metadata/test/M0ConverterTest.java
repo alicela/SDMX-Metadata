@@ -339,8 +339,8 @@ public class M0ConverterTest {
 
 		boolean namedGraphs = true;
 
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(Arrays.asList(1508, 1509), namedGraphs);
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1508-09." + (namedGraphs ? "trig" : "ttl")), simsDataset, Lang.TRIG); // TODO Check if Lang.TRIG is OK for both cases
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(Arrays.asList(1907), namedGraphs);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1907." + (namedGraphs ? "trig" : "ttl")), simsDataset, Lang.TRIG); // TODO Check if Lang.TRIG is OK for both cases
 	}
 
 	@Test

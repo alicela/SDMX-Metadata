@@ -158,6 +158,12 @@ public class M0ConverterTest {
 		extract.write(new FileOutputStream("src/main/resources/data/links.ttl"), "TTL");
 	}
 
+	@Test
+	public void testExtractDocuments() throws IOException {
+
+		Model extract = M0SIMSConverter.convertDocumentsToSIMS();
+		extract.write(new FileOutputStream("src/main/resources/data/documents.ttl"), "TTL");
+	}
 
 	@Test
 	public void testGetFamilyThemesRelations() {

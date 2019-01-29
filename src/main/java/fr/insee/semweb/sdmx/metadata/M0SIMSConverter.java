@@ -66,7 +66,7 @@ public class M0SIMSConverter extends M0Converter {
 	/** The SIMS-FR scheme */
 	protected static SIMSFrScheme simsFRScheme = null;
 	/** All the references from attributes to links or documents */
-	protected static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> attributeReferences = null;
+	protected static SortedMap<Integer, SortedMap<String, SortedSet<String>>> attributeReferences = null;
 	/** The SIMS model for documents */
 	protected static Model simsDocumentsModel = null;
 	/** The SIMS model for links */
@@ -153,8 +153,7 @@ public class M0SIMSConverter extends M0Converter {
 		logger.debug("MetadataReport resource created for report: " + report.getURI());
 
 		// Shortcut to the list of document and link references on attributes of the current documentation
-		SortedMap<String, SortedSet<Integer>> localReferences = attributeReferences.get(documentNumber);
-		
+		SortedMap<String, SortedSet<String>> documentReferences = attributeReferences.get(documentNumber);
 
 		// For each possible SIMSFr entry, check if the M0 model contains corresponding information and in that case convert it
 		for (SIMSFrEntry entry : simsFRScheme.getEntries()) {
@@ -202,6 +201,11 @@ public class M0SIMSConverter extends M0Converter {
 				Resource objectResource = simsModel.createResource(Configuration.simsFrRichText(m0Id, entry), DCTypes.Text);
 				objectResource.addProperty(RDF.value, simsModel.createLiteral(stringValue, "fr"));
 				targetResource.addProperty(metadataAttributeProperty, objectResource);
+				// We search for references to documents or links attached to this attribute
+				SortedSet<String> thisAttributeReferences = (documentReferences == null) ? null : documentReferences.get(entry.getCode());
+				if (thisAttributeReferences != null) {
+					for (String refURI : thisAttributeReferences) {}
+				}
 			}
 			else if (propertyRange.equals(SIMS_REPORTED_ATTRIBUTE)) {
 				// Just a placeholder for now, the case does not seem to exist in currently available data
@@ -524,14 +528,14 @@ public class M0SIMSConverter extends M0Converter {
 
 	/**
 	 * Reads in a given 'associations' model all the associations between SIMS attributes in all documentations and all links stores them as a map.
-	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document numbers as values.
-	 * Example: <1580, <SEE_ALSO, <54, 55>>>
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document URIs as values.
+	 * Example: <1580, <SEE_ALSO, <http://id.insee.fr/documents/page/54, http://id.insee.fr/documents/document/55>>>
 	 * This method actually merges the results from the more specialized methods that follow.
 	 * 
 	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> extractAllAttributeReferences() {
+	public static SortedMap<Integer, SortedMap<String, SortedSet<String>>> extractAllAttributeReferences() {
 
 		readDataset();
 		logger.debug("Extracting the information on relations between SIMS properties and link or document objects from dataset " + Configuration.M0_FILE_NAME);
@@ -543,15 +547,15 @@ public class M0SIMSConverter extends M0Converter {
 	/**
 	 * Reads in the current 'associations' model all the associations between SIMS attributes in all documentations and all links stores them as a map.
 	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document numbers as values.
-	 * Example: <1580, <SEE_ALSO, <54, 55>>>
+	 * Example: <1580, <SEE_ALSO, <http://id.insee.fr/documents/page/54, http://id.insee.fr/documents/document/55>>>
 	 * This method actually merges the results from the more specialized methods that follow.
 	 * 
 	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> extractAllAttributeReferences(Model m0AssociationModel) {
+	public static SortedMap<Integer, SortedMap<String, SortedSet<String>>> extractAllAttributeReferences(Model m0AssociationModel) {
 
-		List<SortedMap<Integer, SortedMap<String, SortedSet<Integer>>>> referenceMappingsList = new ArrayList<SortedMap<Integer, SortedMap<String, SortedSet<Integer>>>>();
+		List<SortedMap<Integer, SortedMap<String, SortedSet<String>>>> referenceMappingsList = new ArrayList<SortedMap<Integer, SortedMap<String, SortedSet<String>>>>();
 
 		referenceMappingsList.add(extractAttributeReferences(m0AssociationModel, "fr", true));
 		referenceMappingsList.add(extractAttributeReferences(m0AssociationModel, "fr", false));
@@ -563,20 +567,20 @@ public class M0SIMSConverter extends M0Converter {
 
 	/**
 	 * Reads in the current 'associations' model all the associations between SIMS attributes in all documentations and link or document objects in a given language and stores them as a map.
-	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document numbers as values.
-	 * Example: <1580, <SEE_ALSO, <54, 55>>>
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document URIs as values.
+	 * Example: <1580, <SEE_ALSO, <http://id.insee.fr/documents/page/54, http://id.insee.fr/documents/page/55>>>
 	 * 
 	 * @param language The language tag corresponding to the language of the link (should be 'fr' or 'en', defaults to 'fr').
 	 * @param links A boolean specifying if the tags returns should concern links (<code>true</code>) or documents.
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> extractAttributeReferences(String language, boolean links) {
+	public static SortedMap<Integer, SortedMap<String, SortedSet<String>>> extractAttributeReferences(String language, boolean links) {
 
 		// Read the M0 'associations' model
 		readDataset();
 		logger.debug("Extracting the information on relations between SIMS properties and link objects from dataset " + Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> linkMappings = extractAttributeReferences(m0Model, language, links);
+		SortedMap<Integer, SortedMap<String, SortedSet<String>>> linkMappings = extractAttributeReferences(m0Model, language, links);
 	    m0Model.close();
 
 	    return linkMappings;
@@ -584,15 +588,15 @@ public class M0SIMSConverter extends M0Converter {
 
 	/**
 	 * Reads all the associations between SIMS attributes in all documentations and link objects in a given language and stores them as a map.
-	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link numbers as values.
-	 * Example: <1580, <SEE_ALSO, <54, 55>>>
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document URIs as values.
+	 * Example: <1580, <SEE_ALSO, <http://id.insee.fr/documents/page/54, http://id.insee.fr/documents/page/55>>>
 	 * 
 	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
 	 * @param language The language tag corresponding to the language of the link (should be 'fr' or 'en', defaults to 'fr').
 	 * @param links A boolean specifying if the tags returns should concern links (<code>true</code>) or documents.
 	 * @return A map containing the relations.
 	 */
-	public static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> extractAttributeReferences(Model m0AssociationModel, String language, boolean links) {
+	public static SortedMap<Integer, SortedMap<String, SortedSet<String>>> extractAttributeReferences(Model m0AssociationModel, String language, boolean links) {
 
 		// The relations between SIMS properties and link/documents objects are in the 'associations' graph and have the following structure (replace by relatedToGb for English):
 		// <http://baseUri/documentations/documentation/1580/SEE_ALSO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/liens/lien/54/SEE_ALSO> .
@@ -602,7 +606,7 @@ public class M0SIMSConverter extends M0Converter {
 		final String referenceType = (links) ? "link" : "document";
 
 		logger.debug("Extracting relations between SIMS attributes and " + referenceType + " objects for language '" + language + "'");
-		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> referenceMappings = new TreeMap<Integer, SortedMap<String, SortedSet<Integer>>>();
+		SortedMap<Integer, SortedMap<String, SortedSet<String>>> referenceMappings = new TreeMap<Integer, SortedMap<String, SortedSet<String>>>();
 
 		// Will select triples of the form indicated above
 		Selector selector = new SimpleSelector(null, associationProperty, (RDFNode) null) {
@@ -631,10 +635,11 @@ public class M0SIMSConverter extends M0Converter {
 					// HACK: some associations are made on the 'ASSOCIE_A' attribute, which is not a SIMS attribute, we don't want those associations
 					if ("ASSOCIE_A".equals(attributeName)) return;
 					// Update the map with the information from the current triple
-					if (!referenceMappings.containsKey(documentationNumber)) referenceMappings.put(documentationNumber, new TreeMap<String, SortedSet<Integer>>());
-					Map<String, SortedSet<Integer>> attributeMappings = referenceMappings.get(documentationNumber);
-					if (!attributeMappings.containsKey(attributeName)) attributeMappings.put(attributeName, new TreeSet<Integer>());
-					attributeMappings.get(attributeName).add(referenceNumber);
+					if (!referenceMappings.containsKey(documentationNumber)) referenceMappings.put(documentationNumber, new TreeMap<String, SortedSet<String>>());
+					Map<String, SortedSet<String>> attributeMappings = referenceMappings.get(documentationNumber);
+					if (!attributeMappings.containsKey(attributeName)) attributeMappings.put(attributeName, new TreeSet<String>());
+					String referenceURI = links ? Configuration.linkURI(referenceNumber) : Configuration.documentURI(referenceNumber);
+					attributeMappings.get(attributeName).add(referenceURI);
 				} catch (Exception e) {
 					logger.error("Statement ignored (invalid integer): " + statement);
 					return;
@@ -651,11 +656,11 @@ public class M0SIMSConverter extends M0Converter {
 	 * @param referenceMappingsList A list of attribute references maps.
 	 * @return A consolidated map of attribute references.
 	 */
-	public static SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> mergeAttributeReferences(List<SortedMap<Integer, SortedMap<String, SortedSet<Integer>>>> referenceMappingsList) {
+	public static SortedMap<Integer, SortedMap<String, SortedSet<String>>> mergeAttributeReferences(List<SortedMap<Integer, SortedMap<String, SortedSet<String>>>> referenceMappingsList) {
 
-		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> mergedReferenceMappings = new TreeMap<Integer, SortedMap<String, SortedSet<Integer>>>();
+		SortedMap<Integer, SortedMap<String, SortedSet<String>>> mergedReferenceMappings = new TreeMap<Integer, SortedMap<String, SortedSet<String>>>();
 
-		for (SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> referenceMappings : referenceMappingsList) {
+		for (SortedMap<Integer, SortedMap<String, SortedSet<String>>> referenceMappings : referenceMappingsList) {
 			for (Integer documentationNumber : referenceMappings.keySet()) {
 				if (mergedReferenceMappings.containsKey(documentationNumber)) {
 					for (String attributeName : referenceMappings.get(documentationNumber).keySet()) {

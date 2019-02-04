@@ -67,10 +67,8 @@ public class M0SIMSConverter extends M0Converter {
 	protected static SIMSFrScheme simsFRScheme = null;
 	/** All the references from attributes to links or documents */
 	protected static SortedMap<Integer, SortedMap<String, SortedSet<String>>> attributeReferences = null;
-	/** The SIMS model for documents */
-	protected static Model simsDocumentsModel = null;
-	/** The SIMS model for links */
-	protected static Model simsLinksModel = null;
+	/** The SIMS model for documents and links */
+	protected static Model simsDocumentsAndLinksModel = null;
 
 	// Will be handy for parsing dates
 	final static DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
@@ -90,10 +88,9 @@ public class M0SIMSConverter extends M0Converter {
 		simsFrMSD = (OntModel) ModelFactory.createOntologyModel().read(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME);
 		simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 
-		// We will also need the documents and links models, as well as all the attribute references to them
+		// We will also need the documents and links models as well as all the attribute references to links and documents
 		attributeReferences = M0SIMSConverter.extractAllAttributeReferences();
-		simsDocumentsModel = convertDocumentsToSIMS();
-		simsLinksModel = convertLinksToSIMS();
+		simsDocumentsAndLinksModel = convertDocumentsToSIMS().add(convertLinksToSIMS());
 
 		// If parameter was null, get the list of all existing M0 'documentation' models
 		SortedSet<Integer> docIdentifiers = new TreeSet<Integer>();
@@ -160,24 +157,6 @@ public class M0SIMSConverter extends M0Converter {
 			// Create a m0 resource corresponding to the SIMSFr entry and check if the resource has values in M0 (French values are sine qua non)
 			Resource m0EntryResource = ResourceFactory.createResource(m0BaseResource.getURI() + "/" + entry.getCode());
 			logger.debug("Looking for the presence of SIMS attribute " + entry.getCode() + " (M0 URI: " + m0EntryResource + ")");
-			// Query for the list of valued of the M0 resource
-			List<RDFNode> objectValues = m0Model.listObjectsOfProperty(m0EntryResource, M0_VALUES).toList();
-			if (objectValues.size() == 0) {
-				logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());
-				continue;
-			}
-			if (objectValues.size() > 1) { // TODO Some coded attributes (survey unit, collection mode) can actually be multi-valued
-				// Several values for the resource, we have a problem
-				logger.error("Error: there are multiple values in the M0 documentation model for SIMSFr attribute " + entry.getCode());
-				continue;
-			}
-			// If we arrived here, we have one value, but it can be empty (including numerous cases where the value is just new line characters)
-			String stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", ""); // TODO Check cases where value is "\n\n"
-			if (stringValue.length() == 0) {
-				logger.debug("Empty value found in the M0 documentation model for SIMSFr attribute " + entry.getCode() + ", ignoring");
-				continue;
-			}
-			logger.debug("Non-empty value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());
 			// Get the metadata attribute property from the MSD and get its range
 			String propertyURI = Configuration.simsAttributePropertyURI(entry, false);
 			OntProperty metadataAttributeProperty = simsFrMSD.getOntProperty(propertyURI);
@@ -185,6 +164,36 @@ public class M0SIMSConverter extends M0Converter {
 				logger.error("Error: property " + propertyURI + " not found in the SIMSFr MSD");
 				continue;
 			}
+			Statement rangeStatement = metadataAttributeProperty.getProperty(RDFS.range);
+			Resource propertyRange = (rangeStatement == null) ? null : rangeStatement.getObject().asResource();
+			// Query for the list of values of the M0 resource
+			List<RDFNode> objectValues = m0Model.listObjectsOfProperty(m0EntryResource, M0_VALUES).toList();
+			if (objectValues.size() == 0) {
+				// TODO No value is acceptable if the type is DCTypes.Text and the resource has references to links or documents
+				if (propertyRange.equals(DCTypes.Text) && documentReferences.containsKey(entry.getCode())) {
+					logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode() + ", but references exist: " + documentReferences.get(entry.getCode()));
+				}
+				else {
+					logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());
+					continue;
+				}
+			}
+			if (objectValues.size() > 1) { // TODO Some coded attributes (survey unit, collection mode) can actually be multi-valued
+				// Several values for the resource, we have a problem
+				logger.error("Error: there are multiple values in the M0 documentation model for SIMSFr attribute " + entry.getCode());
+				continue;
+			}
+			// If we arrived here, we have one value, but it can be empty (including numerous cases where the value is just new line characters)
+			String stringValue = null;
+			if (objectValues.size() == 1) {
+				stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", ""); // TODO Check cases where value is "\n\n"
+				if (stringValue.length() == 0) {
+					logger.debug("Empty value found in the M0 documentation model for SIMSFr attribute " + entry.getCode() + ", ignoring");
+					continue;
+				}				
+			}
+			logger.debug("Non-empty value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());
+
 			// If specified, create a reported attribute (otherwise, the metadata attribute properties will be attached to the report)
 			Resource targetResource = null;
 			if (Configuration.CREATE_REPORTED_ATTRIBUTES) {
@@ -193,18 +202,24 @@ public class M0SIMSConverter extends M0Converter {
 				targetResource.addProperty(simsModel.createProperty(Configuration.SDMX_MM_BASE_URI + "metadataReport"), report);
 			} else targetResource = report;
 
-			Statement rangeStatement = metadataAttributeProperty.getProperty(RDFS.range);
-			Resource propertyRange = (rangeStatement == null) ? null : rangeStatement.getObject().asResource();
 			logger.debug("Target property is " + metadataAttributeProperty + " with range " + propertyRange);
 			if (propertyRange.equals(DCTypes.Text)) {
 				// We are in the case of a 'text + seeAlso...' object
 				Resource objectResource = simsModel.createResource(Configuration.simsFrRichText(m0Id, entry), DCTypes.Text);
-				objectResource.addProperty(RDF.value, simsModel.createLiteral(stringValue, "fr"));
+				if ((stringValue != null) && (stringValue.length() != 0)) objectResource.addProperty(RDF.value, simsModel.createLiteral(stringValue, "fr"));
 				targetResource.addProperty(metadataAttributeProperty, objectResource);
 				// We search for references to documents or links attached to this attribute
 				SortedSet<String> thisAttributeReferences = (documentReferences == null) ? null : documentReferences.get(entry.getCode());
+				logger.debug("Attribute " + entry.getCode() + " has type 'rich text', with references " + thisAttributeReferences);
 				if (thisAttributeReferences != null) {
-					for (String refURI : thisAttributeReferences) {}
+					for (String refURI : thisAttributeReferences) {
+						// Add the referenced link/document as additional material to the text resource
+						Resource refResource = simsModel.createResource(refURI);
+						objectResource.addProperty(Configuration.ADDITIONAL_MATERIAL, refResource);
+						// Add all the properties of the link/document extracted from the document and links model
+						simsModel.add(simsDocumentsAndLinksModel.listStatements(refResource, null, (RDFNode) null));
+						//simsModel.add(iter)
+					}
 				}
 			}
 			else if (propertyRange.equals(SIMS_REPORTED_ATTRIBUTE)) {

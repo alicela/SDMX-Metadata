@@ -199,20 +199,11 @@ public class M0ConverterTest {
  	}
 
 	@Test
-	public void testExtractAllAttributeReferences() {
-
-		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> relations = M0SIMSConverter.extractAllAttributeReferences();
-		for (Integer documentationId : relations.keySet())
-			for (String attributeName : relations.get(documentationId).keySet())
-				System.out.println("Attribute " + attributeName + " of documentation " + documentationId + " is associated to the following links: " + relations.get(documentationId).get(attributeName));
- 	}
-
-	@Test
 	public void testExtractAttributeLinks() throws IOException {
 
 		// We also list the links that are actually referenced in the relations
-		SortedSet<Integer> referencedLinks = new TreeSet<Integer>();
-		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> relations = M0SIMSConverter.extractAttributeReferences("fr", true);
+		SortedSet<String> referencedLinks = new TreeSet<String>();
+		SortedMap<Integer, SortedMap<String, SortedSet<String>>> relations = M0SIMSConverter.extractAttributeReferences("fr", true);
 		for (Integer documentationId : relations.keySet()) {
 			System.out.println("Documentation " + documentationId + " is associated to the following French links: " + relations.get(documentationId));
 			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
@@ -229,8 +220,8 @@ public class M0ConverterTest {
 	public void testExtractAttributeDocuments() throws IOException {
 
 		// We also list the links that are actually referenced in the relations
-		SortedSet<Integer> referencedLinks = new TreeSet<Integer>();
-		SortedMap<Integer, SortedMap<String, SortedSet<Integer>>> relations = M0SIMSConverter.extractAttributeReferences("fr", false);
+		SortedSet<String> referencedLinks = new TreeSet<String>();
+		SortedMap<Integer, SortedMap<String, SortedSet<String>>> relations = M0SIMSConverter.extractAttributeReferences("fr", false);
 		for (Integer documentationId : relations.keySet()) {
 			System.out.println("Documentation " + documentationId + " is associated to the following French documents: " + relations.get(documentationId));
 			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));

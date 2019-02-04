@@ -15,6 +15,7 @@ import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.DCTypes;
 import org.apache.jena.vocabulary.RDFS;
@@ -93,6 +94,9 @@ public class Configuration {
 
 	/** Specifies if reported attributes are created or if attribute properties are directly attached to the report */
 	public static boolean CREATE_REPORTED_ATTRIBUTES = true;
+
+	/** RDF predicate connecting rich text resources to documents/links resources */
+	public static Property ADDITIONAL_MATERIAL = ResourceFactory.createProperty("http://rdf.insee.fr/def/base#additionalMaterial");
 
 	/** Static mapping between direct attributes of operations and RDF Properties */
 	public static Map<String, Property> propertyMappings;

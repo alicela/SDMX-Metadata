@@ -50,9 +50,10 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import difflib.Delta;
-import difflib.DiffUtils;
-import difflib.Patch;
+import com.github.difflib.DiffUtils;
+import com.github.difflib.algorithm.DiffException;
+import com.github.difflib.patch.AbstractDelta;
+import com.github.difflib.patch.Patch;
 
 public class M0Checker {
 
@@ -862,10 +863,16 @@ public class M0Checker {
 		diffWriter.println("\nCompared string\n" + comparedString);
 
 		diffWriter.println("\nDifferences\n");
-        Patch<String> patch = DiffUtils.diff(Arrays.asList(baseString.split("\n")), Arrays.asList(comparedString.split("\n")));
-        for (Delta<String> delta: patch.getDeltas()) {
-        	diffWriter.println(delta);
-        }
+        Patch<String> patch;
+		try {
+			patch = DiffUtils.diff(Arrays.asList(baseString.split("\n")), Arrays.asList(comparedString.split("\n")));
+	        for (AbstractDelta<String> delta: patch.getDeltas()) {
+	        	diffWriter.println(delta);
+	        }
+		} catch (DiffException e) {
+			logger.error("Error while calculating the differences", e);
+		}
+
         diffWriter.close();
 	}
 

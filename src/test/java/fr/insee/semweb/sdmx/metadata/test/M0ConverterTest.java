@@ -3,6 +3,7 @@ package fr.insee.semweb.sdmx.metadata.test;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -18,6 +19,7 @@ import java.util.function.Consumer;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -33,38 +35,71 @@ import fr.insee.semweb.sdmx.metadata.OrganizationModelMaker;
 
 public class M0ConverterTest {
 
+	/**
+	 * Extracts all non-empty values of a SIMS attribute from the M0 model and writes corresponding triples in a file.
+	 * 
+	 * @throws IOException
+	 */
 	@Test
-	public void testExtractProperty() throws IOException {
+	public void testExtractSIMSAttributeValuesM0() throws IOException {
+
+		String simsAttributeName = "DATA_COMP";
 
 		// Read the source M0 dataset and extract SIMS information
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0SIMSModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "documentations");
 
-		Model extract = M0Converter.extractAttributeStatements(m0SIMSModel, "SUMMARY");
-		extract.write(new FileOutputStream("src/test/resources/summary-test.ttl"), "TTL");
+		// Select attribute values and write to file
+		Model extract = M0Converter.extractAttributeStatements(m0SIMSModel, simsAttributeName);
+		extract.write(new FileOutputStream("src/test/resources/m0-sims-" + simsAttributeName.toLowerCase() + "-values.ttl"), "TTL");
 	}
 
+	/**
+	 * Extracts the values of given series properties from the M0 model and writes corresponding triples in a file.
+	 * 
+	 * @throws IOException
+	 */
 	@Test
-	public void testExtractSeriesProperty() throws IOException {
+	public void testExtractSeriesProperties() throws IOException {
+
+		List<String> propertyNames = Arrays.asList("SUMMARY", "ID_DDS");
 
 		// Read the source M0 dataset and extract the model on series
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0SeriesModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "series");
 
-		Model extract = M0Converter.extractAttributeStatements(m0SeriesModel, "SUMMARY");
-		extract.add(M0Converter.extractAttributeStatements(m0SeriesModel, "ID_DDS"));
-		extract.write(new FileOutputStream("src/test/resources/summary-test.ttl"), "TTL");
+		// Select values for specified properties and write to file
+		Model extract = ModelFactory.createDefaultModel();
+		String fileName = "src/test/resources/m0-series";
+		for (String propertyName : propertyNames) {
+			extract.add(M0Converter.extractAttributeStatements(m0SeriesModel, propertyName));
+			fileName += "-" + propertyName.toLowerCase();
+		}
+		extract.write(new FileOutputStream(fileName + "-values.ttl"), "TTL");
 	}
 
+	/**
+	 * Reads the list of fixed mappings between M0 identifiers and target URIs for series and saves it to a file.
+	 * 
+	 * @throws IOException
+	 */
 	@Test
-	public void testGetIdURIMappingsSeries() {
+	public void testGetIdURIFixedMappingsSeries() throws IOException {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Map<Integer, String> mappings = M0Converter.getIdURIFixedMappings(dataset, "serie");
 
-		System.out.println(mappings);
+		mappings.entrySet().stream().sorted(Map.Entry.<Integer, String>comparingByKey()).forEach(System.out::println);
+		try (PrintWriter writer = new PrintWriter("src/test/resources/mappings-id-uri-series.txt", "UTF-8")) {
+			mappings.entrySet().stream().sorted(Map.Entry.<Integer, String>comparingByKey()).forEach(writer::println);
+		}
 	}
 
+	/**
+	 * Creates and writes to file the mappings between M0 URIs and target URIs for families, series, operations and indicators.
+	 * 
+	 * @throws IOException
+	 */
 	@Test
 	public void testCreateURIMappings() throws IOException {
 
@@ -332,7 +367,7 @@ public class M0ConverterTest {
 	}
 
 	@Test
-	public void testConvertToSIMS() throws IOException {
+	public void testConvertAllToSIMS() throws IOException {
 
 		boolean namedGraphs = true;
 
@@ -345,19 +380,17 @@ public class M0ConverterTest {
 
 		boolean namedGraphs = true;
 
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(Arrays.asList(1501), namedGraphs);
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(Arrays.asList(1501, 1508), namedGraphs);
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1501." + (namedGraphs ? "trig" : "ttl")), simsDataset, Lang.TRIG); // TODO Check if Lang.TRIG is OK for both cases
 	}
 
 	@Test
-	public void testExtractSeriesProperty2() throws IOException {
+	public void testConvertOneToSIMS() throws IOException {
 
-		// Read the source M0 dataset and extract the model on series
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0SeriesModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "series");
+		boolean namedGraphs = false;
 
-		Model extract = M0Converter.extractAttributeStatements(m0SeriesModel, "ID_DDS");
-		extract.write(new FileOutputStream("src/test/resources/summary-test.ttl"), "TTL");
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(Arrays.asList(1501), namedGraphs);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1501." + (namedGraphs ? "trig" : "ttl")), simsDataset, Lang.TRIG); // TODO Check if Lang.TRIG is OK for both cases
 	}
 
 	@Test

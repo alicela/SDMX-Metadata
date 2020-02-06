@@ -45,6 +45,8 @@ import org.apache.jena.vocabulary.XSD;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fr.insee.stamina.utils.DQV;
+
 /**
  * Extends the M0 converter with methods for the conversion of SIMS quality metadata.
  * 
@@ -244,7 +246,7 @@ public class M0SIMSConverter extends M0Converter {
 					logger.error("Unparseable date value " + stringValue + " for M0 resource " + m0EntryResource.getURI());
 				}
 			}
-			else if (propertyRange.equals(DQV_METRIC)) {
+			else if (propertyRange.equals(DQV.Metric)) {
 				// This case should not exist, since quality indicators have been filtered out
 				logger.error("Property range should not be equal to dqv:Metric");
 			}

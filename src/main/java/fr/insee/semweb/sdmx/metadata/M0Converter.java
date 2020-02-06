@@ -68,8 +68,6 @@ public class M0Converter {
 
 	/** The reported attribute */
 	protected static Resource SIMS_REPORTED_ATTRIBUTE = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#ReportedAttribute");
-	/** The DQV quality metric */
-	protected static Resource DQV_METRIC = ResourceFactory.createResource("http://www.w3.org/ns/dqv#Metric");
 
 	/** The M0 dataset containing all the models */
 	static Dataset dataset = null;
@@ -157,16 +155,16 @@ public class M0Converter {
 	}
 
 	/**
-	 * Extracts from an M0 model all the statements related to a given attribute.
+	 * Extracts from an M0 model all the statements related to a given SIMS attribute.
 	 * Warning: only statements with (non empty) literal object will be selected.
 	 * 
 	 * @param m0Model A Jena <code>Model</code> in M0 format from which the statements will be extracted.
-	 * @param attributeName The name of the attribute (e.g. SUMMARY).
+	 * @param attributeName The name of the SIMS attribute (e.g. SUMMARY).
 	 * @return A Jena <code>Model</code> containing the statements of the extract in M0 format.
 	 */
 	public static Model extractAttributeStatements(Model m0Model, String attributeName) {
 
-		logger.debug("Extracting M0 model for property: " + attributeName);
+		logger.debug("Extracting from M0 model triples with subject corresponding to SIMS atttribute: " + attributeName);
 
 		Model extractModel = ModelFactory.createDefaultModel();
 		Selector selector = new SimpleSelector(null, M0_VALUES, (RDFNode) null) {
@@ -176,18 +174,21 @@ public class M0Converter {
 	        }
 	    };
 
-		// Copy the relevant statements to the extract model
+		// Run the selector and add the selected statements to the extract model
 		extractModel.add(m0Model.listStatements(selector));
+		long numberOfValues = extractModel.size();
 
-		// TODO Add the English values for string properties
+		// String attributes may also have English values
 		selector = new SimpleSelector(null, M0_VALUES_EN, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return ((statement.getSubject().getURI().endsWith(attributeName)) && (statement.getObject().isLiteral()) && (statement.getLiteral().getString().trim().length() > 0));
 	        }
 	    };
-
-		// Add the selected statements to the extract model
 		extractModel.add(m0Model.listStatements(selector));
+		long numberOfEnglishValues = extractModel.size() - numberOfValues;
+
+		String reportNumber = (numberOfEnglishValues == 0) ? Long.toString(numberOfValues) : Long.toString(numberOfValues) + " (French) + " + Long.toString(numberOfEnglishValues) + " (English)";
+		logger.debug("Number of triples extracted: " + reportNumber);
 
 		return extractModel;
 	}

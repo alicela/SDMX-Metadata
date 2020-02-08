@@ -1,7 +1,9 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
@@ -89,14 +91,40 @@ public class M0ConverterTest {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Map<Integer, String> mappings = M0Converter.getIdURIFixedMappings(dataset, "serie");
 
-		mappings.entrySet().stream().sorted(Map.Entry.<Integer, String>comparingByKey()).forEach(System.out::println);
 		try (PrintWriter writer = new PrintWriter("src/test/resources/mappings-id-uri-series.txt", "UTF-8")) {
 			mappings.entrySet().stream().sorted(Map.Entry.<Integer, String>comparingByKey()).forEach(writer::println);
 		}
 	}
 
 	/**
-	 * Creates and writes to file the mappings between M0 URIs and target URIs for families, series, operations and indicators.
+	 * Reads the list of fixed mappings between M0 identifiers and target URIs for operations and saves it to a file.
+	 * Also inverts the mappings in order to check if there are no duplicates and saves the inverted list to a file.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void testGetIdURIFixedMappingsOperations() throws IOException {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Map<Integer, String> mappings = M0Converter.getIdURIFixedMappings(dataset, "operation");
+
+		try (PrintWriter writer = new PrintWriter("src/test/resources/mappings-id-uri-operations.txt", "UTF-8")) {
+			mappings.entrySet().stream().sorted(Map.Entry.<Integer, String>comparingByKey()).forEach(writer::println);
+		}
+
+		// "Invert" the map to find duplicates (cases where multiple M0 identifiers map to the same target URI)
+		Map<String, List<Integer>> inverse = new HashMap<String, List<Integer>>();
+		for (int m0Id : mappings.keySet()) {
+			if (!inverse.containsKey(mappings.get(m0Id))) inverse.put(mappings.get(m0Id), new ArrayList<Integer>());
+			inverse.get(mappings.get(m0Id)).add(m0Id);
+		}
+		try (BufferedWriter writer = new BufferedWriter(new FileWriter("src/test/resources/mappings-uri-id-operations.txt"))) {
+			for (String uri : inverse.keySet()) writer.write(uri + " - " + inverse.get(uri) + System.lineSeparator());
+		}
+	}
+
+	/**
+	 * Creates and writes to a file the mappings between M0 URIs and target URIs for families, series, operations and indicators.
 	 * 
 	 * @throws IOException
 	 */
@@ -105,56 +133,42 @@ public class M0ConverterTest {
 
 		Map<String, String> mappings = M0Converter.createURIMappings();
 		M0Converter.checkMappings(mappings);
-		Files.write(Paths.get("src/test/resources/uri-mappings.txt"), () -> mappings.entrySet().stream().<CharSequence>map(e -> e.getKey() + "\t" + e.getValue()).iterator());
+		Files.write(Paths.get("src/test/resources/mappings-uri.txt"), () -> mappings.entrySet().stream().<CharSequence>map(e -> e.getKey() + "\t" + e.getValue()).iterator());
 	}
 
+	/**
+	 * Extracts the code lists defined in the M0 model and saves them in a Turtle file.
+	 * 
+	 * @throws IOException
+	 */
 	@Test
-	public void testConvert() {
-
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Map<Integer, String> mappings = M0Converter.getIdURIFixedMappings(dataset, "serie");
-
-		System.out.println(mappings);
-	}
-
-	@Test
-	public void testGetIdURIMappingsOperations() {
-
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Map<Integer, String> mappings = M0Converter.getIdURIFixedMappings(dataset, "operation");
-
-		// "Invert" the map to find duplicates
-		Map<String, List<Integer>> inverse = new HashMap<String, List<Integer>>();
-		for (int m0Id : mappings.keySet()) {
-			if (!inverse.containsKey(mappings.get(m0Id))) inverse.put(mappings.get(m0Id), new ArrayList<Integer>());
-			inverse.get(mappings.get(m0Id)).add(m0Id);
-		}
-		for (String uri : inverse.keySet()) System.out.println(uri + " - " + inverse.get(uri));
-	}
-
-	@Test
-	public void testExtractCodeLists() throws IOException {
+	public void testExtractM0CodeLists() throws IOException {
 
 		Model extract = M0Converter.extractCodeLists();
-		extract.write(new FileOutputStream("src/test/resources/m0-codes.ttl"), "TTL");
+		extract.write(new FileOutputStream("src/test/resources/m0-codelists.ttl"), "TTL");
 	}
 
+	/**
+	 * Creates a RDF dataset containing all base resources (code lists, organizations, families, series, operations and indicators) and saves it to a file.
+	 * 
+	 * @throws Exception
+	 */
 	@Test
-	public void testCreateWholeDataset() throws Exception {
+	public void testCreateAllBaseResourcesDataset() throws Exception {
 
-		// Code lists
+		// Code lists from the Excel file
 		Dataset dataset = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes");
-		// Families, series, operations
+		// Families, series, operations from the M0 model
 		dataset.addNamedModel("http://rdf.insee.fr/graphes/operations", M0Converter.extractAllOperations());
-		// Indicators
+		// Indicators from the M0 model
 		dataset.addNamedModel("http://rdf.insee.fr/graphes/produits", M0Converter.extractIndicators());
-		// Organizations
+		// Organizations from the Excel file
 		Workbook orgWorkbook = WorkbookFactory.create(new File(Configuration.ORGANIZATIONS_XLSX_FILE_NAME));
 		Model orgModel = OrganizationModelMaker.createSSMModel(orgWorkbook);
 		orgModel.add(OrganizationModelMaker.createInseeModel(orgWorkbook));
 		dataset.addNamedModel("http://rdf.insee.fr/graphes/organisations", orgModel);
 		
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-data.trig"), dataset, Lang.TRIG);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-base-resources.trig"), dataset, Lang.TRIG);
 	}
 
 	@Test

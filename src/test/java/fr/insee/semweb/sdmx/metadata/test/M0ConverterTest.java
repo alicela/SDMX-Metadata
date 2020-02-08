@@ -30,8 +30,10 @@ import org.junit.Test;
 
 import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
 import fr.insee.semweb.sdmx.metadata.Configuration;
+import fr.insee.semweb.sdmx.metadata.M0Checker;
 import fr.insee.semweb.sdmx.metadata.M0Converter;
 import fr.insee.semweb.sdmx.metadata.M0Converter.OrganizationRole;
+import fr.insee.semweb.sdmx.metadata.M0Extractor;
 import fr.insee.semweb.sdmx.metadata.M0SIMSConverter;
 import fr.insee.semweb.sdmx.metadata.OrganizationModelMaker;
 
@@ -52,7 +54,7 @@ public class M0ConverterTest {
 		Model m0SIMSModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "documentations");
 
 		// Select attribute values and write to file
-		Model extract = M0Converter.extractAttributeStatements(m0SIMSModel, simsAttributeName);
+		Model extract = M0Extractor.extractAttributeStatements(m0SIMSModel, simsAttributeName);
 		extract.write(new FileOutputStream("src/test/resources/m0-sims-" + simsAttributeName.toLowerCase() + "-values.ttl"), "TTL");
 	}
 
@@ -74,7 +76,7 @@ public class M0ConverterTest {
 		Model extract = ModelFactory.createDefaultModel();
 		String fileName = "src/test/resources/m0-series";
 		for (String propertyName : propertyNames) {
-			extract.add(M0Converter.extractAttributeStatements(m0SeriesModel, propertyName));
+			extract.add(M0Extractor.extractAttributeStatements(m0SeriesModel, propertyName));
 			fileName += "-" + propertyName.toLowerCase();
 		}
 		extract.write(new FileOutputStream(fileName + "-values.ttl"), "TTL");
@@ -189,7 +191,7 @@ public class M0ConverterTest {
 	public void testExtractOneCodeList() throws IOException {
 
 		Model extract = M0Converter.extractCodeLists();
-		Model subExtract = M0Converter.extractM0ResourceModel(extract, "http://baseUri/codelists/codelist/3");
+		Model subExtract = M0Extractor.extractM0ResourceModel(extract, "http://baseUri/codelists/codelist/3");
 		subExtract.write(new FileOutputStream("src/test/resources/m0-codelist-3.ttl"), "TTL");
 	}
 
@@ -430,7 +432,7 @@ public class M0ConverterTest {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "indicateurs");
 
-		System.out.println(M0Converter.listModelAttributes(m0Model));
+		System.out.println(M0Checker.listModelAttributes(m0Model));
 	}
 
 	@Test
@@ -445,7 +447,7 @@ public class M0ConverterTest {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0SIMSModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "documentations");
 		List<String> m0IdList = Arrays.asList("1502", "1508", "1509");
-		M0Converter.m0SplitAndSave(m0SIMSModel, m0IdList);
+		M0Extractor.m0SplitAndSave(m0SIMSModel, m0IdList);
 	}
 
 	@Test

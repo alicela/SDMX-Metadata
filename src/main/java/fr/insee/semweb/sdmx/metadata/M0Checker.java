@@ -903,4 +903,26 @@ public class M0Checker {
 		dataset.getNamedModel("http://rdf.insee.fr/graphe/organismes").write(new FileWriter("src/main/resources/data/m0-organismes.ttl"), "TTL");
 
 	}
+
+	/**
+	 * Returns the list of all attributes used in a M0 model.
+	 * M0 attributes are those which correspond to the last path element of subject resources in the M0 model.
+	 * 
+	 * @param m0Model The M0 model to study.
+	 * @return The list of the M0 attributes used in the model.
+	 */
+	public static List<String> listModelAttributes(Model m0Model) {
+	
+		List<String> attributes = new ArrayList<String>();
+		StmtIterator iterator = m0Model.listStatements();
+		iterator.forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String attributeName = StringUtils.substringAfterLast(statement.getSubject().getURI(), "/");
+				 // Avoid base resources and special attribute 'sequence' (used to increment M0 identifier)
+				if (!StringUtils.isNumeric(attributeName) && !("sequence".equals(attributeName)) && !attributes.contains(attributeName)) attributes.add(attributeName);
+			}
+		});
+		return attributes;
+	}
 }

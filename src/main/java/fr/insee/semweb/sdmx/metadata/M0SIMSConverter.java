@@ -108,7 +108,7 @@ public class M0SIMSConverter extends M0Converter {
 		Dataset simsDataset = DatasetFactory.create();
 		for (Integer docIdentifier : docIdentifiers) {
 			// Extract the M0 model containing the resource of the current documentation
-			Model docModel = M0Converter.extractM0ResourceModel(m0DocumentationModel, M0_DOCUMENTATION_BASE_URI + docIdentifier);
+			Model docModel = M0Extractor.extractM0ResourceModel(m0DocumentationModel, M0_DOCUMENTATION_BASE_URI + docIdentifier);
 			// Convert to SIMS format
 			Model simsModel = m0ConvertToSIMS(docModel);
 			if (!namedModels) simsDataset.getDefaultModel().add(simsModel);

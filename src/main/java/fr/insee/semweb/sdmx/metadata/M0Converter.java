@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -41,6 +42,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
+import fr.insee.semweb.utils.URIComparator;
 import fr.insee.stamina.utils.PROV;
 
 /**
@@ -87,7 +89,7 @@ public class M0Converter {
 		readDataset();
 		Model m0SIMSModel = dataset.getNamedModel(M0_BASE_GRAPH_URI + "documentations");
 
-		Model m01508Model = extractM0ResourceModel(m0SIMSModel, "http://baseUri/operations/operation/1508");
+		Model m01508Model = M0Extractor.extractM0ResourceModel(m0SIMSModel, "http://baseUri/operations/operation/1508");
 		Model sims1508Model = M0SIMSConverter.m0ConvertToSIMS(m01508Model);
 		sims1508Model.write(new FileOutputStream("src/main/resources/models/sims-1508.ttl"), "TTL");
 
@@ -109,88 +111,6 @@ public class M0Converter {
 		dataset.addNamedModel(indicatorGraph, extractIndicators());
 
 		return dataset;
-	}
-
-	/**
-	 * Splits the base M0 SIMS model into smaller models corresponding to metadata set identifiers passed as a list, and saves the smaller models to disk.
-	 * 
-	 * @param m0SIMSModel A Jena <code>Model</code> containing the SIMS metadata in M0 format.
-	 * @param m0Ids A <code>List</code> of M0 metadata set identifiers.
-	 * @throws IOException In case of problem while writing the model to disk.
-	 */
-	public static void m0SplitAndSave(Model m0SIMSModel, List<String> m0Ids) throws IOException {
-
-		logger.debug("Splitting M0 model into " + m0Ids.size() + " models");
-		for (String m0Id : m0Ids) {
-			// Create model for the current source
-			Model sourceModel = extractM0ResourceModel(m0SIMSModel, "http://baseUri/documentations/documentation/" + m0Id);
-			sourceModel.write(new FileOutputStream("src/main/resources/data/models/m0-"+ m0Id + ".ttl"), "TTL");
-			sourceModel.close();
-		}
-	}
-
-	/**
-	 * Extracts from the base M0 model all the statements related to a given base resource (series, operation, etc.).
-	 * The statements extracted are those whose subject URI begins with the base resource URI.
-	 * 
-	 * @param m0Model A Jena <code>Model</code> in M0 format from which the statements will be extracted.
-	 * @param m0URI The URI of the M0 base resource for which the statements must to extracted.
-	 * @return A Jena <code>Model</code> containing the statements of the extract in M0 format.
-	 */
-	public static Model extractM0ResourceModel(Model m0Model, String m0URI) {
-	
-		M0SIMSConverter.logger.debug("Extracting M0 model for resource: " + m0URI);
-	
-		Model extractModel = ModelFactory.createDefaultModel();
-		Selector selector = new SimpleSelector(null, null, (RDFNode) null) {
-									// Override 'selects' method to retain only statements whose subject URI begins with the wanted URI
-							        public boolean selects(Statement statement) {
-							        	return statement.getSubject().getURI().startsWith(m0URI);
-							        }
-							    };
-		// Copy the relevant statements to the extract model
-		extractModel.add(m0Model.listStatements(selector));
-	
-		return extractModel;
-	}
-
-	/**
-	 * Extracts from an M0 model all the statements related to a given SIMS attribute.
-	 * Warning: only statements with (non empty) literal object will be selected.
-	 * 
-	 * @param m0Model A Jena <code>Model</code> in M0 format from which the statements will be extracted.
-	 * @param attributeName The name of the SIMS attribute (e.g. SUMMARY).
-	 * @return A Jena <code>Model</code> containing the statements of the extract in M0 format.
-	 */
-	public static Model extractAttributeStatements(Model m0Model, String attributeName) {
-
-		logger.debug("Extracting from M0 model triples with subject corresponding to SIMS atttribute: " + attributeName);
-
-		Model extractModel = ModelFactory.createDefaultModel();
-		Selector selector = new SimpleSelector(null, M0_VALUES, (RDFNode) null) {
-			// Override 'selects' method to retain only statements whose subject URI ends with the property name
-	        public boolean selects(Statement statement) {
-	        	return statement.getSubject().getURI().endsWith(attributeName);
-	        }
-	    };
-
-		// Run the selector and add the selected statements to the extract model
-		extractModel.add(m0Model.listStatements(selector));
-		long numberOfValues = extractModel.size();
-
-		// String attributes may also have English values
-		selector = new SimpleSelector(null, M0_VALUES_EN, (RDFNode) null) {
-	        public boolean selects(Statement statement) {
-	        	return ((statement.getSubject().getURI().endsWith(attributeName)) && (statement.getObject().isLiteral()) && (statement.getLiteral().getString().trim().length() > 0));
-	        }
-	    };
-		extractModel.add(m0Model.listStatements(selector));
-		long numberOfEnglishValues = extractModel.size() - numberOfValues;
-
-		String reportNumber = (numberOfEnglishValues == 0) ? Long.toString(numberOfValues) : Long.toString(numberOfValues) + " (French) + " + Long.toString(numberOfEnglishValues) + " (English)";
-		logger.debug("Number of triples extracted: " + reportNumber);
-
-		return extractModel;
 	}
 
 	/**
@@ -390,7 +310,7 @@ public class M0Converter {
 
 		// For series, the Web4G identifier is obtained through the DDS identifier: extract the ID_DDS property from the series model
 		String graphURI = M0_BASE_GRAPH_URI + type + "s";
-		Model extract = extractAttributeStatements(m0Dataset.getNamedModel(graphURI), "ID_DDS");
+		Model extract = M0Extractor.extractAttributeStatements(m0Dataset.getNamedModel(graphURI), "ID_DDS");
 		logger.debug("Extracted ID_DDS property statements from graph " + graphURI + ", size of resulting model is " + extract.size());
 
 		extract.listStatements().forEachRemaining(new Consumer<Statement>() {
@@ -439,7 +359,7 @@ public class M0Converter {
 		Map<String, Integer> idCounters = new HashMap<String, Integer>();
 
 		readDataset();
-		SortedMap<String, String> mappings = new TreeMap<String, String>();
+		SortedMap<String, String> mappings = new TreeMap<String, String>(Comparator.nullsFirst(new URIComparator()));
 		List<String> types = Arrays.asList("famille", "serie", "operation", "indicateur");
 		logger.info("Starting the creation of all the URI mappings for families, series, operations and indicators");
 
@@ -1229,28 +1149,6 @@ public class M0Converter {
 	}
 
 	/**
-	 * Returns the list of all attributes used in a M0 model.
-	 * M0 attributes are those which correspond to the last path element of subject resources in the M0 model.
-	 * 
-	 * @param m0Model The M0 model to study.
-	 * @return The list of the M0 attributes used in the model.
-	 */
-	public static List<String> listModelAttributes(Model m0Model) {
-	
-		List<String> attributes = new ArrayList<String>();
-		StmtIterator iterator = m0Model.listStatements();
-		iterator.forEachRemaining(new Consumer<Statement>() {
-			@Override
-			public void accept(Statement statement) {
-				String attributeName = StringUtils.substringAfterLast(statement.getSubject().getURI(), "/");
-				 // Avoid base resources and special attribute 'sequence' (used to increment M0 identifier)
-				if (!StringUtils.isNumeric(attributeName) && !("sequence".equals(attributeName)) && !attributes.contains(attributeName)) attributes.add(attributeName);
-			}
-		});
-		return attributes;
-	}
-
-	/**
 	 * Reads the complete M0 dataset if it has not been read already.
 	 */
 	protected static void readDataset() {
@@ -1269,7 +1167,7 @@ public class M0Converter {
 		organizationURIMappings = new HashMap<String, String>();
 		// Read the 'organismes' model and loop through the statements with 'ID_CODE' subjects
 		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "organismes");
-		Model extractModel = extractAttributeStatements(m0Model, "ID_CODE");
+		Model extractModel = M0Extractor.extractAttributeStatements(m0Model, "ID_CODE");
 		extractModel.listStatements().forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
@@ -1319,9 +1217,9 @@ public class M0Converter {
 		/** Returns the OWL property associated to the organization role */
 		public Property getProperty() {
 			switch(this) {
-			case PRODUCER: return DCTerms.creator;
-			case STAKEHOLDER: return DCTerms.contributor;
-			default: return null;
+				case PRODUCER: return DCTerms.creator;
+				case STAKEHOLDER: return DCTerms.contributor;
+				default: return null;
 			}
 		}
 	}

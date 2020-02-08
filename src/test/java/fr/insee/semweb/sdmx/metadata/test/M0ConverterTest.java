@@ -163,7 +163,7 @@ public class M0ConverterTest {
 		// Families, series, operations from the M0 model
 		dataset.addNamedModel("http://rdf.insee.fr/graphes/operations", M0Converter.extractAllOperations());
 		// Indicators from the M0 model
-		dataset.addNamedModel("http://rdf.insee.fr/graphes/produits", M0Converter.extractIndicators());
+		dataset.addNamedModel("http://rdf.insee.fr/graphes/produits", M0Converter.convertIndicators());
 		// Organizations from the Excel file
 		Workbook orgWorkbook = WorkbookFactory.create(new File(Configuration.ORGANIZATIONS_XLSX_FILE_NAME));
 		Model orgModel = OrganizationModelMaker.createSSMModel(orgWorkbook);
@@ -195,11 +195,52 @@ public class M0ConverterTest {
 		subExtract.write(new FileOutputStream("src/test/resources/m0-codelist-3.ttl"), "TTL");
 	}
 
+	/**
+	 * Creates and writes to a file the information about families in the target model.
+	 * 
+	 * @throws IOException
+	 */
 	@Test
-	public void testExtractFamilies() throws IOException {
+	public void testConvertFamilies() throws IOException {
 
-		Model extract = M0Converter.extractFamilies();
-		extract.write(new FileOutputStream("src/test/resources/m0-families.ttl"), "TTL");
+		Model extract = M0Converter.convertFamilies();
+		extract.write(new FileOutputStream("src/test/resources/families.ttl"), "TTL");
+	}
+
+	/**
+	 * Creates and writes to a file the information about indicators in the target model.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void testConvertIndicators() throws IOException {
+
+		Model extract = M0Converter.convertIndicators();
+		extract.write(new FileOutputStream("src/test/resources/indicators.ttl"), "TTL");
+	}
+
+	/**
+	 * Creates and writes to a file the information about series in the target model.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void testConvertSeries() throws IOException {
+
+		Model extract = M0Converter.convertSeries();
+		extract.write(new FileOutputStream("src/test/resources/series.ttl"), "TTL");
+	}
+
+	/**
+	 * Creates and writes to a file the information about operations in the target model.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void testConvertOperations() throws IOException {
+
+		Model extract = M0Converter.convertOperations();
+		extract.write(new FileOutputStream("src/test/resources/operations.ttl"), "TTL");
 	}
 
 	@Test
@@ -329,27 +370,6 @@ public class M0ConverterTest {
 		for (String operation : producers.keySet()) System.out.println("Operation " + operation + " has producers " + producers.get(operation));
 		System.out.println(producers.size() + " operations with producers");
  	}
-
-	@Test
-	public void testExtractSeries() throws IOException {
-
-		Model extract = M0Converter.extractSeries();
-		extract.write(new FileOutputStream("src/test/resources/m0-series.ttl"), "TTL");
-	}
-
-	@Test
-	public void testExtractOperations() throws IOException {
-
-		Model extract = M0Converter.extractOperations();
-		extract.write(new FileOutputStream("src/test/resources/m0-operations.ttl"), "TTL");
-	}
-
-	@Test
-	public void testExtractIndicators() throws IOException {
-
-		Model extract = M0Converter.extractIndicators();
-		extract.write(new FileOutputStream("src/test/resources/m0-indicators.ttl"), "TTL");
-	}
 
 	@Test
 	public void testExtractAllOperations() throws IOException {

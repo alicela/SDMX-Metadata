@@ -78,7 +78,7 @@ public class M0Converter {
 		logger.debug("Extracting M0 dataset with graph: " + operationGraph + " for operations and graph " + indicatorGraph + " for indicators");
 		Dataset dataset = DatasetFactory.create();
 		dataset.addNamedModel(operationGraph, extractAllOperations());
-		dataset.addNamedModel(indicatorGraph, extractIndicators());
+		dataset.addNamedModel(indicatorGraph, convertIndicators());
 
 		return dataset;
 	}
@@ -389,12 +389,12 @@ public class M0Converter {
 	}
 
 	/**
-	 * Extracts the informations on the families from the M0 model and restructures them according to the target model.
+	 * Extracts the informations on the families from the M0 model and converts them according to the target model.
 	 * Also adds the references to statistical themes.
 	 * 
 	 * @return A Jena <code>Model</code> containing the target RDF model for families.
 	 */
-	public static Model extractFamilies() {
+	public static Model convertFamilies() {
 
 		// Read the M0 model and create the URI mappings if necessary
 		readDataset();
@@ -446,11 +446,11 @@ public class M0Converter {
 	}
 
 	/**
-	 * Extracts the informations on the series from the M0 model and restructures them according to the target model.
+	 * Extracts the informations on the series from the M0 model and converts them according to the target model.
 	 * 
 	 * @return A Jena <code>Model</code> containing the target RDF model for series.
 	 */
-	public static Model extractSeries() {
+	public static Model convertSeries() {
 
 		// Read the M0 model and create the URI mappings if necessary
 		readDataset();
@@ -497,7 +497,7 @@ public class M0Converter {
 	 * 
 	 * @return A Jena <code>Model</code> containing the target RDF model for operations.
 	 */
-	public static Model extractOperations() {
+	public static Model convertOperations() {
 
 		// Read the M0 model and create the URI mappings if necessary
 		readDataset();
@@ -555,7 +555,7 @@ public class M0Converter {
 	 * 
 	 * @return A Jena <code>Model</code> containing the target RDF model for indicators.
 	 */
-	public static Model extractIndicators() {
+	public static Model convertIndicators() {
 
 		// Read the M0 model and create the URI mappings if necessary
 		readDataset();
@@ -699,7 +699,7 @@ public class M0Converter {
 		operationModel.setNsPrefix("insee", "http://rdf.insee.fr/def/base#");
 
 		// First add models on families, series and operations (this will read the dataset and create the URI mappings)
-		operationModel.add(extractFamilies()).add(extractSeries()).add(extractOperations());
+		operationModel.add(convertFamilies()).add(convertSeries()).add(convertOperations());
 
 		// Now read the links of various kinds between families, series and operations, starting with hierarchies
 		// For readability, we do not verify in this method that the M0 URIs are in the mappings

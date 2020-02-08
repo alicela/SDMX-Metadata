@@ -305,12 +305,12 @@ public class M0Checker {
 		}
 
 		// Selectors on the French and English associations starting from a 'lien' resource 
-		Selector selectorFr = new SimpleSelector(null, M0Converter.M0_RELATED_TO, (RDFNode) null) {
+		Selector selectorFr = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return (statement.getSubject().getURI().startsWith(baseURILink));
 	        }
 	    };
-		Selector selectorEn = new SimpleSelector(null, M0Converter.M0_RELATED_TO_EN, (RDFNode) null) {
+		Selector selectorEn = new SimpleSelector(null, Configuration.M0_RELATED_TO_EN, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return (statement.getSubject().getURI().startsWith(baseURILink));
 	        }
@@ -381,7 +381,7 @@ public class M0Checker {
 				@Override
 				public void accept(Statement statement) {
 					// Select statements with 'values' and 'valuesGb' properties
-					if (!(statement.getPredicate().equals(M0Converter.M0_VALUES) || statement.getPredicate().equals(M0Converter.M0_VALUES_EN))) return;
+					if (!(statement.getPredicate().equals(Configuration.M0_VALUES) || statement.getPredicate().equals(Configuration.M0_VALUES_EN))) return;
 					// All subjects should start with the base links URI
 					String variablePart = statement.getSubject().toString().replace(baseURILink, "");
 					if (variablePart.length() == statement.getSubject().toString().length()) logger.warn("Unexpected subject URI in statement " + statement);
@@ -431,12 +431,12 @@ public class M0Checker {
 		Model associations = dataset.getNamedModel("http://rdf.insee.fr/graphe/associations");
 
 		// Selectors on the French and English associations starting from a 'document' resource 
-		Selector selectorFr = new SimpleSelector(null, M0Converter.M0_RELATED_TO, (RDFNode) null) {
+		Selector selectorFr = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return (statement.getSubject().getURI().startsWith(baseURI));
 	        }
 	    };
-		Selector selectorEn = new SimpleSelector(null, M0Converter.M0_RELATED_TO_EN, (RDFNode) null) {
+		Selector selectorEn = new SimpleSelector(null, Configuration.M0_RELATED_TO_EN, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return (statement.getSubject().getURI().startsWith(baseURI));
 	        }
@@ -468,7 +468,7 @@ public class M0Checker {
 		// Now list all non-SIMS attributes for each document (NB: no M0_VALUES_EN properties in the 'documents' model
 		// Take this opportunity to create the list of all direct attributes (appearing in the document model but not in the association model)
 		Set<String> allDirectAttributes = new TreeSet<String>(ignoredAttributes);
-		documents.listStatements(new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
+		documents.listStatements(new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				String variablePart = statement.getSubject().toString().replace(baseURI, "");
@@ -578,7 +578,7 @@ public class M0Checker {
 			rowIndexes.put(number, index++);
 		}
 		orphans.clear();
-		documents.listStatements(new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
+		documents.listStatements(new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				String variablePart = statement.getSubject().toString().replace(baseURI, "");
@@ -636,7 +636,7 @@ public class M0Checker {
 
 		// First create the list of documents that have a DATE attribute
 		SortedMap<Integer, String> documentDates = new TreeMap<>();
-		Selector selector = new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null);
+		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null);
 		m0DocumentModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
@@ -723,7 +723,7 @@ public class M0Checker {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 
 		// Read the mappings between operations/series and SIMS 'documentations'
-		Model m0AssociationModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "associations");
+		Model m0AssociationModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
 		Map<String, String> attachmentMappings = M0SIMSConverter.extractSIMSAttachments(m0AssociationModel, includeIndicators); // Associations SIMS -> resources
 		m0AssociationModel.close();
 
@@ -733,7 +733,7 @@ public class M0Checker {
 		if (includeIndicators) m0Model.add(dataset.getNamedModel("http://rdf.insee.fr/graphe/indicators"));
 		Model documentationM0Model = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 		// Select 'documentation' triples where subject corresponds to a SIMSFr attribute to compare and predicate is M0_VALUES
-		Selector selector = new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null) {
+		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return comparedAttributes.contains(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/"));
 	        }
@@ -753,7 +753,7 @@ public class M0Checker {
 				// Get the value of the same attribute in the operations model
 				String operationURI = attachmentMappings.get(simsResourceURI);
 				Resource directAttributeResource = m0Model.createResource(operationURI + "/" + attribute);
-				StmtIterator directIterator = m0Model.listStatements(directAttributeResource, M0Converter.M0_VALUES, (RDFNode) null);
+				StmtIterator directIterator = m0Model.listStatements(directAttributeResource, Configuration.M0_VALUES, (RDFNode) null);
 				if (!directIterator.hasNext()) {
 					logger.error("SIMS resource " + simsURI + " has no correspondance as direct attribute in resource " + operationURI);
 					return;
@@ -790,7 +790,7 @@ public class M0Checker {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model documentations = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 
-		Selector selector = new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null) {
+		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject URI ends with the expected property name
 	        public boolean selects(Statement statement) {
 	        	if (statement.getSubject().getURI().endsWith("/" + propertyName)) return true; // To avoid mixing STATUS and VALIDATION_STATUS, for example
@@ -821,7 +821,7 @@ public class M0Checker {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model documentations = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 
-		Selector selector = new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null) {
+		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject URI ends with the expected property name
 	        public boolean selects(Statement statement) {
 	        	if (statement.getSubject().getURI().endsWith("/" + propertyName)) return true;

@@ -76,6 +76,21 @@ public class Configuration {
 	public static String SDMX_CODE_BASE_URI = "http://purl.org/linked-data/sdmx/2009/code#";
 	/** Base URI for CASD products */
 	public static String CASD_PRODUCTS_BASE_URI = "http://id.casd.eu/produits/";
+	/** Base URI for the names of the graphs in M0 dataset (add 'familles', 'series', 'operations', 'organismes', 'indicateurs', 'documents','documentations', 'codelists', 'codes', 'liens', 'associations') */
+	public static String M0_BASE_GRAPH_URI = "http://rdf.insee.fr/graphe/";
+	/** Base URI for SIMS-related resources in M0 */
+	static String M0_SIMS_BASE_URI = "http://baseUri/documentations/documentation/";
+	/** The ubiquitous 'values' property in M0 */
+	protected static Property M0_VALUES = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#values");
+	/** The ubiquitous 'values' property in M0, English version */
+	protected static Property M0_VALUES_EN = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#valuesGb");
+	/** The ubiquitous 'relatedTo' property in M0 */
+	static Property M0_RELATED_TO = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo");
+	/** The ubiquitous 'relatedTo' property in M0, English version */
+	static Property M0_RELATED_TO_EN = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedToGb");
+	/** The reported attribute */
+	protected static Resource SIMS_REPORTED_ATTRIBUTE = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#ReportedAttribute");
+
 	/** Base URI for Insee operations (and families, series) */
 	public static String INSEE_OPS_BASE_URI = "http://id.insee.fr/operations/";
 	/** Base URI for Insee codes */

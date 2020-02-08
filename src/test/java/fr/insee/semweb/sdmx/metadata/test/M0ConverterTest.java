@@ -51,7 +51,7 @@ public class M0ConverterTest {
 
 		// Read the source M0 dataset and extract SIMS information
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0SIMSModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "documentations");
+		Model m0SIMSModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
 
 		// Select attribute values and write to file
 		Model extract = M0Extractor.extractAttributeStatements(m0SIMSModel, simsAttributeName);
@@ -70,7 +70,7 @@ public class M0ConverterTest {
 
 		// Read the source M0 dataset and extract the model on series
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0SeriesModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "series");
+		Model m0SeriesModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "series");
 
 		// Select values for specified properties and write to file
 		Model extract = ModelFactory.createDefaultModel();
@@ -289,7 +289,7 @@ public class M0ConverterTest {
 	public void testGetLanguageTags() {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0AssociationModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "associations");
+		Model m0AssociationModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
 		SortedMap<Integer, String> languageTags = M0SIMSConverter.getLanguageTags(m0AssociationModel, true);
 		System.out.println("Results for links:");
 		for (Integer linkId : languageTags.keySet()) System.out.println("Link " + linkId + " is tagged with language " + languageTags.get(linkId));
@@ -376,7 +376,7 @@ public class M0ConverterTest {
 	public void testGetDocumentDates() {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "documents");
+		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documents");
 
 		SortedMap<Integer, Date> documentDates = M0SIMSConverter.getDocumentDates(m0Model);
 		for (Integer documentNumber : documentDates.keySet()) System.out.println(documentNumber + "\t" + documentDates.get(documentNumber));
@@ -421,7 +421,7 @@ public class M0ConverterTest {
 	public void testGetMaxSequence() {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "familles");
+		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "familles");
 
 		System.out.println(M0Converter.getMaxSequence(m0Model));
 	}
@@ -430,7 +430,7 @@ public class M0ConverterTest {
 	public void testListModelAttributes() {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "indicateurs");
+		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "indicateurs");
 
 		System.out.println(M0Checker.listModelAttributes(m0Model));
 	}
@@ -445,7 +445,7 @@ public class M0ConverterTest {
 	public void testM0SplitAndSave() throws IOException {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0SIMSModel = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "documentations");
+		Model m0SIMSModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
 		List<String> m0IdList = Arrays.asList("1502", "1508", "1509");
 		M0Extractor.m0SplitAndSave(m0SIMSModel, m0IdList);
 	}
@@ -455,7 +455,7 @@ public class M0ConverterTest {
 
 		// Extracts the 'documentations' model from the dataset
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "documentations");
+		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
 		m0Model.write(new FileOutputStream("src/test/resources/m0-extract.ttl"), "TTL");
 	}
 
@@ -464,7 +464,7 @@ public class M0ConverterTest {
 
 		// Extracts a model from the dataset
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0Converter.M0_BASE_GRAPH_URI + "documentations");
+		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
 		m0Model.write(new FileOutputStream("src/test/resources/m0-extract-documentations.ttl"), "TTL");
 	}
 

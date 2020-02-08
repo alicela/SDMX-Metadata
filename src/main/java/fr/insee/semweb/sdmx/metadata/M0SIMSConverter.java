@@ -85,8 +85,8 @@ public class M0SIMSConverter extends M0Converter {
 	public static Dataset convertToSIMS(List<Integer> m0Ids, boolean namedModels) {
 
 		// We will need the documentation model, the SIMSFr scheme and the SIMSFr MSD
-		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0DocumentationModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+		if (m0Dataset == null) m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0DocumentationModel = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 		simsFrMSD = (OntModel) ModelFactory.createOntologyModel().read(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME);
 		simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 
@@ -169,7 +169,7 @@ public class M0SIMSConverter extends M0Converter {
 			Statement rangeStatement = metadataAttributeProperty.getProperty(RDFS.range);
 			Resource propertyRange = (rangeStatement == null) ? null : rangeStatement.getObject().asResource();
 			// Query for the list of values of the M0 resource
-			List<RDFNode> objectValues = m0Model.listObjectsOfProperty(m0EntryResource, M0_VALUES).toList();
+			List<RDFNode> objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES).toList();
 			if (objectValues.size() == 0) {
 				// TODO No value is acceptable if the type is DCTypes.Text and the resource has references to links or documents
 				if (propertyRange.equals(DCTypes.Text) && documentReferences.containsKey(entry.getCode())) {
@@ -200,7 +200,7 @@ public class M0SIMSConverter extends M0Converter {
 			Resource targetResource = null;
 			if (Configuration.CREATE_REPORTED_ATTRIBUTES) {
 				String reportedAttributeURI = Configuration.simsReportedAttributeURI(m0Id, entry.getCode());
-				targetResource = simsModel.createResource(reportedAttributeURI, SIMS_REPORTED_ATTRIBUTE);
+				targetResource = simsModel.createResource(reportedAttributeURI, Configuration.SIMS_REPORTED_ATTRIBUTE);
 				targetResource.addProperty(simsModel.createProperty(Configuration.SDMX_MM_BASE_URI + "metadataReport"), report);
 			} else targetResource = report;
 
@@ -224,14 +224,14 @@ public class M0SIMSConverter extends M0Converter {
 					}
 				}
 			}
-			else if (propertyRange.equals(SIMS_REPORTED_ATTRIBUTE)) {
+			else if (propertyRange.equals(Configuration.SIMS_REPORTED_ATTRIBUTE)) {
 				// Just a placeholder for now, the case does not seem to exist in currently available data
-				targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(SIMS_REPORTED_ATTRIBUTE));
+				targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(Configuration.SIMS_REPORTED_ATTRIBUTE));
 			}
 			else if (propertyRange.equals(XSD.xstring)) {
 				targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "fr"));
 				// See if there is an English version
-				objectValues = m0Model.listObjectsOfProperty(m0EntryResource, M0_VALUES_EN).toList();
+				objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES_EN).toList();
 				if (objectValues.size() == 0) {
 					stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", "");
 					if (stringValue.length() > 0) targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "en"));
@@ -279,7 +279,7 @@ public class M0SIMSConverter extends M0Converter {
 		// Read the M0 'associations' model
 		readDataset();
 		logger.debug("Extracting the information on SIMS metadata sets attachment from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		Model m0Model = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
 		Map<String, String> attachmentMappings = extractSIMSAttachments(m0Model, includeIndicators);
 	    m0Model.close();
 
@@ -303,7 +303,7 @@ public class M0SIMSConverter extends M0Converter {
 		Map<String, String> attachmentMappings = new HashMap<String, String>();
 
 		if (m0AssociationModel == null) return extractSIMSAttachments(includeIndicators);
-		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
+		Selector selector = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject and object URIs end with 'ASSOCIE_A' and begin with expected objects
 			@Override
 	        public boolean selects(Statement statement) {
@@ -341,11 +341,11 @@ public class M0SIMSConverter extends M0Converter {
 	 */
 	public static SortedSet<Integer> getM0DocumentationIds() {
 
-		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		if (m0Dataset == null) m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		logger.debug("Listing M0 documentation identifiers from dataset " + Configuration.M0_FILE_NAME);
 
-		Model m0 = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
-		SortedSet<Integer> m0DocumentIdSet = getM0DocumentationIds(dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations"));
+		Model m0 = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+		SortedSet<Integer> m0DocumentIdSet = getM0DocumentationIds(m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations"));
 		m0.close();
 		return m0DocumentIdSet;
 	}
@@ -386,7 +386,7 @@ public class M0SIMSConverter extends M0Converter {
 	public static Model convertLinksToSIMS() {
 
 		readDataset();
-		Model m0LinkModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/liens");
+		Model m0LinkModel = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/liens");
 		Model simsLinkModel = ModelFactory.createDefaultModel();
 		simsLinkModel.setNsPrefix("foaf", FOAF.getURI());
 		simsLinkModel.setNsPrefix("dc", DC.getURI());
@@ -428,7 +428,7 @@ public class M0SIMSConverter extends M0Converter {
 		for (Integer missingLink : linkNumbers) logger.warn("Link number " + missingLink + " has a language tag but is missing from model");
 
 		// Now we can iterate on the 'M0_VALUES' predicates to get the other properties of the link (NB: no 'M0_VALUES_EN' in the M0 link model)
-		StmtIterator statementIterator = m0LinkModel.listStatements(null, M0_VALUES, (RDFNode) null);
+		StmtIterator statementIterator = m0LinkModel.listStatements(null, Configuration.M0_VALUES, (RDFNode) null);
 		statementIterator.forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
@@ -462,7 +462,7 @@ public class M0SIMSConverter extends M0Converter {
 	public static Model convertDocumentsToSIMS() {
 
 		readDataset();
-		Model m0DocumentModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documents");
+		Model m0DocumentModel = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/documents");
 		Model simsDocumentModel = ModelFactory.createDefaultModel();
 		simsDocumentModel.setNsPrefix("xsd", XSD.getURI());
 		simsDocumentModel.setNsPrefix("foaf", FOAF.getURI());
@@ -513,7 +513,7 @@ public class M0SIMSConverter extends M0Converter {
 
 		// Now we can iterate on the 'M0_VALUES' predicates to get the other properties of the document (NB: no 'M0_VALUES_EN' in the M0 link model)
 		// That is actually only TITLE and URI for now.
-		StmtIterator statementIterator = m0DocumentModel.listStatements(null, M0_VALUES, (RDFNode) null);
+		StmtIterator statementIterator = m0DocumentModel.listStatements(null, Configuration.M0_VALUES, (RDFNode) null);
 		statementIterator.forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
@@ -556,7 +556,7 @@ public class M0SIMSConverter extends M0Converter {
 
 		readDataset();
 		logger.debug("Extracting the information on relations between SIMS properties and link or document objects from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		Model m0Model = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
 
 		return extractAllAttributeReferences(m0Model);
 	}
@@ -596,7 +596,7 @@ public class M0SIMSConverter extends M0Converter {
 		// Read the M0 'associations' model
 		readDataset();
 		logger.debug("Extracting the information on relations between SIMS properties and link objects from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		Model m0Model = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
 		SortedMap<Integer, SortedMap<String, SortedSet<String>>> linkMappings = extractAttributeReferences(m0Model, language, links);
 	    m0Model.close();
 
@@ -618,7 +618,7 @@ public class M0SIMSConverter extends M0Converter {
 		// The relations between SIMS properties and link/documents objects are in the 'associations' graph and have the following structure (replace by relatedToGb for English):
 		// <http://baseUri/documentations/documentation/1580/SEE_ALSO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/liens/lien/54/SEE_ALSO> .
 
-		Property associationProperty = "en".equalsIgnoreCase(language) ? M0_RELATED_TO_EN : M0_RELATED_TO;
+		Property associationProperty = "en".equalsIgnoreCase(language) ? Configuration.M0_RELATED_TO_EN : Configuration.M0_RELATED_TO;
 		final String m0BaseURI = (links) ? M0_LINK_BASE_URI : M0_DOCUMENT_BASE_URI;
 		final String referenceType = (links) ? "link" : "document";
 
@@ -704,7 +704,7 @@ public class M0SIMSConverter extends M0Converter {
 		// Read the M0 'associations' model
 		readDataset();
 		logger.debug("Extracting list of links with associated language from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		Model m0Model = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
 		SortedMap<Integer, String> languageTags = getLanguageTags(m0Model, links);
 	    m0Model.close();
 
@@ -727,7 +727,7 @@ public class M0SIMSConverter extends M0Converter {
 		SortedMap<Integer, String> languageTags = new TreeMap<Integer, String>();
 
 		// Will select triples corresponding to French links or documents
-		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
+		Selector selector = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return ((statement.getSubject().getURI().startsWith(M0_DOCUMENTATION_BASE_URI)) && (statement.getObject().isResource())
 	        			&& (statement.getObject().asResource().getURI().startsWith(m0BaseURI)));
@@ -750,7 +750,7 @@ public class M0SIMSConverter extends M0Converter {
 		});
 
 		// Will select triples corresponding to English links or document
-		selector = new SimpleSelector(null, M0_RELATED_TO_EN, (RDFNode) null) {
+		selector = new SimpleSelector(null, Configuration.M0_RELATED_TO_EN, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return ((statement.getSubject().getURI().startsWith(M0_DOCUMENTATION_BASE_URI)) && (statement.getObject().isResource())
 	        			&& (statement.getObject().asResource().getURI().startsWith(m0BaseURI)));
@@ -790,7 +790,7 @@ public class M0SIMSConverter extends M0Converter {
 		DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
 
 		SortedMap<Integer, Date> documentDates = new TreeMap<>();
-		Selector selector = new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null);
+		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null);
 		m0DocumentModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {

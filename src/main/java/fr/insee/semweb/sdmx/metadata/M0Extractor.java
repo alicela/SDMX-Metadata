@@ -31,7 +31,7 @@ public class M0Extractor {
 		M0Converter.logger.debug("Extracting from M0 model triples with subject corresponding to SIMS atttribute: " + attributeName);
 	
 		Model extractModel = ModelFactory.createDefaultModel();
-		Selector selector = new SimpleSelector(null, M0Converter.M0_VALUES, (RDFNode) null) {
+		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject URI ends with the property name
 	        public boolean selects(Statement statement) {
 	        	return statement.getSubject().getURI().endsWith(attributeName);
@@ -43,7 +43,7 @@ public class M0Extractor {
 		long numberOfValues = extractModel.size();
 	
 		// String attributes may also have English values
-		selector = new SimpleSelector(null, M0Converter.M0_VALUES_EN, (RDFNode) null) {
+		selector = new SimpleSelector(null, Configuration.M0_VALUES_EN, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return ((statement.getSubject().getURI().endsWith(attributeName)) && (statement.getObject().isLiteral()) && (statement.getLiteral().getString().trim().length() > 0));
 	        }

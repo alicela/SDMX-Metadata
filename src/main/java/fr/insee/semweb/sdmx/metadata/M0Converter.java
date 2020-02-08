@@ -1,7 +1,6 @@
 package fr.insee.semweb.sdmx.metadata;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,6 +41,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
+import static fr.insee.semweb.sdmx.metadata.Configuration.*;
 import fr.insee.semweb.utils.URIComparator;
 import fr.insee.stamina.utils.PROV;
 
@@ -54,25 +54,8 @@ public class M0Converter {
 
 	public static Logger logger = LogManager.getLogger(M0Converter.class);
 
-	/** Base URI for the names of the graphs in M0 dataset (add 'familles', 'series', 'operations', 'organismes', 'indicateurs', 'documents','documentations', 'codelists', 'codes', 'liens', 'associations') */
-	public static String M0_BASE_GRAPH_URI = "http://rdf.insee.fr/graphe/";
-	/** Base URI for SIMS-related resources in M0 */
-	static String M0_SIMS_BASE_URI = "http://baseUri/documentations/documentation/";
-
-	/** The ubiquitous 'values' property in M0 */
-	protected static Property M0_VALUES = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#values");
-	/** The ubiquitous 'values' property in M0, English version */
-	protected static Property M0_VALUES_EN = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#valuesGb");
-	/** The ubiquitous 'relatedTo' property in M0 */
-	static Property M0_RELATED_TO = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo");
-	/** The ubiquitous 'relatedTo' property in M0, English version */
-	static Property M0_RELATED_TO_EN = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedToGb");
-
-	/** The reported attribute */
-	protected static Resource SIMS_REPORTED_ATTRIBUTE = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#ReportedAttribute");
-
 	/** The M0 dataset containing all the models */
-	static Dataset dataset = null;
+	protected static Dataset m0Dataset = null;
 
 	/** The explicit fixed mappings between M0 and target URIs for operations and the like */
 	static Map<String, String> fixedURIMappings = null;
@@ -82,19 +65,6 @@ public class M0Converter {
 
 	/** All the mappings between M0 and target URIs for families, series, operations and indicators */
 	static Map<String, String> allURIMappings = null;
-
-	public static void main(String[] args) throws IOException {
-
-		// Read the source M0 dataset and extract SIMS information
-		readDataset();
-		Model m0SIMSModel = dataset.getNamedModel(M0_BASE_GRAPH_URI + "documentations");
-
-		Model m01508Model = M0Extractor.extractM0ResourceModel(m0SIMSModel, "http://baseUri/operations/operation/1508");
-		Model sims1508Model = M0SIMSConverter.m0ConvertToSIMS(m01508Model);
-		sims1508Model.write(new FileOutputStream("src/main/resources/models/sims-1508.ttl"), "TTL");
-
-		m0SIMSModel.close();
-	}
 
 	/**
 	 * Return a dataset containing two named graphs: one for families, series and operations, and one for indicators.
@@ -129,13 +99,13 @@ public class M0Converter {
 		final List<String> stringProperties = Arrays.asList("ID_METIER", "TITLE"); // Property whose values should have a language tag
 		
 		readDataset();
-		logger.debug("Extracting code lists from dataset " + Configuration.M0_FILE_NAME);
+		logger.debug("Extracting code lists from dataset " + M0_FILE_NAME);
 		Model skosModel = ModelFactory.createDefaultModel();
 		skosModel.setNsPrefix("rdfs", RDFS.getURI());
 		skosModel.setNsPrefix("skos", SKOS.getURI());
 
 		// Open the 'codelists' model first to obtain the number of code lists and create them in SKOS model
-		Model clModel = dataset.getNamedModel(M0_BASE_GRAPH_URI + "codelists");
+		Model clModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "codelists");
 		// Code lists M0 URIs take the form http://baseUri/codelists/codelist/n, where n is an increment strictly inferior to the value of http://baseUri/codelists/codelist/sequence
 		int clNumber = getMaxSequence(clModel);
 		logger.debug(clNumber + " code lists found in 'codelists' model");
@@ -143,7 +113,7 @@ public class M0Converter {
 		// Then we read in the 'associations' model the mappings between code lists and codes and store them as a map
 		// Mappings are of the form {code list URI}/RELATED_TO M0_RELATED_TO {code URI}/RELATED_TO
 		Map<Integer, List<Integer>> codeMappings = new HashMap<Integer, List<Integer>>();
-		Model assoModel = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		Model assoModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
 		for (int index = 1; index <= clNumber; index++) {
 			List<Integer> listOfCodes = new ArrayList<Integer>();
 			Resource clResource = clModel.createResource("http://baseUri/codelists/codelist/" + index + "/RELATED_TO");
@@ -161,7 +131,7 @@ public class M0Converter {
 		assoModel.close();
 
 		// Open the 'code' model and browse both 'codelists' and 'codes' models to produce the target SKOS model
-		Model codeModel = dataset.getNamedModel(M0_BASE_GRAPH_URI + "codes");
+		Model codeModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "codes");
 		// Main loop is on code lists
 		for (int clIndex = 1; clIndex <= clNumber; clIndex++) {
 			Resource clResource = clModel.createResource("http://baseUri/codelists/codelist/" + clIndex);
@@ -235,7 +205,7 @@ public class M0Converter {
 
 		// Read dataset and create model to return and read target model for consistency check
 		readDataset();
-		logger.debug("Extracting information on organizations from dataset " + Configuration.M0_FILE_NAME);
+		logger.debug("Extracting information on organizations from dataset " + M0_FILE_NAME);
 		Model orgModel = ModelFactory.createDefaultModel();
 		orgModel.setNsPrefix("rdfs", RDFS.getURI());
 		orgModel.setNsPrefix("org", ORG.getURI());
@@ -249,7 +219,7 @@ public class M0Converter {
 		}
 
 		// Open the 'organismes' model first to obtain the number of organizations and create them in an ORG model
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "organismes");
+		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "organismes");
 		// Code lists M0 URIs take the form http://baseUri/organismes/organisme/n, where n is an increment strictly inferior to the value of http://baseUri/organismes/organisme/sequence
 		int orgNumber = getMaxSequence(m0Model);
 		logger.debug(orgNumber + " organizations found in 'organismes' model");
@@ -301,7 +271,7 @@ public class M0Converter {
 
 		// For operations, there are only a few cases where the Web4G identifier is fixed
 		if ("operation".equals(type)) {
-			for (Integer m0Id : Configuration.m02Web4GIdMappings.keySet()) mappings.put(m0Id, Configuration.operationResourceURI(Configuration.m02Web4GIdMappings.get(m0Id), type));
+			for (Integer m0Id : m02Web4GIdMappings.keySet()) mappings.put(m0Id, operationResourceURI(m02Web4GIdMappings.get(m0Id), type));
 			return mappings;
 		}
 
@@ -322,23 +292,23 @@ public class M0Converter {
 				// Retrieve the "DDS" identifier from the object of the ID_DDS statement (eg OPE-ENQ-SECTORIELLE-ANNUELLE-ESA, skip the 'OPE-' start)
 				String ddsId = statement.getObject().asLiteral().toString().substring(4);
 				// Retrieve the "Web4G" identifier from the "DDS" identifier and the mappings contained in the Configuration class
-				if (!Configuration.dds2Web4GIdMappings.containsKey(ddsId)) {
+				if (!dds2Web4GIdMappings.containsKey(ddsId)) {
 					logger.warn("No correspondence found for DDS identifier " + ddsId + " (M0 resource " + m0URI + ")");
 				} else {
-					String web4GId = Configuration.dds2Web4GIdMappings.get(ddsId);
+					String web4GId = dds2Web4GIdMappings.get(ddsId);
 					logger.debug("Correspondence found for " + type + " " + m0Id + " with DDS identifier " + ddsId + ": Web4G identifier is " + web4GId);
-					String targetURI = Configuration.operationResourceURI(web4GId, type);
+					String targetURI = operationResourceURI(web4GId, type);
 					mappings.put(m0Id, targetURI);
 				}
 			}
 		});
 		extract.close();
 		// HACK Add three direct mappings for series 135, 136 and 137 because they have an ID_DDS but it is not in the M0 dataset
-		mappings.put(135, Configuration.operationResourceURI("1241", "serie"));
-		mappings.put(136, Configuration.operationResourceURI("1371", "serie")); // Changed from 1195, see mail 2/20
-		mappings.put(137, Configuration.operationResourceURI("1284", "serie"));
+		mappings.put(135, operationResourceURI("1241", "serie"));
+		mappings.put(136, operationResourceURI("1371", "serie")); // Changed from 1195, see mail 2/20
+		mappings.put(137, operationResourceURI("1284", "serie"));
 		// HACK Add new mapping (mail RC 3/7)
-		mappings.put(21, Configuration.operationResourceURI("1229", "serie"));
+		mappings.put(21, operationResourceURI("1229", "serie"));
 
 		return mappings;
 	}
@@ -369,7 +339,7 @@ public class M0Converter {
 		// First we have to remove from available numbers all those associated with fixed mappings
 		// We have to do a complete pass on all types of objects because there is no separation of the ranges for identifiers of different types
 		for (String resourceType : types) {
-			Map<Integer, String> typeMappings = getIdURIFixedMappings(dataset, resourceType);
+			Map<Integer, String> typeMappings = getIdURIFixedMappings(m0Dataset, resourceType);
 			if (typeMappings.size() == 0) logger.info("No fixed mappings for type " + resourceType);
 			else logger.info("Number of fixed mappings for type " + resourceType + ": " + typeMappings.size() + ", a corresponding amount of available identifiers will be removed");
 			for (int index : typeMappings.keySet()) {
@@ -385,7 +355,7 @@ public class M0Converter {
 		for (String resourceType : types) {
 			idCounters.put(resourceType, 0); // Initialize identification counter for this type of resources
 			// Get the model corresponding to this type of resource
-			Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + resourceType + "s");
+			Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + resourceType + "s");
 			int maxNumber = getMaxSequence(m0Model);
 			for (int index = 1; index <= maxNumber; index++) {
 				String m0URI = "http://baseUri/" + resourceType + "s/" + resourceType + "/" + index;
@@ -394,11 +364,11 @@ public class M0Converter {
 				Resource m0Resource = m0Model.createResource(m0URI);
 				if (!m0Model.contains(m0Resource, null)) continue; // Verify that M0 resource actually exist
 				// At this point, the resource exists and has not a fixed mapping: attribute target URI based on first available number, except for families who use the M0 index
-				if ("famille".equals(resourceType)) mappings.put(m0Resource.getURI(), Configuration.operationResourceURI(Integer.toString(index), resourceType));
+				if ("famille".equals(resourceType)) mappings.put(m0Resource.getURI(), operationResourceURI(Integer.toString(index), resourceType));
 				else {
 					Integer targetId = availableNumbers.get(0);
 					availableNumbers.remove(0);
-					mappings.put(m0Resource.getURI(), Configuration.operationResourceURI(targetId.toString(), resourceType));
+					mappings.put(m0Resource.getURI(), operationResourceURI(targetId.toString(), resourceType));
 				}
 				idCounters.put(resourceType, idCounters.get(resourceType) + 1);
 				if (idRanges.get(resourceType) > 0) idRanges.put(resourceType, idRanges.get(resourceType) - 1);
@@ -432,8 +402,8 @@ public class M0Converter {
 		// Get the family-themes relations
 		Map<String, List<String>> familyThemesRelations = getFamilyThemesRelations();
 
-		logger.debug("Extracting the information on families from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "familles");
+		logger.debug("Extracting the information on families from dataset " + M0_FILE_NAME);
+		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "familles");
 
 		// Create the target model and set appropriate prefix mappings
 		Model familyModel = ModelFactory.createDefaultModel();
@@ -454,7 +424,7 @@ public class M0Converter {
 			familyRealNumber++;
 			String targetURI = allURIMappings.get(m0Resource.getURI());
 			if (targetURI == null) { // Should really not happen
-				targetURI = Configuration.operationResourceURI(Integer.toString(familyIndex), "famille");
+				targetURI = operationResourceURI(Integer.toString(familyIndex), "famille");
 				logger.error("No target URI found for M0 family " + m0Resource.getURI() + ", defaulting to " + targetURI);
 			}
 			Resource targetResource = familyModel.createResource(targetURI, OperationModelMaker.statisticalOperationFamily);
@@ -486,8 +456,8 @@ public class M0Converter {
 		readDataset();
 		if (allURIMappings == null) allURIMappings = createURIMappings();
 
-		logger.debug("Extracting the information on series from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "series");
+		logger.debug("Extracting the information on series from dataset " + M0_FILE_NAME);
+		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "series");
 
 		// Create the target model and set appropriate prefix mappings
 		Model seriesModel = ModelFactory.createDefaultModel();
@@ -533,8 +503,8 @@ public class M0Converter {
 		readDataset();
 		if (allURIMappings == null) allURIMappings = createURIMappings();
 
-		logger.debug("Extracting the information on operations from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "operations");
+		logger.debug("Extracting the information on operations from dataset " + M0_FILE_NAME);
+		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "operations");
 
 		// Create the target model and set appropriate prefix mappings
 		Model operationModel = ModelFactory.createDefaultModel();
@@ -591,8 +561,8 @@ public class M0Converter {
 		readDataset();
 		if (allURIMappings == null) allURIMappings = createURIMappings();
 
-		logger.debug("Extracting the information on indicators from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "indicateurs");
+		logger.debug("Extracting the information on indicators from dataset " + M0_FILE_NAME);
+		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "indicateurs");
 
 		// Create the target model and set appropriate prefix mappings
 		Model indicatorModel = ModelFactory.createDefaultModel();
@@ -675,9 +645,9 @@ public class M0Converter {
 	 * @param m0Resource The origin M0 resource (a SKOS concept).
 	 */
 	private static void fillLiteralProperties(Resource targetResource, Model m0Model, Resource m0Resource) {
-		for (String property : Configuration.propertyMappings.keySet()) {
+		for (String property : propertyMappings.keySet()) {
 			Resource propertyResource = m0Model.createResource(m0Resource.getURI() + "/" + property);
-			if (Configuration.stringProperties.contains(property)) {
+			if (stringProperties.contains(property)) {
 				// Start with the string properties that can have a French and an English value (except ALT_LABEL?)
 				StmtIterator valueIterator = m0Model.listStatements(propertyResource, M0_VALUES, (RDFNode)null); // Find French values (there should be at most one)
 				if (valueIterator.hasNext()) {
@@ -686,18 +656,18 @@ public class M0Converter {
 					if (propertyValue.length() == 0) continue; // Ignore empty values for text properties
 					// Remove this is ALT_LABEL should have a language tag
 					if ("ALT_LABEL".equals(property)) {
-						targetResource.addProperty(Configuration.propertyMappings.get(property), ResourceFactory.createStringLiteral(propertyValue));
+						targetResource.addProperty(propertyMappings.get(property), ResourceFactory.createStringLiteral(propertyValue));
 						continue;
 					}
 					// Create the current property on the target resource, with string value tagged '@fr'
 					Literal langValue = ResourceFactory.createLangLiteral(propertyValue, "fr");
-					targetResource.addProperty(Configuration.propertyMappings.get(property), langValue);
+					targetResource.addProperty(propertyMappings.get(property), langValue);
 				}
 				valueIterator = m0Model.listStatements(propertyResource, M0_VALUES_EN, (RDFNode)null); // Find English values (can be zero or one)
 				if (valueIterator.hasNext()) {
 					// Create the current property on the target resource, with string value tagged '@en'
 					String propertyValue = valueIterator.next().getObject().asLiteral().getLexicalForm().trim();
-					targetResource.addProperty(Configuration.propertyMappings.get(property), ResourceFactory.createLangLiteral(propertyValue, "en"));
+					targetResource.addProperty(propertyMappings.get(property), ResourceFactory.createLangLiteral(propertyValue, "en"));
 				}
 			} else {
 				// In the other properties, select the coded ones (SOURCE_CATEGORY and FREQ_COLL)
@@ -707,8 +677,8 @@ public class M0Converter {
 				// Then process the SOURCE_CATEGORY and FREQ_COLL attributes, values are taken from code lists
 				if (("SOURCE_CATEGORY".equals(property)) || ("FREQ_COLL".equals(property))) {
 					String frenchLabel = ("SOURCE_CATEGORY".equals(property)) ? "Catégorie de source" : "Fréquence"; // TODO Find better method
-					String codeURI = Configuration.inseeCodeURI(valueIterator.next().getObject().toString(), frenchLabel);
-					targetResource.addProperty(Configuration.propertyMappings.get(property), m0Model.createResource(codeURI));
+					String codeURI = inseeCodeURI(valueIterator.next().getObject().toString(), frenchLabel);
+					targetResource.addProperty(propertyMappings.get(property), m0Model.createResource(codeURI));
 				}
 				// The remaining (object) properties (ORGANISATION, STAKEHOLDERS, REPLACES and RELATED_TO) are processed by dedicated methods.
 			}
@@ -733,7 +703,7 @@ public class M0Converter {
 
 		// Now read the links of various kinds between families, series and operations, starting with hierarchies
 		// For readability, we do not verify in this method that the M0 URIs are in the mappings
-		Model m0AssociationModel = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		Model m0AssociationModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
 		Map<String, String> simpleRelations = extractHierarchies(m0AssociationModel);
 		for (String chilM0dURI : simpleRelations.keySet()) {
 			Resource child = operationModel.createResource(allURIMappings.get(chilM0dURI));
@@ -791,8 +761,8 @@ public class M0Converter {
 
 		// Read the M0 'associations' model
 		readDataset();
-		logger.debug("Extracting the information on replacements from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		logger.debug("Extracting the information on replacements from dataset " + M0_FILE_NAME);
+		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
 		Map<String, List<String>> replacementMappings = extractReplacements(m0Model);
 	    m0Model.close();
 
@@ -844,8 +814,8 @@ public class M0Converter {
 
 		// Read the M0 'associations' model
 		readDataset();
-		logger.debug("Extracting the information on relations from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		logger.debug("Extracting the information on relations from dataset " + M0_FILE_NAME);
+		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
 		Map<String, List<String>> relationMappings = extractRelations(m0Model);
 	    m0Model.close();
 
@@ -902,8 +872,8 @@ public class M0Converter {
 
 		// Read the M0 'associations' model
 		readDataset();
-		logger.debug("Extracting the information on hierarchies from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		logger.debug("Extracting the information on hierarchies from dataset " + M0_FILE_NAME);
+		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
 		Map<String, String> hierarchyMappings = extractHierarchies(m0Model);
 	    m0Model.close();
 
@@ -962,8 +932,8 @@ public class M0Converter {
 
 		// Read the M0 'associations' model
 		readDataset();
-		logger.debug("Extracting the information on relations to organizations from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		logger.debug("Extracting the information on relations to organizations from dataset " + M0_FILE_NAME);
+		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
 		Map<String, List<String>> organizationMappings = extractOrganizationalRelations(m0Model, organizationRole);
 	    m0Model.close();
 
@@ -1018,8 +988,8 @@ public class M0Converter {
 
 		// Read the M0 'associations' model
 		readDataset();
-		logger.debug("Extracting the information on relations between indicators and series from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		logger.debug("Extracting the information on relations between indicators and series from dataset " + M0_FILE_NAME);
+		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
 		Map<String, List<String>> relationMappings = extractProductionRelations(m0Model);
 	    m0Model.close();
 
@@ -1079,7 +1049,7 @@ public class M0Converter {
 		Map<String, List<String>> relationMappings = new HashMap<String, List<String>>();
 
 		Workbook familyThemesWorkbook = null;
-		File xlsxFile = new File(Configuration.FAMILY_THEMES_XLSX_FILE_NAME);
+		File xlsxFile = new File(FAMILY_THEMES_XLSX_FILE_NAME);
 		try {
 			logger.info("Reading family-themes relations from Excel file " + xlsxFile.getAbsolutePath());
 			familyThemesWorkbook = WorkbookFactory.create(xlsxFile);
@@ -1096,12 +1066,12 @@ public class M0Converter {
 			relationMappings.put(familyURI, new ArrayList<String>());
 			// First theme identifier is in column D, never empty
 			String themeId = row.getCell(3).toString();
-			relationMappings.get(familyURI).add(Configuration.themeURI(themeId));
+			relationMappings.get(familyURI).add(themeURI(themeId));
 			// Second theme identifier is in column E, can be empty
 			Cell themeCell = row.getCell(4);
 			if (themeCell != null) {
 				themeId = themeCell.toString();
-				relationMappings.get(familyURI).add(Configuration.themeURI(themeId));
+				relationMappings.get(familyURI).add(themeURI(themeId));
 			}
 			logger.debug("Themes registered for family " + familyURI + ": " + relationMappings.get(familyURI));
 		}
@@ -1152,9 +1122,9 @@ public class M0Converter {
 	 * Reads the complete M0 dataset if it has not been read already.
 	 */
 	protected static void readDataset() {
-		if (dataset == null) {
-			dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-			logger.debug("M0 dataset read from file " + Configuration.M0_FILE_NAME);
+		if (m0Dataset == null) {
+			m0Dataset = RDFDataMgr.loadDataset(M0_FILE_NAME);
+			logger.debug("M0 dataset read from file " + M0_FILE_NAME);
 		}
 	}
 
@@ -1166,7 +1136,7 @@ public class M0Converter {
 		readDataset();
 		organizationURIMappings = new HashMap<String, String>();
 		// Read the 'organismes' model and loop through the statements with 'ID_CODE' subjects
-		Model m0Model = dataset.getNamedModel(M0_BASE_GRAPH_URI + "organismes");
+		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "organismes");
 		Model extractModel = M0Extractor.extractAttributeStatements(m0Model, "ID_CODE");
 		extractModel.listStatements().forEachRemaining(new Consumer<Statement>() {
 			@Override
@@ -1178,8 +1148,8 @@ public class M0Converter {
 				// HACK Organization 81 has a weird identifier
 				if (m0URI.endsWith("/81")) orgId = "Drees";
 				String orgURI = null;
-				if ((orgId.length() == 4) && (StringUtils.isNumeric(orgId.substring(1)))) orgURI = Configuration.inseeUnitURI("DG75-" + orgId);
-				else orgURI = Configuration.organizationURI(orgId);
+				if ((orgId.length() == 4) && (StringUtils.isNumeric(orgId.substring(1)))) orgURI = inseeUnitURI("DG75-" + orgId);
+				else orgURI = organizationURI(orgId);
 				organizationURIMappings.put(m0URI, orgURI);
 			}
 		});

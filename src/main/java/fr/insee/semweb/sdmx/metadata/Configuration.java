@@ -78,6 +78,10 @@ public class Configuration {
 	public static String CASD_PRODUCTS_BASE_URI = "http://id.casd.eu/produits/";
 	/** Base URI for the names of the graphs in M0 dataset (add 'familles', 'series', 'operations', 'organismes', 'indicateurs', 'documents','documentations', 'codelists', 'codes', 'liens', 'associations') */
 	public static String M0_BASE_GRAPH_URI = "http://rdf.insee.fr/graphe/";
+	/** Base URI for code list resources in M0 */
+	static String M0_CODE_LISTS_BASE_URI = "http://baseUri/codelists/codelist/";
+	/** Base URI for code item resources in M0 */
+	static String M0_CODES_BASE_URI = "http://baseUri/codes/code/";
 	/** Base URI for SIMS-related resources in M0 */
 	static String M0_SIMS_BASE_URI = "http://baseUri/documentations/documentation/";
 	/** The ubiquitous 'values' property in M0 */

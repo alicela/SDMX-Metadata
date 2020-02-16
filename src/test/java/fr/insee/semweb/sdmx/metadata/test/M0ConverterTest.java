@@ -144,33 +144,10 @@ public class M0ConverterTest {
 	 * @throws IOException
 	 */
 	@Test
-	public void testExtractM0CodeLists() throws IOException {
+	public void testConvertM0CodeLists() throws IOException {
 
-		Model extract = M0Converter.extractCodeLists();
+		Model extract = M0Converter.convertCodeLists();
 		extract.write(new FileOutputStream("src/test/resources/m0-codelists.ttl"), "TTL");
-	}
-
-	/**
-	 * Creates a RDF dataset containing all base resources (code lists, organizations, families, series, operations and indicators) and saves it to a file.
-	 * 
-	 * @throws Exception
-	 */
-	@Test
-	public void testCreateAllBaseResourcesDataset() throws Exception {
-
-		// Code lists from the Excel file
-		Dataset dataset = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes");
-		// Families, series, operations from the M0 model
-		dataset.addNamedModel("http://rdf.insee.fr/graphes/operations", M0Converter.extractAllOperations());
-		// Indicators from the M0 model
-		dataset.addNamedModel("http://rdf.insee.fr/graphes/produits", M0Converter.convertIndicators());
-		// Organizations from the Excel file
-		Workbook orgWorkbook = WorkbookFactory.create(new File(Configuration.ORGANIZATIONS_XLSX_FILE_NAME));
-		Model orgModel = OrganizationModelMaker.createSSMModel(orgWorkbook);
-		orgModel.add(OrganizationModelMaker.createInseeModel(orgWorkbook));
-		dataset.addNamedModel("http://rdf.insee.fr/graphes/organisations", orgModel);
-		
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-base-resources.trig"), dataset, Lang.TRIG);
 	}
 
 	@Test
@@ -181,18 +158,46 @@ public class M0ConverterTest {
 	}
 
 	@Test
-	public void testExtractOrganizations() throws IOException {
-
-		Model extract = M0Converter.extractOrganizations();
-		extract.write(new FileOutputStream("src/test/resources/m0-organizations.ttl"), "TTL");
-	}
-
-	@Test
 	public void testExtractOneCodeList() throws IOException {
 
-		Model extract = M0Converter.extractCodeLists();
+		Model extract = M0Converter.convertCodeLists();
 		Model subExtract = M0Extractor.extractM0ResourceModel(extract, "http://baseUri/codelists/codelist/3");
 		subExtract.write(new FileOutputStream("src/test/resources/m0-codelist-3.ttl"), "TTL");
+	}
+
+	/**
+	 * Creates a RDF dataset containing all base resources (code lists, organizations, families, series, operations and indicators) and saves it to a file.
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testConvertAllBaseResources() throws Exception {
+
+		// Code lists from the Excel file
+		Dataset dataset = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes");
+		// Families, series, operations converted from the M0 model
+		dataset.addNamedModel("http://rdf.insee.fr/graphes/operations", M0Converter.convertAllOperations());
+		// Indicators converted from the M0 model
+		dataset.addNamedModel("http://rdf.insee.fr/graphes/produits", M0Converter.convertIndicators());
+		// Organizations from the Excel file
+		Workbook orgWorkbook = WorkbookFactory.create(new File(Configuration.ORGANIZATIONS_XLSX_FILE_NAME));
+		Model orgModel = OrganizationModelMaker.createSSMModel(orgWorkbook);
+		orgModel.add(OrganizationModelMaker.createInseeModel(orgWorkbook));
+		dataset.addNamedModel("http://rdf.insee.fr/graphes/organisations", orgModel);
+		
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-base-resources.trig"), dataset, Lang.TRIG);
+	}
+
+	/**
+	 * Creates and writes to a file the information about families, series and operations in the target model.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void testConvertAllOperations() throws IOException {
+
+		Model extract = M0Converter.convertAllOperations();
+		extract.write(new FileOutputStream("src/test/resources/all-operations.ttl"), "TTL");
 	}
 
 	/**
@@ -220,18 +225,6 @@ public class M0ConverterTest {
 	}
 
 	/**
-	 * Creates and writes to a file the information about series in the target model.
-	 * 
-	 * @throws IOException
-	 */
-	@Test
-	public void testConvertSeries() throws IOException {
-
-		Model extract = M0Converter.convertSeries();
-		extract.write(new FileOutputStream("src/test/resources/series.ttl"), "TTL");
-	}
-
-	/**
 	 * Creates and writes to a file the information about operations in the target model.
 	 * 
 	 * @throws IOException
@@ -241,6 +234,25 @@ public class M0ConverterTest {
 
 		Model extract = M0Converter.convertOperations();
 		extract.write(new FileOutputStream("src/test/resources/operations.ttl"), "TTL");
+	}
+
+	@Test
+	public void testConvertOrganizations() throws IOException {
+
+		Model extract = M0Converter.convertOrganizations();
+		extract.write(new FileOutputStream("src/test/resources/organizations.ttl"), "TTL");
+	}
+
+	/**
+	 * Creates and writes to a file the information about series in the target model.
+	 * 
+	 * @throws IOException
+	 */
+	@Test
+	public void testConvertSeries() throws IOException {
+
+		Model extract = M0Converter.convertSeries();
+		extract.write(new FileOutputStream("src/test/resources/series.ttl"), "TTL");
 	}
 
 	@Test
@@ -342,7 +354,7 @@ public class M0ConverterTest {
 	@Test
 	public void testExtractProductionRelations() throws IOException {
 
-		Map<String, List<String>> relations = M0Converter.extractProductionRelations();
+		Map<String, List<String>> relations = M0Extractor.extractProductionRelations();
 		for (String indicator : relations.keySet()) System.out.println("Indicator " + indicator + " produced from " + relations.get(indicator));
 		System.out.println(relations.size() + " relations");
  	}
@@ -370,13 +382,6 @@ public class M0ConverterTest {
 		for (String operation : producers.keySet()) System.out.println("Operation " + operation + " has producers " + producers.get(operation));
 		System.out.println(producers.size() + " operations with producers");
  	}
-
-	@Test
-	public void testExtractAllOperations() throws IOException {
-
-		Model extract = M0Converter.extractAllOperations();
-		extract.write(new FileOutputStream("src/test/resources/m0-all-operations.ttl"), "TTL");
-	}
 
 	@Test
 	public void testConvertLinksToSIMS() throws IOException {

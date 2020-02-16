@@ -77,109 +77,113 @@ public class M0Converter {
 
 		logger.debug("Extracting M0 dataset with graph: " + operationGraph + " for operations and graph " + indicatorGraph + " for indicators");
 		Dataset dataset = DatasetFactory.create();
-		dataset.addNamedModel(operationGraph, extractAllOperations());
+		dataset.addNamedModel(operationGraph, convertAllOperations());
 		dataset.addNamedModel(indicatorGraph, convertIndicators());
 
 		return dataset;
 	}
 
 	/**
-	 * Extracts the code lists from the M0 model and restructures them as SKOS concept schemes.
+	 * Extracts the code lists from the M0 model and restructures them as SKOS concept schemes, keeping M0 URIs.
 	 * 
 	 * @return A Jena <code>Model</code> containing the M0 code lists as SKOS concept schemes.
 	 */
-	public static Model extractCodeLists() {
+	public static Model convertCodeLists() {
 
 		// Mappings between M0 'attribute URIs' and SKOS properties
-		final Map<String, Property> clMappings = new HashMap<String, Property>();
-		clMappings.put("ID", null); // ID is equal to code or code list number, no business meaning (and expressed with a weird property http://www.SDMX.org/.../message#values"
-		clMappings.put("CODE_VALUE", SKOS.notation); // CODE_VALUE seems to be the notation, FIXME it is in French
-		clMappings.put("ID_METIER", RDFS.comment); // ID_METIER is just TITLE - ID, store in a comment for now
-		clMappings.put("TITLE", SKOS.prefLabel); // Can have French and English values
+		final Map<String, Property> clPropertyMappings = new HashMap<String, Property>();
+		clPropertyMappings.put("ID", null); // ID is equal to code or code list number, no business meaning (and expressed with a weird property http://www.SDMX.org/.../message#values"
+		clPropertyMappings.put("CODE_VALUE", SKOS.notation); // CODE_VALUE seems to be the notation, FIXME it is in French
+		clPropertyMappings.put("ID_METIER", RDFS.comment); // ID_METIER is just TITLE - ID, store in a comment for now
+		clPropertyMappings.put("TITLE", SKOS.prefLabel); // Can have French and English values
 		final List<String> stringProperties = Arrays.asList("ID_METIER", "TITLE"); // Property whose values should have a language tag
 		
 		readDataset();
-		logger.debug("Extracting code lists from dataset " + M0_FILE_NAME);
+		logger.debug("Extracting code lists from M0 dataset " + M0_FILE_NAME);
 		Model skosModel = ModelFactory.createDefaultModel();
 		skosModel.setNsPrefix("rdfs", RDFS.getURI());
 		skosModel.setNsPrefix("skos", SKOS.getURI());
 
-		// Open the 'codelists' model first to obtain the number of code lists and create them in SKOS model
-		Model clModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "codelists");
+		// Open the 'codelists' M0 model first to obtain the number of code lists and create them in SKOS model
+		Model clM0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "codelists");
 		// Code lists M0 URIs take the form http://baseUri/codelists/codelist/n, where n is an increment strictly inferior to the value of http://baseUri/codelists/codelist/sequence
-		int clNumber = getMaxSequence(clModel);
-		logger.debug(clNumber + " code lists found in 'codelists' model");
+		int clNumber = getMaxSequence(clM0Model);
+		logger.debug("Maximum sequence number for code lists is " + clNumber);
 
 		// Then we read in the 'associations' model the mappings between code lists and codes and store them as a map
 		// Mappings are of the form {code list URI}/RELATED_TO M0_RELATED_TO {code URI}/RELATED_TO
 		Map<Integer, List<Integer>> codeMappings = new HashMap<Integer, List<Integer>>();
-		Model assoModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		Model associationsM0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
 		for (int index = 1; index <= clNumber; index++) {
 			List<Integer> listOfCodes = new ArrayList<Integer>();
-			Resource clResource = clModel.createResource("http://baseUri/codelists/codelist/" + index + "/RELATED_TO");
+			Resource clRelationResource = clM0Model.createResource(M0_CODE_LISTS_BASE_URI + index + "/RELATED_TO");
 			// Retrieve the numeric identifiers of the codes related to the current code list
-			StmtIterator assoIterator = assoModel.listStatements(clResource, M0_RELATED_TO, (RDFNode)null);
-			assoIterator.forEachRemaining(new Consumer<Statement>() {
+			StmtIterator associationIterator = associationsM0Model.listStatements(clRelationResource, M0_RELATED_TO, (RDFNode)null);
+			associationIterator.forEachRemaining(new Consumer<Statement>() {
 				@Override
 				public void accept(Statement statement) {
-					Integer code = Integer.parseInt(statement.getObject().asResource().getURI().split("/")[5]);
+					// Get code identifier, which is the last part of the URI, cast to integer
+					String[] pathElements = statement.getObject().asResource().getURI().split("/");
+					Integer code = Integer.parseInt(pathElements[pathElements.length - 1]);
 					listOfCodes.add(code);
 				}
 			});
-			codeMappings.put(index, listOfCodes);
+			if (listOfCodes.size() > 0) codeMappings.put(index, listOfCodes);
 		}
-		assoModel.close();
+		logger.debug(codeMappings.size() + " code lists found in the 'codelists' M0 model");
+		associationsM0Model.close();
 
 		// Open the 'code' model and browse both 'codelists' and 'codes' models to produce the target SKOS model
-		Model codeModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "codes");
+		Model codeM0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "codes");
 		// Main loop is on code lists
 		for (int clIndex = 1; clIndex <= clNumber; clIndex++) {
-			Resource clResource = clModel.createResource("http://baseUri/codelists/codelist/" + clIndex);
-			Resource skosCLResource = skosModel.createResource("http://baseUri/codelists/codelist/" + clIndex, SKOS.ConceptScheme);
+			if (codeMappings.get(clIndex) == null) continue; // Case of discontinuity in the numbering sequence
+			Resource clResource = clM0Model.createResource(M0_CODE_LISTS_BASE_URI + clIndex);
+			Resource skosCLResource = skosModel.createResource(M0_CODE_LISTS_BASE_URI + clIndex, SKOS.ConceptScheme);
 			logger.info("Creating code list " + skosCLResource.getURI() + " containing codes " + codeMappings.get(clIndex));
-			for (String property : clMappings.keySet()) {
-				if (clMappings.get(property) == null) continue;
-				Resource propertyResource = clModel.createResource(clResource.getURI() + "/" + property);
-				StmtIterator valueIterator = clModel.listStatements(propertyResource, M0_VALUES, (RDFNode)null); // Find French values (there should be exactly one)
+			for (String property : clPropertyMappings.keySet()) { // Looping through M0 properties
+				if (clPropertyMappings.get(property) == null) continue;
+				Resource propertyResource = clM0Model.createResource(clResource.getURI() + "/" + property);
+				StmtIterator valueIterator = clM0Model.listStatements(propertyResource, M0_VALUES, (RDFNode)null); // Find French values (there should be exactly one)
 				if (!valueIterator.hasNext()) {
 					logger.error("No value for property " + property + " of code list " + clResource.getURI());
 					continue;
 				}
 				// Create the relevant statement in the SKOS model, adding a language tag if the property is in stringProperties
 				if (stringProperties.contains(property)) {
-					skosCLResource.addProperty(clMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString(), "fr"));
+					skosCLResource.addProperty(clPropertyMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString(), "fr"));
 				} else {
-					skosCLResource.addProperty(clMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString()));
+					skosCLResource.addProperty(clPropertyMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString()));
 				}
 				if (valueIterator.hasNext()) logger.error("Several values for property " + property + " of code list " + clResource.getURI());
-				valueIterator = clModel.listStatements(propertyResource, M0_VALUES_EN, (RDFNode)null); // Find English values (can be zero or one)
+				valueIterator = clM0Model.listStatements(propertyResource, M0_VALUES_EN, (RDFNode)null); // Find English values (can be zero or one)
 				if (valueIterator.hasNext()) {
-					skosCLResource.addProperty(clMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString(), "en"));
+					skosCLResource.addProperty(clPropertyMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString(), "en"));
 				}
 			}
 			// Read in the code mappings the list of codes associated to the current code list
 			List<Integer> codesOfList = codeMappings.get(clIndex);
 			for (int codeIndex : codesOfList) {
-				Resource codeResource = codeModel.createResource("http://baseUri/codes/code/" + codeIndex);
-				Resource skosCodeResource = skosModel.createResource("http://baseUri/codes/code/" + codeIndex, SKOS.Concept);
+				Resource codeResource = codeM0Model.createResource(M0_CODES_BASE_URI + codeIndex);
+				Resource skosCodeResource = skosModel.createResource(M0_CODES_BASE_URI + codeIndex, SKOS.Concept);
 				// Create the statements associated to the code
-				for (String property : clMappings.keySet()) {
-					if (clMappings.get(property) == null) continue;
-					Resource propertyResource = codeModel.createResource(codeResource.getURI() + "/" + property);
-					StmtIterator valueIterator = codeModel.listStatements(propertyResource, M0_VALUES, (RDFNode)null); // Find French values (there should be exactly one)
+				for (String property : clPropertyMappings.keySet()) {
+					if (clPropertyMappings.get(property) == null) continue;
+					Resource propertyResource = codeM0Model.createResource(codeResource.getURI() + "/" + property);
+					StmtIterator valueIterator = codeM0Model.listStatements(propertyResource, M0_VALUES, (RDFNode)null); // Find French values (there should be exactly one)
 					if (!valueIterator.hasNext()) {
 						logger.error("No value for property " + property + " of code " + codeResource.getURI());
 						continue;
 					}
 					if (stringProperties.contains(property)) {
-						skosCodeResource.addProperty(clMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString(), "fr"));
+						skosCodeResource.addProperty(clPropertyMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString(), "fr"));
 					} else {
-						skosCodeResource.addProperty(clMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString()));
+						skosCodeResource.addProperty(clPropertyMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString()));
 					}
 					if (valueIterator.hasNext()) logger.error("Several values for property " + property + " of code " + codeResource.getURI());
-					valueIterator = codeModel.listStatements(propertyResource, M0_VALUES_EN, (RDFNode)null); // Find English values (can be zero or one)
+					valueIterator = codeM0Model.listStatements(propertyResource, M0_VALUES_EN, (RDFNode)null); // Find English values (can be zero or one)
 					if (valueIterator.hasNext()) {
-						skosCodeResource.addProperty(clMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString(), "en"));
+						skosCodeResource.addProperty(clPropertyMappings.get(property), skosModel.createLiteral(valueIterator.next().getObject().toString(), "en"));
 					}
 					// Finally, add the relevant SKOS properties between the code and the code list
 					skosCodeResource.addProperty(SKOS.inScheme, skosCLResource);
@@ -189,8 +193,8 @@ public class M0Converter {
 			}
 		}
 
-		clModel.close();
-		codeModel.close();
+		clM0Model.close();
+		codeM0Model.close();
 
 		return skosModel;
 	}
@@ -201,11 +205,11 @@ public class M0Converter {
 	 * 
 	 * @return A Jena <code>Model</code> containing the M0 organizations in ORG format.
 	 */
-	public static Model extractOrganizations() {
+	public static Model convertOrganizations() {
 
 		// Read dataset and create model to return and read target model for consistency check
 		readDataset();
-		logger.debug("Extracting information on organizations from dataset " + M0_FILE_NAME);
+		logger.debug("Extracting information on organizations from M0 dataset " + M0_FILE_NAME);
 		Model orgModel = ModelFactory.createDefaultModel();
 		orgModel.setNsPrefix("rdfs", RDFS.getURI());
 		orgModel.setNsPrefix("org", ORG.getURI());
@@ -220,7 +224,7 @@ public class M0Converter {
 
 		// Open the 'organismes' model first to obtain the number of organizations and create them in an ORG model
 		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "organismes");
-		// Code lists M0 URIs take the form http://baseUri/organismes/organisme/n, where n is an increment strictly inferior to the value of http://baseUri/organismes/organisme/sequence
+		// M0 URIs for organizations take the form http://baseUri/organismes/organisme/n, where n is an increment strictly inferior to the value of http://baseUri/organismes/organisme/sequence
 		int orgNumber = getMaxSequence(m0Model);
 		logger.debug(orgNumber + " organizations found in 'organismes' model");
 
@@ -592,7 +596,7 @@ public class M0Converter {
 		m0Model.close();
 
 		logger.info(indicatorRealNumber + " indicators extracted, now adding the PRODUCED_FROM, RELATED_TO and REPLACES relations");
-		Map<String, List<String>> multipleRelations = extractProductionRelations();
+		Map<String, List<String>> multipleRelations = M0Extractor.extractProductionRelations();
 		for (String indicatorM0URI : multipleRelations.keySet()) {
 			String indicatorTargetURI = allURIMappings.get(indicatorM0URI);
 			if (indicatorTargetURI == null) {
@@ -686,11 +690,11 @@ public class M0Converter {
 	}
 
 	/**
-	 * Extracts from the current dataset all informations about families, series and operations, and relations between them
+	 * Extracts from the current M0 dataset, and converts to the target model, all informations about families, series and operations, and relations between them
 	 * 
 	 * @return A Jena model containing all the statements.
 	 */
-	public static Model extractAllOperations() {
+	public static Model convertAllOperations() {
 
 		Model operationModel = ModelFactory.createDefaultModel();
 		operationModel.setNsPrefix("rdfs", RDFS.getURI());
@@ -976,66 +980,6 @@ public class M0Converter {
 		});
 
 		return organizationMappings;	
-	}
-
-	/**
-	 * Reads all the relations stating that an indicator is produced from a series and stores them as a map.
-	 * The map keys will be the indicators and the values the lists of series they are produced from, all expressed as M0 URIs.
-	 * 
-	 * @return A map containing the relations.
-	 */
-	public static Map<String, List<String>> extractProductionRelations() {
-
-		// Read the M0 'associations' model
-		readDataset();
-		logger.debug("Extracting the information on relations between indicators and series from dataset " + M0_FILE_NAME);
-		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		Map<String, List<String>> relationMappings = extractProductionRelations(m0Model);
-	    m0Model.close();
-
-	    return relationMappings;
-	}
-
-	/**
-	 * Reads all the relations stating that an indicator is produced from a series and stores them as a map.
-	 * The map keys will be the indicators and the values the lists of series they are produced from, all expressed as M0 URIs.
-	 * 
-	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @return A map containing the relations.
-	 */
-	public static Map<String, List<String>> extractProductionRelations(Model m0AssociationModel) {
-
-		// The relations between series and indicators are in the 'associations' graph and have the following structure:
-		// <http://baseUri/indicateurs/indicateur/27/PRODUCED_FROM> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/series/serie/137/PRODUIT_INDICATEURS>
-		// Note: discard cases where PRODUCED_FROM is used instead of PRODUIT_INDICATEURS.
-
-		logger.debug("Extracting 'PRODUCED_FROM/PRODUIT_INDICATEURS' relations between series and indicators");
-		Map<String, List<String>> relationMappings = new HashMap<String, List<String>>();
-
-		//if (m0AssociationModel == null) return extractProductionRelations();
-		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
-			// Override 'selects' method to retain only statements whose subject and object URIs end with 'PRODUCED_FROM' and begin with expected objects
-	        public boolean selects(Statement statement) {
-	        	String subjectURI = statement.getSubject().getURI();
-	        	String objectURI = statement.getObject().asResource().getURI();
-	        	if (!((subjectURI.endsWith("PRODUCED_FROM")) && (objectURI.endsWith("PRODUIT_INDICATEURS")))) return false;
-	        	if ((subjectURI.startsWith("http://baseUri/indicateurs")) && (objectURI.startsWith("http://baseUri/series"))) return true;
-	        	return false;
-	        }
-	    };
-
-	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
-			@Override
-			// 
-			public void accept(Statement statement) {
-				String indicatorURI = StringUtils.removeEnd(statement.getSubject().getURI(), "/PRODUCED_FROM");
-				String seriesURI = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/PRODUIT_INDICATEURS");
-				if (!relationMappings.containsKey(indicatorURI)) relationMappings.put(indicatorURI, new ArrayList<String>());
-				relationMappings.get(indicatorURI).add(seriesURI);
-			}
-		});
-		logger.debug("Number of 'PRODUCED_FROM' relations found: " + relationMappings.size());
-		return relationMappings;
 	}
 
 	/**

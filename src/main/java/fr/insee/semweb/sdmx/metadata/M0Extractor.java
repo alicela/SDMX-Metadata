@@ -1,9 +1,18 @@
 package fr.insee.semweb.sdmx.metadata;
 
+import static fr.insee.semweb.sdmx.metadata.Configuration.M0_BASE_GRAPH_URI;
+import static fr.insee.semweb.sdmx.metadata.Configuration.M0_FILE_NAME;
+import static fr.insee.semweb.sdmx.metadata.Configuration.M0_RELATED_TO;
+
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
@@ -98,6 +107,51 @@ public class M0Extractor {
 			sourceModel.write(new FileOutputStream("src/main/resources/data/models/m0-"+ m0Id + ".ttl"), "TTL");
 			sourceModel.close();
 		}
+	}
+
+	/**
+	 * Reads all the relations stating that an indicator is produced from a series and stores them as a map.
+	 * The map keys will be the indicators and the values the lists of series they are produced from, all expressed as M0 URIs.
+	 * 
+	 * @return A map containing the relations.
+	 */
+	public static Map<String, List<String>> extractProductionRelations() {
+	
+		// The relations between series and indicators are in the 'associations' graph and have the following structure:
+		// <http://baseUri/indicateurs/indicateur/27/PRODUCED_FROM> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/series/serie/137/PRODUIT_INDICATEURS>
+		// Note: discard cases where PRODUCED_FROM is used instead of PRODUIT_INDICATEURS.
+	
+		// Read the M0 'associations' model
+		M0Converter.readDataset();
+		M0Converter.logger.debug("Extracting the information on relations between indicators and series from dataset " + M0_FILE_NAME);
+		Model m0AssociationModel = M0Converter.m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+	
+		M0Converter.logger.debug("Extracting 'PRODUCED_FROM/PRODUIT_INDICATEURS' relations between series and indicators");
+		Map<String, List<String>> relationMappings = new HashMap<String, List<String>>();
+	
+		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
+			// Override 'selects' method to retain only statements whose subject and object URIs end with 'PRODUCED_FROM' and begin with expected objects
+	        public boolean selects(Statement statement) {
+	        	String subjectURI = statement.getSubject().getURI();
+	        	String objectURI = statement.getObject().asResource().getURI();
+	        	if (!((subjectURI.endsWith("PRODUCED_FROM")) && (objectURI.endsWith("PRODUIT_INDICATEURS")))) return false;
+	        	if ((subjectURI.startsWith("http://baseUri/indicateurs")) && (objectURI.startsWith("http://baseUri/series"))) return true;
+	        	return false;
+	        }
+	    };
+	
+	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			// 
+			public void accept(Statement statement) {
+				String indicatorURI = StringUtils.removeEnd(statement.getSubject().getURI(), "/PRODUCED_FROM");
+				String seriesURI = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/PRODUIT_INDICATEURS");
+				if (!relationMappings.containsKey(indicatorURI)) relationMappings.put(indicatorURI, new ArrayList<String>());
+				relationMappings.get(indicatorURI).add(seriesURI);
+			}
+		});
+		M0Converter.logger.debug("Number of 'PRODUCED_FROM' relations found: " + relationMappings.size());
+		return relationMappings;
 	}
 
 }

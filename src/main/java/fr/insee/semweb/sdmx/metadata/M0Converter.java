@@ -47,11 +47,13 @@ import fr.insee.stamina.utils.PROV;
 
 /**
  * Converts RDF information expressed in the interim format ("M0 model") to the target model.
+ * This base class deals mainly with resources representing families, series, operations and indicators.
  * 
  * @author Franck
  */
 public class M0Converter {
 
+	/** Log4J2 logger */
 	public static Logger logger = LogManager.getLogger(M0Converter.class);
 
 	/** The M0 dataset containing all the models */
@@ -73,7 +75,7 @@ public class M0Converter {
 	 * @param indicatorGraph The URI to use for the 'indicators' graph.
 	 * @return A Jena <code>Dataset</code> containing the information organized in two graphs.
 	 */
-	public static Dataset readAllBaseResources(String operationGraph, String indicatorGraph) {
+	public static Dataset convertAllOperationsAndIndicators(String operationGraph, String indicatorGraph) {
 
 		logger.debug("Extracting M0 dataset with graph: " + operationGraph + " for operations and graph " + indicatorGraph + " for indicators");
 		Dataset dataset = DatasetFactory.create();
@@ -107,7 +109,7 @@ public class M0Converter {
 		// Open the 'codelists' M0 model first to obtain the number of code lists and create them in SKOS model
 		Model clM0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "codelists");
 		// Code lists M0 URIs take the form http://baseUri/codelists/codelist/n, where n is an increment strictly inferior to the value of http://baseUri/codelists/codelist/sequence
-		int clNumber = getMaxSequence(clM0Model);
+		int clNumber = M0Extractor.getMaxSequence(clM0Model);
 		logger.debug("Maximum sequence number for code lists is " + clNumber);
 
 		// Then we read in the 'associations' model the mappings between code lists and codes and store them as a map
@@ -225,7 +227,7 @@ public class M0Converter {
 		// Open the 'organismes' model first to obtain the number of organizations and create them in an ORG model
 		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "organismes");
 		// M0 URIs for organizations take the form http://baseUri/organismes/organisme/n, where n is an increment strictly inferior to the value of http://baseUri/organismes/organisme/sequence
-		int orgNumber = getMaxSequence(m0Model);
+		int orgNumber = M0Extractor.getMaxSequence(m0Model);
 		logger.debug(orgNumber + " organizations found in 'organismes' model");
 
 		for (int orgIndex = 1; orgIndex <= orgNumber; orgIndex++) {
@@ -360,7 +362,7 @@ public class M0Converter {
 			idCounters.put(resourceType, 0); // Initialize identification counter for this type of resources
 			// Get the model corresponding to this type of resource
 			Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + resourceType + "s");
-			int maxNumber = getMaxSequence(m0Model);
+			int maxNumber = M0Extractor.getMaxSequence(m0Model);
 			for (int index = 1; index <= maxNumber; index++) {
 				String m0URI = "http://baseUri/" + resourceType + "s/" + resourceType + "/" + index;
 				if (mappings.containsKey(m0URI)) continue; // Fixed mappings already dealt with
@@ -417,7 +419,7 @@ public class M0Converter {
 		familyModel.setNsPrefix("org", ORG.getURI());
 		familyModel.setNsPrefix("insee", "http://rdf.insee.fr/def/base#");
 		// Family M0 URIs take the form http://baseUri/familles/famille/n, where n is an increment strictly inferior to the sequence number
-		int familyMaxNumber = getMaxSequence(m0Model);
+		int familyMaxNumber = M0Extractor.getMaxSequence(m0Model);
 		logger.debug("Maximum index for families is " + familyMaxNumber);
 
 		// Loop on the family index
@@ -471,7 +473,7 @@ public class M0Converter {
 		seriesModel.setNsPrefix("org", ORG.getURI());
 		seriesModel.setNsPrefix("insee", "http://rdf.insee.fr/def/base#");
 		// Series M0 URIs take the form http://baseUri/series/serie/n, where n is an increment strictly inferior to the sequence number
-		int seriesMaxNumber = getMaxSequence(m0Model);
+		int seriesMaxNumber = M0Extractor.getMaxSequence(m0Model);
 		logger.debug("Maximum index for series is " + seriesMaxNumber);
 
 		// Loop on series number, but actually not all values of index correspond to existing series so the existence of the resource has to be tested
@@ -517,7 +519,7 @@ public class M0Converter {
 		operationModel.setNsPrefix("dcterms", DCTerms.getURI());
 		operationModel.setNsPrefix("insee", "http://rdf.insee.fr/def/base#");
 		// Operation M0 URIs take the form http://baseUri/operations/operation/n, where n is an increment strictly inferior to the sequence number
-		int operationMaxNumber = getMaxSequence(m0Model);
+		int operationMaxNumber = M0Extractor.getMaxSequence(m0Model);
 		logger.debug("Maximum index for operations is " + operationMaxNumber);
 
 		// Loop on the operation index
@@ -565,8 +567,8 @@ public class M0Converter {
 		readDataset();
 		if (allURIMappings == null) allURIMappings = createURIMappings();
 
-		logger.debug("Extracting the information on indicators from dataset " + M0_FILE_NAME);
-		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "indicateurs");
+		logger.debug("Reading the M0 model on indicators from dataset " + M0_FILE_NAME);
+		Model m0IndicatorssModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "indicateurs");
 
 		// Create the target model and set appropriate prefix mappings
 		Model indicatorModel = ModelFactory.createDefaultModel();
@@ -575,14 +577,14 @@ public class M0Converter {
 		indicatorModel.setNsPrefix("prov", PROV.getURI());
 		indicatorModel.setNsPrefix("insee", "http://rdf.insee.fr/def/base#");
 		// Indicator M0 URIs take the form http://baseUri/indicateurs/indicateur/n, where n is an increment strictly inferior to the sequence number
-		int indicatorMaxNumber = getMaxSequence(m0Model);
+		int indicatorMaxNumber = M0Extractor.getMaxSequence(m0IndicatorssModel);
 		logger.debug("Maximum index for indicators is " + indicatorMaxNumber);
 
 		// Loop on the indicator index
 		int indicatorRealNumber = 0;
 		for (int indicatorIndex = 1; indicatorIndex <= indicatorMaxNumber; indicatorIndex++) {
-			Resource m0Resource = m0Model.createResource("http://baseUri/indicateurs/indicateur/" + indicatorIndex);
-			if (!m0Model.contains(m0Resource, null)) continue; // Cases where the index is not attributed
+			Resource m0Resource = m0IndicatorssModel.createResource("http://baseUri/indicateurs/indicateur/" + indicatorIndex);
+			if (!m0IndicatorssModel.contains(m0Resource, null)) continue; // Cases where the index is not attributed
 			indicatorRealNumber++;
 			String targetURI = allURIMappings.get(m0Resource.getURI());
 			if (targetURI == null) { // There is definitely a problem if the M0 URI is not in the mappings
@@ -591,12 +593,15 @@ public class M0Converter {
 			}
 			Resource targetResource = indicatorModel.createResource(targetURI, OperationModelMaker.statisticalIndicator);
 			logger.info("Creating indicator " + targetURI + " from M0 resource " + m0Resource.getURI());
-			fillLiteralProperties(targetResource, m0Model, m0Resource);
+			fillLiteralProperties(targetResource, m0IndicatorssModel, m0Resource);
 		}
-		m0Model.close();
+		m0IndicatorssModel.close();
 
 		logger.info(indicatorRealNumber + " indicators extracted, now adding the PRODUCED_FROM, RELATED_TO and REPLACES relations");
-		Map<String, List<String>> multipleRelations = M0Extractor.extractProductionRelations();
+		logger.debug("Reading the M0 model on associations from dataset " + M0_FILE_NAME);
+		Model m0AssociationModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "asssociations");
+		Map<String, List<String>> multipleRelations = M0Extractor.extractProductionRelations(m0AssociationModel);
+		m0AssociationModel.close();
 		for (String indicatorM0URI : multipleRelations.keySet()) {
 			String indicatorTargetURI = allURIMappings.get(indicatorM0URI);
 			if (indicatorTargetURI == null) {
@@ -637,6 +642,7 @@ public class M0Converter {
 				logger.debug("Replacement property created between resource " + replacingResource.getURI() + " replacing resource " + replacedResource.getURI());
 			}
 		}
+		m0AssociationModel.close();
 
 		return indicatorModel;
 	}
@@ -708,7 +714,7 @@ public class M0Converter {
 		// Now read the links of various kinds between families, series and operations, starting with hierarchies
 		// For readability, we do not verify in this method that the M0 URIs are in the mappings
 		Model m0AssociationModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		Map<String, String> simpleRelations = extractHierarchies(m0AssociationModel);
+		Map<String, String> simpleRelations = M0Extractor.extractHierarchies(m0AssociationModel);
 		for (String chilM0dURI : simpleRelations.keySet()) {
 			Resource child = operationModel.createResource(allURIMappings.get(chilM0dURI));
 			Resource parent = operationModel.createResource(allURIMappings.get(simpleRelations.get(chilM0dURI)));
@@ -867,65 +873,6 @@ public class M0Converter {
 	}
 	
 	/**
-	 * Reads all the hierarchies (family -> series or series -> operation) and stores them as a map.
-	 * The map keys will be the children and the values the parents, both expressed as M0 URIs.
-	 * 
-	 * @return A map containing the hierarchies.
-	 */
-	public static Map<String, String> extractHierarchies() {
-
-		// Read the M0 'associations' model
-		readDataset();
-		logger.debug("Extracting the information on hierarchies from dataset " + M0_FILE_NAME);
-		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		Map<String, String> hierarchyMappings = extractHierarchies(m0Model);
-	    m0Model.close();
-
-	    return hierarchyMappings;
-	}
-
-	/**
-	 * Reads all the hierarchies (family -> series or series -> operation) and stores them as a map.
-	 * The map keys will be the children and the values the parents, both expressed as M0 URIs.
-	 * 
-	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @return A map containing the hierarchies.
-	 */
-	public static Map<String, String> extractHierarchies(Model m0AssociationModel) {
-
-		// The hierarchies are in the 'associations' graph and have the following structure:
-		// <http://baseUri/familles/famille/58/ASSOCIE_A> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/series/serie/117/ASSOCIE_A>
-
-		logger.debug("Extracting the information on hierarchies between families, series and operations");
-		Map<String, String> hierarchyMappings = new HashMap<String, String>();
-
-		if (m0AssociationModel == null) return extractHierarchies();
-		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
-			// Override 'selects' method to retain only statements whose subject and object URIs end with 'ASSOCIE_A' and begin with expected objects
-	        public boolean selects(Statement statement) {
-	        	String subjectURI = statement.getSubject().getURI();
-	        	String objectURI = statement.getObject().asResource().getURI();
-	        	if (!((subjectURI.endsWith("ASSOCIE_A")) && (objectURI.endsWith("ASSOCIE_A")))) return false;
-	        	if ((subjectURI.startsWith("http://baseUri/series")) && (objectURI.startsWith("http://baseUri/familles"))) return true;
-	        	if ((subjectURI.startsWith("http://baseUri/operations")) && (objectURI.startsWith("http://baseUri/series"))) return true;
-	        	return false;
-	        }
-	    };
-	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
-			@Override
-			public void accept(Statement statement) {
-				String child = StringUtils.removeEnd(statement.getSubject().getURI(), "/ASSOCIE_A");
-				String parent = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/ASSOCIE_A");
-				// Each series or operation should have at most one parent
-				if (hierarchyMappings.containsKey(child)) logger.error("Conflicting parents for " + child + " - " + parent + " and " + hierarchyMappings.get(child));
-				else hierarchyMappings.put(child, parent);
-			}
-		});
-
-		return hierarchyMappings;	
-	}
-
-	/**
 	 * Reads all the relations of a specified type (production, stakeholding) between operations and organizations and stores them as a map.
 	 * The map keys will be the operations and the values the lists of stakeholders, all expressed as M0 URIs.
 	 * 
@@ -1022,28 +969,6 @@ public class M0Converter {
 		try { familyThemesWorkbook.close(); } catch (IOException ignored) { }
 
 		return relationMappings;
-	}
-
-	/**
-	 * Returns the maximum of the sequence number used in a M0 model.
-	 * 
-	 * M0 URIs use a sequence number an increment inferior to the value of property http://rem.org/schema#sequenceValue of resource http://baseUri/codelists/codelist/sequence
-	 * @param m0Model The M0 model (extracted from the dataset).
-	 * @return The maximum sequence number, or 0 if the information cannot be obtained in the model.
-	 */
-	public static int getMaxSequence(Model m0Model) {
-
-		// M0 URIs use a sequence number an increment inferior or equal to the value of property http://rem.org/schema#sequenceValue of resource http://baseUri/{type}s/{type}/sequence
-		// We assume that there is only one triple containing this property per graph.
-		final Property sequenceValueProperty = ResourceFactory.createProperty("http://rem.org/schema#sequenceValue");
-
-		StmtIterator statements = m0Model.listStatements(null, sequenceValueProperty, (RDFNode)null);
-		if (!statements.hasNext()) return 0;
-		Statement sequenceStatement = statements.next();
-
-		if (!sequenceStatement.getObject().isLiteral()) return 0;
-
-		return (Integer.parseInt(sequenceStatement.getObject().asLiteral().toString())); // Assuming we have a string parseable to integer
 	}
 
 	/**

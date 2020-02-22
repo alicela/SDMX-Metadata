@@ -150,23 +150,20 @@ public class M0ConverterTest {
 		extract.write(new FileOutputStream("src/test/resources/m0-codelists.ttl"), "TTL");
 	}
 
+	/**
+	 * Creates a RDF dataset containing all families, series, operations and indicators in the target model and saves it to a file.
+	 * 
+	 * @throws Exception
+	 */
 	@Test
-	public void testReadAllBaseResources() throws IOException {
+	public void testConvertAllOperationsAndIndicators() throws IOException {
 
-		Dataset base = M0Converter.readAllBaseResources("http://rdf.insee.fr/graphes/operations", "http://rdf.insee.fr/graphes/produits");
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/base-resources.trig"), base, Lang.TRIG);
-	}
-
-	@Test
-	public void testExtractOneCodeList() throws IOException {
-
-		Model extract = M0Converter.convertCodeLists();
-		Model subExtract = M0Extractor.extractM0ResourceModel(extract, "http://baseUri/codelists/codelist/3");
-		subExtract.write(new FileOutputStream("src/test/resources/m0-codelist-3.ttl"), "TTL");
+		Dataset base = M0Converter.convertAllOperationsAndIndicators("http://rdf.insee.fr/graphes/operations", "http://rdf.insee.fr/graphes/produits");
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-operations-and-indicators.trig"), base, Lang.TRIG);
 	}
 
 	/**
-	 * Creates a RDF dataset containing all base resources (code lists, organizations, families, series, operations and indicators) and saves it to a file.
+	 * Creates a RDF dataset containing all base resources (code lists, organizations, families, series, operations and indicators) in the target model and saves it to a file.
 	 * 
 	 * @throws Exception
 	 */
@@ -236,6 +233,11 @@ public class M0ConverterTest {
 		extract.write(new FileOutputStream("src/test/resources/operations.ttl"), "TTL");
 	}
 
+	/**
+	 * Creates and writes to a file the information about organizations in the target ORG model.
+	 * 
+	 * @throws IOException
+	 */
 	@Test
 	public void testConvertOrganizations() throws IOException {
 
@@ -253,13 +255,6 @@ public class M0ConverterTest {
 
 		Model extract = M0Converter.convertSeries();
 		extract.write(new FileOutputStream("src/test/resources/series.ttl"), "TTL");
-	}
-
-	@Test
-	public void testExtractLinks() throws IOException {
-
-		Model extract = M0SIMSConverter.convertLinksToSIMS();
-		extract.write(new FileOutputStream("src/main/resources/data/links.ttl"), "TTL");
 	}
 
 	@Test
@@ -281,14 +276,6 @@ public class M0ConverterTest {
 
 		Map<String, List<String>> relations = M0Converter.extractRelations();
 		for (String related : relations.keySet()) System.out.println(related + " is related to " + relations.get(related));
- 	}
-
-	@Test
-	public void testExtractHierarchies() throws IOException {
-
-		Map<String, String> hierarchies = M0Converter.extractHierarchies();
-		for (String child : hierarchies.keySet()) System.out.println(child + " has for parent " + hierarchies.get(child));
-		System.out.println(hierarchies.size() + " hierarchies");
  	}
 
 	@Test
@@ -352,14 +339,6 @@ public class M0ConverterTest {
 	}
 
 	@Test
-	public void testExtractProductionRelations() throws IOException {
-
-		Map<String, List<String>> relations = M0Extractor.extractProductionRelations();
-		for (String indicator : relations.keySet()) System.out.println("Indicator " + indicator + " produced from " + relations.get(indicator));
-		System.out.println(relations.size() + " relations");
- 	}
-
-	@Test
 	public void testExtractReplacements() throws IOException {
 
 		Map<String, List<String>> replacements = M0Converter.extractReplacements();
@@ -383,11 +362,16 @@ public class M0ConverterTest {
 		System.out.println(producers.size() + " operations with producers");
  	}
 
+	/**
+	 * Creates and writes to a file the information about external links of all SIMS in the target model.
+	 * 
+	 * @throws IOException
+	 */
 	@Test
 	public void testConvertLinksToSIMS() throws IOException {
 
 		Model linksModel = M0SIMSConverter.convertLinksToSIMS();
-		linksModel.write(new FileOutputStream("src/test/resources/sims-links.ttl"), "TTL");
+		linksModel.write(new FileOutputStream("src/main/resources/data/sims-links.ttl"), "TTL");
 	}
 
 	@Test
@@ -448,7 +432,7 @@ public class M0ConverterTest {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "familles");
 
-		System.out.println(M0Converter.getMaxSequence(m0Model));
+		System.out.println(M0Extractor.getMaxSequence(m0Model));
 	}
 
 	@Test

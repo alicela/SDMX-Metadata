@@ -267,25 +267,6 @@ public class M0SIMSConverter extends M0Converter {
 	}
 
 	/**
-	 * Reads all the relations between SIMS metadata sets and series and operations (and possibly indicators), and returns them as a map.
-	 * The map keys will be the SIMS 'documentation' and the values the series, operation or indicator, both expressed as M0 URIs.
-	 * 
-	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @return A map containing the attachment relations.
-	 */
-	public static Map<String, String> extractSIMSAttachments(boolean includeIndicators) {
-
-		// Read the M0 'associations' model
-		readDataset();
-		logger.debug("Extracting the information on SIMS metadata sets attachment from dataset " + Configuration.M0_FILE_NAME);
-		Model m0Model = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
-		Map<String, String> attachmentMappings = M0Extractor.extractSIMSAttachments(m0Model, includeIndicators);
-	    m0Model.close();
-
-	    return attachmentMappings;
-	}
-
-	/**
 	 * Converts the information on external links from a model in M0 format to a model in the target format.
 	 * 
 	 * @return The model in the target format containing the information on external links.
@@ -484,7 +465,7 @@ public class M0SIMSConverter extends M0Converter {
 		referenceMappingsList.add(extractAttributeReferences(m0AssociationModel, "fr", true));
 		referenceMappingsList.add(extractAttributeReferences(m0AssociationModel, "fr", false));
 		referenceMappingsList.add(extractAttributeReferences(m0AssociationModel, "en", true));
-		referenceMappingsList.add(extractAttributeReferences(m0AssociationModel, "en", true));
+		referenceMappingsList.add(extractAttributeReferences(m0AssociationModel, "en", false));
 
 		return mergeAttributeReferences(referenceMappingsList);	
 	}
@@ -544,7 +525,7 @@ public class M0SIMSConverter extends M0Converter {
 	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				// The link/document identifier and SIMS attribute are the two last elements of the link/document URI
+				// The link/document identifier and SIMS attribute are the last two elements of the link/document URI
 				String[] pathElements = statement.getObject().asResource().getURI().replace(m0BaseURI, "").split("/");
 				// Check that the URI contains an attribute name and that the attributes in both subject and object URIs are the same
 				if ((pathElements.length != 2) || (!pathElements[1].equals(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/")))) {

@@ -17,11 +17,9 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.function.Consumer;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -30,67 +28,29 @@ import org.junit.Test;
 
 import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
 import fr.insee.semweb.sdmx.metadata.Configuration;
-import fr.insee.semweb.sdmx.metadata.M0Checker;
 import fr.insee.semweb.sdmx.metadata.M0Converter;
 import fr.insee.semweb.sdmx.metadata.M0Extractor;
 import fr.insee.semweb.sdmx.metadata.M0SIMSConverter;
 import fr.insee.semweb.sdmx.metadata.OrganizationModelMaker;
 
+/**
+ * Test and launch methods for class <code>M0Converter</code>.
+ * 
+ * @author Franck
+ */
 public class M0ConverterTest {
-
-	/**
-	 * Extracts all non-empty values of a SIMS attribute from the M0 model and writes corresponding triples in a file.
-	 * 
-	 * @throws IOException
-	 */
-	@Test
-	public void testExtractSIMSAttributeValuesM0() throws IOException {
-
-		String simsAttributeName = "DATA_COMP";
-
-		// Read the source M0 dataset and extract SIMS information
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0SIMSModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
-
-		// Select attribute values and write to file
-		Model extract = M0Extractor.extractAttributeStatements(m0SIMSModel, simsAttributeName);
-		extract.write(new FileOutputStream("src/test/resources/m0-sims-" + simsAttributeName.toLowerCase() + "-values.ttl"), "TTL");
-	}
-
-	/**
-	 * Extracts the values of given series properties from the M0 model and writes corresponding triples in a file.
-	 * 
-	 * @throws IOException
-	 */
-	@Test
-	public void testExtractSeriesProperties() throws IOException {
-
-		List<String> propertyNames = Arrays.asList("SUMMARY", "ID_DDS");
-
-		// Read the source M0 dataset and extract the model on series
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0SeriesModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "series");
-
-		// Select values for specified properties and write to file
-		Model extract = ModelFactory.createDefaultModel();
-		String fileName = "src/test/resources/m0-series";
-		for (String propertyName : propertyNames) {
-			extract.add(M0Extractor.extractAttributeStatements(m0SeriesModel, propertyName));
-			fileName += "-" + propertyName.toLowerCase();
-		}
-		extract.write(new FileOutputStream(fileName + "-values.ttl"), "TTL");
-	}
 
 	/**
 	 * Reads the list of fixed mappings between M0 identifiers and target URIs for series and saves it to a file.
 	 * 
-	 * @throws IOException
+	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
 	public void testGetIdURIFixedMappingsSeries() throws IOException {
 
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Map<Integer, String> mappings = M0Converter.getIdURIFixedMappings(dataset, "serie");
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Map<Integer, String> mappings = M0Converter.getIdURIFixedMappings(m0Dataset, "serie");
+		m0Dataset.close();
 
 		try (PrintWriter writer = new PrintWriter("src/test/resources/mappings-id-uri-series.txt", "UTF-8")) {
 			mappings.entrySet().stream().sorted(Map.Entry.<Integer, String>comparingByKey()).forEach(writer::println);
@@ -101,13 +61,13 @@ public class M0ConverterTest {
 	 * Reads the list of fixed mappings between M0 identifiers and target URIs for operations and saves it to a file.
 	 * Also inverts the mappings in order to check if there are no duplicates and saves the inverted list to a file.
 	 * 
-	 * @throws IOException
+	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
 	public void testGetIdURIFixedMappingsOperations() throws IOException {
 
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Map<Integer, String> mappings = M0Converter.getIdURIFixedMappings(dataset, "operation");
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Map<Integer, String> mappings = M0Converter.getIdURIFixedMappings(m0Dataset, "operation");
 
 		try (PrintWriter writer = new PrintWriter("src/test/resources/mappings-id-uri-operations.txt", "UTF-8")) {
 			mappings.entrySet().stream().sorted(Map.Entry.<Integer, String>comparingByKey()).forEach(writer::println);
@@ -127,7 +87,7 @@ public class M0ConverterTest {
 	/**
 	 * Creates and writes to a file the mappings between M0 URIs and target URIs for families, series, operations and indicators.
 	 * 
-	 * @throws IOException
+	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
 	public void testCreateURIMappings() throws IOException {
@@ -139,140 +99,157 @@ public class M0ConverterTest {
 	/**
 	 * Extracts the code lists defined in the M0 model and saves them in a Turtle file.
 	 * 
-	 * @throws IOException
+	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
 	public void testConvertM0CodeLists() throws IOException {
 
-		Model extract = M0Converter.convertCodeLists();
-		extract.write(new FileOutputStream("src/test/resources/m0-codelists.ttl"), "TTL");
+		Model m0CodeListsModel = M0Converter.convertCodeLists();
+		m0CodeListsModel.write(new FileOutputStream("src/test/resources/m0-codelists.ttl"), "TTL");
+		m0CodeListsModel.close();
 	}
 
 	/**
-	 * Creates a RDF dataset containing all families, series, operations and indicators in the target model and saves it to a file.
+	 * Creates a RDF dataset containing all families, series, operations and indicators in the target model and saves it to a TRIG file.
 	 * 
-	 * @throws Exception
+	 * @throws Exception In case of problem while writing the output file.
 	 */
 	@Test
 	public void testConvertAllOperationsAndIndicators() throws IOException {
 
-		Dataset base = M0Converter.convertAllOperationsAndIndicators("http://rdf.insee.fr/graphes/operations", "http://rdf.insee.fr/graphes/produits");
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-operations-and-indicators.trig"), base, Lang.TRIG);
+		Dataset allOperationsAndIndicatorsDataset = M0Converter.convertAllOperationsAndIndicators("http://rdf.insee.fr/graphes/operations", "http://rdf.insee.fr/graphes/produits");
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-operations-and-indicators.trig"), allOperationsAndIndicatorsDataset, Lang.TRIG);
+		allOperationsAndIndicatorsDataset.close();
 	}
 
 	/**
-	 * Creates a RDF dataset containing all base resources (code lists, organizations, families, series, operations and indicators) in the target model and saves it to a file.
+	 * Creates a RDF dataset containing all base resources (code lists, organizations, families, series, operations and indicators) in the target model and saves it to a TRIG file.
 	 * 
-	 * @throws Exception
+	 * @throws Exception In case of problem while writing the output file.
 	 */
 	@Test
 	public void testConvertAllBaseResources() throws Exception {
 
 		// Code lists from the Excel file
-		Dataset dataset = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes");
+		Dataset allBaseResourcesDataset = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes");
 		// Families, series, operations converted from the M0 model
-		dataset.addNamedModel("http://rdf.insee.fr/graphes/operations", M0Converter.convertAllOperations());
+		allBaseResourcesDataset.addNamedModel("http://rdf.insee.fr/graphes/operations", M0Converter.convertAllOperations());
 		// Indicators converted from the M0 model
-		dataset.addNamedModel("http://rdf.insee.fr/graphes/produits", M0Converter.convertIndicators());
+		allBaseResourcesDataset.addNamedModel("http://rdf.insee.fr/graphes/produits", M0Converter.convertIndicators());
 		// Organizations from the Excel file
 		Workbook orgWorkbook = WorkbookFactory.create(new File(Configuration.ORGANIZATIONS_XLSX_FILE_NAME));
 		Model orgModel = OrganizationModelMaker.createSSMModel(orgWorkbook);
 		orgModel.add(OrganizationModelMaker.createInseeModel(orgWorkbook));
-		dataset.addNamedModel("http://rdf.insee.fr/graphes/organisations", orgModel);
+		orgModel.close();
+		allBaseResourcesDataset.addNamedModel("http://rdf.insee.fr/graphes/organisations", orgModel);
 		
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-base-resources.trig"), dataset, Lang.TRIG);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-base-resources.trig"), allBaseResourcesDataset, Lang.TRIG);
+		allBaseResourcesDataset.close();
 	}
 
 	/**
-	 * Creates and writes to a file the information about families, series and operations in the target model.
+	 * Creates and writes to a Turtle file the information about families, series and operations in the target model.
 	 * 
-	 * @throws IOException
+	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
 	public void testConvertAllOperations() throws IOException {
 
-		Model extract = M0Converter.convertAllOperations();
-		extract.write(new FileOutputStream("src/test/resources/all-operations.ttl"), "TTL");
+		Model allOPerationsModel = M0Converter.convertAllOperations();
+		allOPerationsModel.write(new FileOutputStream("src/test/resources/all-operations.ttl"), "TTL");
+		allOPerationsModel.close();
 	}
 
 	/**
-	 * Creates and writes to a file the information about families in the target model.
+	 * Creates and writes to a Turtle file the information about families in the target model.
 	 * 
-	 * @throws IOException
+	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
 	public void testConvertFamilies() throws IOException {
 
-		Model extract = M0Converter.convertFamilies();
-		extract.write(new FileOutputStream("src/test/resources/families.ttl"), "TTL");
+		Model familiesModel = M0Converter.convertFamilies();
+		familiesModel.write(new FileOutputStream("src/test/resources/families.ttl"), "TTL");
+		familiesModel.close();
 	}
 
 	/**
-	 * Creates and writes to a file the information about indicators in the target model.
+	 * Creates and writes to a Turtle file the information about indicators in the target model.
 	 * 
-	 * @throws IOException
+	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
 	public void testConvertIndicators() throws IOException {
 
-		Model extract = M0Converter.convertIndicators();
-		extract.write(new FileOutputStream("src/test/resources/indicators.ttl"), "TTL");
+		Model indicatorsModel = M0Converter.convertIndicators();
+		indicatorsModel.write(new FileOutputStream("src/test/resources/indicators.ttl"), "TTL");
+		indicatorsModel.close();
 	}
 
 	/**
-	 * Creates and writes to a file the information about operations in the target model.
+	 * Creates and writes to a Turtle file the information about operations in the target model.
 	 * 
-	 * @throws IOException
+	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
 	public void testConvertOperations() throws IOException {
 
-		Model extract = M0Converter.convertOperations();
-		extract.write(new FileOutputStream("src/test/resources/operations.ttl"), "TTL");
+		Model operationsModel = M0Converter.convertOperations();
+		operationsModel.write(new FileOutputStream("src/test/resources/operations.ttl"), "TTL");
+		operationsModel.close();
 	}
 
 	/**
-	 * Creates and writes to a file the information about organizations in the target ORG model.
+	 * Creates and writes to a Turtle file the information about organizations in the target ORG model.
 	 * 
-	 * @throws IOException
+	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
 	public void testConvertOrganizations() throws IOException {
 
-		Model extract = M0Converter.convertOrganizations();
-		extract.write(new FileOutputStream("src/test/resources/organizations.ttl"), "TTL");
+		Model organizationsModel = M0Converter.convertOrganizations();
+		organizationsModel.write(new FileOutputStream("src/test/resources/organizations.ttl"), "TTL");
+		organizationsModel.close();
 	}
 
 	/**
-	 * Creates and writes to a file the information about series in the target model.
+	 * Creates and writes to a Turtle file the information about series in the target model.
 	 * 
-	 * @throws IOException
+	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
 	public void testConvertSeries() throws IOException {
 
-		Model extract = M0Converter.convertSeries();
-		extract.write(new FileOutputStream("src/test/resources/series.ttl"), "TTL");
+		Model seriesModel = M0Converter.convertSeries();
+		seriesModel.write(new FileOutputStream("src/test/resources/series.ttl"), "TTL");
+		seriesModel.close();
 	}
 
+	/**
+	 * Reads from an external spreadsheet the relations between the families and the statistical themes and writes them in a file.
+	 * 
+	 * @throws IOException In case of problem while writing the output file.
+	 */
 	@Test
-	public void testExtractDocuments() throws IOException {
+	public void testGetFamilyThemesRelations() throws IOException {
 
-		Model extract = M0SIMSConverter.convertDocumentsToSIMS();
-		extract.write(new FileOutputStream("src/main/resources/data/documents.ttl"), "TTL");
-	}
-
-	@Test
-	public void testGetFamilyThemesRelations() {
-
-		Map<String, List<String>> relations = M0Converter.getFamilyThemesRelations();
+		SortedMap<String, List<String>> relations = M0Converter.getFamilyThemesRelations();
 		for (String family : relations.keySet()) System.out.println(family + " has theme(s) " + relations.get(family));
+		try (PrintWriter writer = new PrintWriter("src/test/resources/family-themes-relations.txt", "UTF-8")) {
+			relations.entrySet().stream().forEach(writer::println);
+		}
 	}
 
+	/**
+	 * Reads from the M0 dataset and write to different files the list of documents associated to each documentation number and SIMS attribute.
+	 * Files created are: (documentation id, attribute name, link id) triples for French and English, and list of all links referenced in the model.
+	 * 
+	 * @throws IOException In case of problem while writing the output file.
+	 */
 	@Test
 	public void testExtractAttributeLinks() throws IOException {
 
-		// We also list the links that are actually referenced in the relations
+		// We also list all the links that are actually referenced in the documentations
 		SortedSet<String> referencedLinks = new TreeSet<String>();
 		SortedMap<Integer, SortedMap<String, SortedSet<String>>> relations = M0SIMSConverter.extractAttributeReferences("fr", true);
 		for (Integer documentationId : relations.keySet()) {
@@ -319,22 +296,29 @@ public class M0ConverterTest {
 	}
 
 	/**
-	 * Creates and writes to a file the information about external links of all SIMS in the target model.
+	 * Converts the information about external links from the M0 dataset into the target format and writes the model to a Turtle file.
 	 * 
-	 * @throws IOException
+	 * @throws IOException In case of problems while writing the output file.
 	 */
 	@Test
 	public void testConvertLinksToSIMS() throws IOException {
 
 		Model linksModel = M0SIMSConverter.convertLinksToSIMS();
 		linksModel.write(new FileOutputStream("src/main/resources/data/sims-links.ttl"), "TTL");
+		linksModel.close();
 	}
 
+	/**
+	 * Converts the information about external documents from the M0 dataset into the target format and writes the model to a Turtle file.
+	 * 
+	 * @throws IOException In case of problems while writing the output file.
+	 */
 	@Test
 	public void testConvertDocumentsToSIMS() throws IOException {
 
-		Model linksModel = M0SIMSConverter.convertDocumentsToSIMS();
-		linksModel.write(new FileOutputStream("src/test/resources/sims-documents.ttl"), "TTL");
+		Model documentsModel = M0SIMSConverter.convertDocumentsToSIMS();
+		documentsModel.write(new FileOutputStream("src/test/resources/sims-documents.ttl"), "TTL");
+		documentsModel.close();
 	}
 
 	@Test
@@ -375,32 +359,6 @@ public class M0ConverterTest {
 	}
 
 	@Test
-	public void testExtractSIMSAttachments() throws IOException {
-
-		Map<String, String> attachments = M0SIMSConverter.extractSIMSAttachments(true);
-		for (String simsSet : attachments.keySet()) System.out.println(attachments.get(simsSet) + " has SIMS metadata set " + simsSet);
-		System.out.println(attachments.size() + " attachments");
- 	}
-
-	@Test
-	public void testGetMaxSequence() {
-
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "familles");
-
-		System.out.println(M0Extractor.getMaxSequence(m0Model));
-	}
-
-	@Test
-	public void testListModelAttributes() {
-
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "indicateurs");
-
-		System.out.println(M0Checker.listModelAttributes(m0Model));
-	}
-
-	@Test
 	public void testReadOrganizationURIMappings() throws IOException {
 
 		M0Converter.readOrganizationURIMappings();
@@ -431,17 +389,5 @@ public class M0ConverterTest {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
 		m0Model.write(new FileOutputStream("src/test/resources/m0-extract-documentations.ttl"), "TTL");
-	}
-
-	@Test
-	public void testListModel() throws IOException {
-	
-		// List the names of the models in the dataset
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		dataset.listNames().forEachRemaining(new Consumer<String>() {
-			@Override
-			public void accept(String name) {
-				System.out.println(name);}
-		});
 	}
 }

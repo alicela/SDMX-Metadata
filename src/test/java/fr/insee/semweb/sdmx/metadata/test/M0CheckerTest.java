@@ -9,12 +9,16 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
+import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
+import org.apache.jena.riot.RDFDataMgr;
 import org.junit.Test;
 
+import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.M0Checker;
 
 public class M0CheckerTest {
@@ -106,5 +110,26 @@ public class M0CheckerTest {
 				System.out.println(statement.getSubject() + " - " + statement.getObject());
 			}
 		}
+	}
+
+	@Test
+	public void testListModelAttributes() {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "indicateurs");
+
+		System.out.println(M0Checker.listModelAttributes(m0Model));
+	}
+
+	@Test
+	public void testListModel() throws IOException {
+	
+		// List the names of the models in the dataset
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		dataset.listNames().forEachRemaining(new Consumer<String>() {
+			@Override
+			public void accept(String name) {
+				System.out.println(name);}
+		});
 	}
 }

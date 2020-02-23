@@ -284,7 +284,7 @@ public class M0Extractor {
 	 * 
 	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
 	 * @param includeIndicators If <code>true</code>, the attachments to indicators will also be returned, otherwise only series and operations are considered.
-	 * @return A map containing the attachment relations.
+	 * @return A sorted map containing the attachment relations.
 	 */
 	public static SortedMap<String, String> extractSIMSAttachments(Model m0AssociationModel, boolean includeIndicators) {
 	

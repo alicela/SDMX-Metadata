@@ -770,14 +770,14 @@ public class M0Converter {
 	}
 
 	/**
-	 * Reads from an external spreadsheet the relations between the families and the statistical themes and stores them as a map.
+	 * Reads from an external spreadsheet the relations between the families and the statistical themes and stores them as a sorted map.
 	 * The map keys will be the family URIs and the values the lists of theme URIs.
 	 * 
 	 * @return A map containing the relations or <code>null</code> in case of error.
 	 */
-	public static Map<String, List<String>> getFamilyThemesRelations() {
+	public static SortedMap<String, List<String>> getFamilyThemesRelations() {
 
-		Map<String, List<String>> relationMappings = new HashMap<String, List<String>>();
+		SortedMap<String, List<String>> relationMappings = new TreeMap<String, List<String>>();
 
 		Workbook familyThemesWorkbook = null;
 		File xlsxFile = new File(FAMILY_THEMES_XLSX_FILE_NAME);

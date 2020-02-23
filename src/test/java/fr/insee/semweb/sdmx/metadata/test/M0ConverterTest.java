@@ -32,7 +32,6 @@ import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
 import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.M0Checker;
 import fr.insee.semweb.sdmx.metadata.M0Converter;
-import fr.insee.semweb.sdmx.metadata.M0Converter.OrganizationRole;
 import fr.insee.semweb.sdmx.metadata.M0Extractor;
 import fr.insee.semweb.sdmx.metadata.M0SIMSConverter;
 import fr.insee.semweb.sdmx.metadata.OrganizationModelMaker;
@@ -279,17 +278,6 @@ public class M0ConverterTest {
  	}
 
 	@Test
-	public void testExtractOrganizationalRelations() throws IOException {
-
-		Map<String, List<String>> relations = M0Converter.extractOrganizationalRelations(OrganizationRole.STAKEHOLDER);
-		for (String operation : relations.keySet()) System.out.println("operation " + operation + " has for stakeholder(s) " + relations.get(operation));
-		System.out.println(relations.size() + " relations");
-		relations = M0Converter.extractOrganizationalRelations(OrganizationRole.PRODUCER);
-		for (String operation : relations.keySet()) System.out.println("operation " + operation + " has for producers(s) " + relations.get(operation));
-		System.out.println(relations.size() + " relations");
- 	}
-
-	@Test
 	public void testExtractAttributeLinks() throws IOException {
 
 		// We also list the links that are actually referenced in the relations
@@ -337,30 +325,6 @@ public class M0ConverterTest {
 		System.out.println("\nResults for documents:");
 		for (Integer linkId : languageTags.keySet()) System.out.println("Document " + linkId + " is tagged with language " + languageTags.get(linkId));
 	}
-
-	@Test
-	public void testExtractReplacements() throws IOException {
-
-		Map<String, List<String>> replacements = M0Converter.extractReplacements();
-		for (String replaces : replacements.keySet()) System.out.println(replacements.get(replaces) + " replaced by " + replaces);
-		System.out.println(replacements.size() + " replacements");
- 	}
-
-	@Test
-	public void testExtractStakeholders() throws IOException {
-
-		Map<String, List<String>> stakeholders = M0Converter.extractOrganizationalRelations(OrganizationRole.STAKEHOLDER);
-		for (String operation : stakeholders.keySet()) System.out.println("Operation " + operation + " has stakeholders " + stakeholders.get(operation));
-		System.out.println(stakeholders.size() + " operations with stakeholders");
- 	}
-
-	@Test
-	public void testExtractProducers() throws IOException {
-
-		Map<String, List<String>> producers = M0Converter.extractOrganizationalRelations(OrganizationRole.PRODUCER);
-		for (String operation : producers.keySet()) System.out.println("Operation " + operation + " has producers " + producers.get(operation));
-		System.out.println(producers.size() + " operations with producers");
- 	}
 
 	/**
 	 * Creates and writes to a file the information about external links of all SIMS in the target model.

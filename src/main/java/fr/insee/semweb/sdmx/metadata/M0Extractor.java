@@ -6,9 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Consumer;
@@ -26,6 +24,7 @@ import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import fr.insee.semweb.sdmx.metadata.Configuration.OrganizationRole;
 import fr.insee.semweb.utils.URIComparator;
 
 /**
@@ -78,11 +77,11 @@ public class M0Extractor {
 	}
 
 	/**
-	 * Reads all the hierarchies (family -> series or series -> operation) and stores them as a map.
+	 * Reads all the hierarchies (family -> series or series -> operation) and stores them as a sorted map.
 	 * The map keys will be the children and the values the parents, both expressed as M0 URIs.
 	 * 
 	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @return A map containing the hierarchies between children and parents M0 URIs, sorted on keys.
+	 * @return A sorted map containing the hierarchies between children and parents M0 URIs, sorted on keys.
 	 */
 	public static SortedMap<String, String> extractHierarchies(Model m0AssociationModel) {
 
@@ -120,20 +119,56 @@ public class M0Extractor {
 	}
 
 	/**
-	 * Reads all the relations stating that an indicator is produced from a series and stores them as a map.
+	 * Reads all the replacement properties and stores them as a sorted map.
+	 * The map keys are the replacing resources and the values are lists of the resources they replaced, both expressed as M0 URIs.
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @return A sorted map containing the relations between M0 URIs, sorted on keys.
+	 */
+	public static SortedMap<String, List<String>> extractReplacements(Model m0AssociationModel) {
+
+		// The relations are in the 'associations' graph and have the following structure :
+		// <http://baseUri/series/serie/12/REPLACES> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/series/serie/13/REMPLACE_PAR> .
+	
+		logger.debug("Extracting the information on replacement relations between series or indicators");
+		SortedMap<String, List<String>> replacementMappings = new TreeMap<String, List<String>>(Comparator.nullsFirst(new URIComparator()));
+		
+		// Will select the 'REPLACES/REMPLACE_PAR' relations
+		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
+			// Override 'selects' method to retain only statements whose subject URI ends with 'REPLACES' and object URI with 'REMPLACE_PAR'
+	        public boolean selects(Statement statement) {
+	        	return ((statement.getSubject().getURI().endsWith("REPLACES")) && (statement.getObject().isResource()) && (statement.getObject().asResource().getURI().endsWith("REMPLACE_PAR")));
+	        }
+	    };
+	    // Read the selected statements and fill the map that will be returned (will throw an exception if model is null)
+	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String after = StringUtils.removeEnd(statement.getSubject().getURI(), "/REPLACES");
+				String before = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/REMPLACE_PAR");
+				if (!replacementMappings.containsKey(after)) replacementMappings.put(after, new ArrayList<String>());
+				replacementMappings.get(after).add(before);
+			}
+		});
+		logger.debug("Size of the map to return is: " + replacementMappings.size());	
+		return replacementMappings;
+	}
+
+	/**
+	 * Reads all the relations stating that an indicator is produced from a series and stores them as a sorted map.
 	 * The map keys will be the indicators and the values the lists of series they are produced from, all expressed as M0 URIs.
 	 * 
 	 * @param m0AssociationModel The M0 model containing information about all associations.
-	 * @return A map containing the relations.
+	 * @return A sorted map containing the relations.
 	 */
-	public static Map<String, List<String>> extractProductionRelations(Model m0AssociationModel) {
+	public static SortedMap<String, List<String>> extractProductionRelations(Model m0AssociationModel) {
 
 		// The relations between series and indicators are in the 'associations' graph and have the following structure:
 		// <http://baseUri/indicateurs/indicateur/27/PRODUCED_FROM> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/series/serie/137/PRODUIT_INDICATEURS>
 		// Note: discard cases where PRODUCED_FROM is used instead of PRODUIT_INDICATEURS.
 	
 		logger.debug("Extracting 'PRODUCED_FROM/PRODUIT_INDICATEURS' relations between series and indicators");
-		Map<String, List<String>> relationMappings = new HashMap<String, List<String>>();
+		SortedMap<String, List<String>> relationMappings = new TreeMap<String, List<String>>(Comparator.nullsFirst(new URIComparator()));
 		// Will select the 'PRODUCED_FROM/PRODUIT_INDICATEURS' relations
 		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject and object URIs end with 'PRODUCED_FROM' and begin with expected objects
@@ -158,6 +193,46 @@ public class M0Extractor {
 		});
 		logger.debug("Size of the map to return is: " + relationMappings.size());
 		return relationMappings;
+	}
+
+	/**
+	 * Reads all the relations of a specified type (production, stakeholding) between operations and organizations and stores them as a sorted map.
+	 * The map keys will be the operations and the values the lists of organizations, all expressed as M0 URIs.
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @param organizationRole Role of the organizations to extract: producers or stakeholders.
+	 * @return A sorted map containing the relations.
+	 */
+	public static SortedMap<String, List<String>> extractOrganizationalRelations(Model m0AssociationModel, OrganizationRole organizationRole) {
+	
+		// The relations between operations and organizations are in the 'associations' graph and have the following structure (same with '/ORGANISATION' for producer):
+		// <http://baseUri/series/serie/42/STAKEHOLDERS> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/organismes/organisme/10/STAKEHOLDERS>
+	
+		logger.debug("Extracting organizational realtions between series and indicators for organization role " + organizationRole);
+		SortedMap<String, List<String>> organizationMappings = new TreeMap<String, List<String>>();
+		String suffix = "/" + organizationRole.toString();
+		// Will select the 'STAKEHOLDERS/STAKEHOLDERS' or 'ORGANISATION/ORGANISATION' relations
+		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
+			// Override 'selects' method to retain only statements whose subject and object URIs end with the appropriate suffix
+	        public boolean selects(Statement statement) {
+	        	return ((statement.getSubject().getURI().endsWith(suffix)) && (statement.getObject().isResource())
+	        			&& (statement.getObject().asResource().getURI().startsWith("http://baseUri/organismes")) && (statement.getObject().asResource().getURI().endsWith(suffix)));
+	        }
+	    };
+
+	    // Read the selected statements and fill the map that will be returned (will throw an exception if model is null)
+	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String operation = StringUtils.removeEnd(statement.getSubject().getURI(), suffix);
+				String organization = StringUtils.removeEnd(statement.getObject().asResource().getURI(), suffix);
+				if (!organizationMappings.containsKey(operation)) organizationMappings.put(operation, new ArrayList<String>());
+				organizationMappings.get(operation).add(organization);
+			}
+		});
+	
+		logger.debug("Size of the map to return is: " + organizationMappings.size());
+		return organizationMappings;
 	}
 
 	/**

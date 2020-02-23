@@ -12,6 +12,7 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.junit.jupiter.api.Test;
 
 import fr.insee.semweb.sdmx.metadata.Configuration;
+import fr.insee.semweb.sdmx.metadata.Configuration.OrganizationRole;
 import fr.insee.semweb.sdmx.metadata.M0Extractor;
 
 /**
@@ -32,8 +33,7 @@ class M0ExtractorTest {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0AssociationModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
 		SortedMap<String, String> hierarchies = M0Extractor.extractHierarchies(m0AssociationModel);
-		for (String child : hierarchies.keySet()) System.out.println(child + " has for parent " + hierarchies.get(child));
-		System.out.println(hierarchies.size() + " hierarchies");
+		m0AssociationModel.close();
 		try (PrintWriter writer = new PrintWriter("src/test/resources/m0-child-parent-relations.txt", "UTF-8")) {
 			hierarchies.entrySet().stream().forEach(writer::println);
 		}
@@ -49,11 +49,61 @@ class M0ExtractorTest {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0AssociationModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
-		Map<String, List<String>> relations = M0Extractor.extractProductionRelations(m0AssociationModel);
+		SortedMap<String, List<String>> relations = M0Extractor.extractProductionRelations(m0AssociationModel);
 		m0AssociationModel.close();
 		try (PrintWriter writer = new PrintWriter("src/test/resources/m0-production-relations.txt", "UTF-8")) {
-			relations.entrySet().stream().sorted(Map.Entry.<String, List<String>>comparingByKey()).forEach(writer::println);
+			relations.entrySet().stream().forEach(writer::println);
 		}
+	}
+
+	@Test
+	public void testExtractReplacements() throws IOException {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0AssociationModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		SortedMap<String, List<String>> replacements = M0Extractor.extractReplacements(m0AssociationModel);
+		m0AssociationModel.close();
+		try (PrintWriter writer = new PrintWriter("src/test/resources/m0-replacement-relations.txt", "UTF-8")) {
+			replacements.entrySet().stream().forEach(writer::println);
+		}
+ 	}
+
+	/**
+	 * Extracts from the M0 dataset the list of replacement relations between series or indicators and saves it to a file.
+	 * 
+	 * @throws IOException In case of problems while creating the output file.
+	 */
+	@Test
+	public void testExtractReplacementRelations() throws IOException {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0AssociationModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		SortedMap<String, List<String>> relations = M0Extractor.extractProductionRelations(m0AssociationModel);
+		m0AssociationModel.close();
+		try (PrintWriter writer = new PrintWriter("src/test/resources/m0-replacement-relations.txt", "UTF-8")) {
+			relations.entrySet().stream().forEach(writer::println);
+		}
+	}
+
+	/**
+	 * Extracts from the M0 dataset the lists of organizational relations between operations and organizations for each role and saves them to files.
+	 * 
+	 * @throws IOException In case of problems while creating the output file.
+	 */
+	@Test
+	public void testExtractOrganizationalRelations() throws IOException {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0AssociationModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		SortedMap<String, List<String>> organizationMappings = M0Extractor.extractOrganizationalRelations(m0AssociationModel, OrganizationRole.PRODUCER);
+		try (PrintWriter writer = new PrintWriter("src/test/resources/m0-producer-relations.txt", "UTF-8")) {
+			organizationMappings.entrySet().stream().sorted(Map.Entry.<String, List<String>>comparingByKey()).forEach(writer::println);
+		}
+		organizationMappings = M0Extractor.extractOrganizationalRelations(m0AssociationModel, OrganizationRole.STAKEHOLDER);
+		try (PrintWriter writer = new PrintWriter("src/test/resources/m0-stakeholder-relations.txt", "UTF-8")) {
+			organizationMappings.entrySet().stream().forEach(writer::println);
+		}
+		m0AssociationModel.close();
 	}
 
 }

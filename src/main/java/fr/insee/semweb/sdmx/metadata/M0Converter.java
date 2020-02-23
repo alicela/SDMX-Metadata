@@ -601,7 +601,6 @@ public class M0Converter {
 		logger.debug("Reading the M0 model on associations from dataset " + M0_FILE_NAME);
 		Model m0AssociationModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "asssociations");
 		Map<String, List<String>> multipleRelations = M0Extractor.extractProductionRelations(m0AssociationModel);
-		m0AssociationModel.close();
 		for (String indicatorM0URI : multipleRelations.keySet()) {
 			String indicatorTargetURI = allURIMappings.get(indicatorM0URI);
 			if (indicatorTargetURI == null) {
@@ -631,7 +630,7 @@ public class M0Converter {
 			}
 		}
 		// REPLACES relations (limited to indicators)
-		multipleRelations = extractReplacements();
+		multipleRelations = M0Extractor.extractReplacements(m0AssociationModel);
 		for (String replacingM0URI : multipleRelations.keySet()) {
 			if (!replacingM0URI.startsWith("http://baseUri/indicateurs")) continue;
 			Resource replacingResource = indicatorModel.createResource(allURIMappings.get(replacingM0URI));
@@ -734,7 +733,7 @@ public class M0Converter {
 			}
 		}
 		// REPLACES relations (excluding indicators)
-		multipleRelations = extractReplacements(m0AssociationModel);
+		multipleRelations = M0Extractor.extractReplacements(m0AssociationModel);
 		for (String replacingM0URI : multipleRelations.keySet()) {
 			if (replacingM0URI.startsWith("http://baseUri/indicateurs")) continue; // There is no cross-relation of replacement between operations and indicators
 			Resource replacingResource = operationModel.createResource(allURIMappings.get(replacingM0URI));
@@ -746,9 +745,9 @@ public class M0Converter {
 			}
 		}
 		// Finally, add relations to organizations
-		for (OrganizationRole role : OrganizationRole.values()) {
+		for (Configuration.OrganizationRole role : Configuration.OrganizationRole.values()) {
 			logger.debug("Creating organizational relations with role " + role.toString());
-			multipleRelations = extractOrganizationalRelations(m0AssociationModel, role);
+			multipleRelations = M0Extractor.extractOrganizationalRelations(m0AssociationModel, role);
 			for (String operationM0URI : multipleRelations.keySet()) {
 				Resource operationResource = operationModel.createResource(allURIMappings.get(operationM0URI));
 				for (String organizationURI : multipleRelations.get(operationM0URI)) {
@@ -760,57 +759,6 @@ public class M0Converter {
 		}
 		m0AssociationModel.close();
 		return operationModel;
-	}
-
-	/**
-	 * Reads all the replacement properties and stores them as a map where the keys are the resources replaced and the values are lists of the resources they replaced.
-	 * 
-	 * @return A map containing the replacement relations.
-	 */
-	public static Map<String, List<String>> extractReplacements() {
-
-		// Read the M0 'associations' model
-		readDataset();
-		logger.debug("Extracting the information on replacements from dataset " + M0_FILE_NAME);
-		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		Map<String, List<String>> replacementMappings = extractReplacements(m0Model);
-	    m0Model.close();
-
-		return replacementMappings;
-	}
-
-	/**
-	 * Reads all the replacement properties and stores them as a map where the keys are the resources replacing and the values are lists of the resources they replaced.
-	 * 
-	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @return A map containing the relations.
-	 */
-	public static Map<String, List<String>> extractReplacements(Model m0AssociationModel) {
-		// The relations are in the 'associations' graph and have the following structure :
-		// <http://baseUri/series/serie/12/REPLACES> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/series/serie/13/REMPLACE_PAR> .
-
-		logger.debug("Extracting the information on replacement relations between series or indicators");
-		Map<String, List<String>> replacementMappings = new HashMap<String, List<String>>();
-		
-		if (m0AssociationModel == null) return extractReplacements();
-		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
-			// Override 'selects' method to retain only statements whose subject URI ends with 'REPLACES' and object URI with 'REMPLACE_PAR'
-	        public boolean selects(Statement statement) {
-	        	return ((statement.getSubject().getURI().endsWith("REPLACES")) && (statement.getObject().isResource()) && (statement.getObject().asResource().getURI().endsWith("REMPLACE_PAR")));
-	        }
-	    };
-	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
-			@Override
-			// 
-			public void accept(Statement statement) {
-				String after = StringUtils.removeEnd(statement.getSubject().getURI(), "/REPLACES");
-				String before = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/REMPLACE_PAR");
-				if (!replacementMappings.containsKey(after)) replacementMappings.put(after, new ArrayList<String>());
-				replacementMappings.get(after).add(before);
-			}
-		});
-
-		return replacementMappings;
 	}
 
 	/**
@@ -870,63 +818,6 @@ public class M0Converter {
 		});
 
 		return relationMappings;	
-	}
-	
-	/**
-	 * Reads all the relations of a specified type (production, stakeholding) between operations and organizations and stores them as a map.
-	 * The map keys will be the operations and the values the lists of stakeholders, all expressed as M0 URIs.
-	 * 
-	 * @param organizationRole Role of the organizations to extract: producers or stakeholders.
-	 * @return A map containing the relations.
-	 */
-	public static Map<String, List<String>> extractOrganizationalRelations(OrganizationRole organizationRole) {
-
-		// Read the M0 'associations' model
-		readDataset();
-		logger.debug("Extracting the information on relations to organizations from dataset " + M0_FILE_NAME);
-		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		Map<String, List<String>> organizationMappings = extractOrganizationalRelations(m0Model, organizationRole);
-	    m0Model.close();
-
-	    return organizationMappings;
-	}
-
-	/**
-	 * Reads all the relations of a specified type (production, stakeholding) between operations and organizations and stores them as a map.
-	 * The map keys will be the operations and the values the lists of organizations, all expressed as M0 URIs.
-	 * 
-	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @param organizationRole Role of the organizations to extract: producers or stakeholders.
-	 * @return A map containing the relations.
-	 */
-	public static Map<String, List<String>> extractOrganizationalRelations(Model m0AssociationModel, OrganizationRole organizationRole) {
-
-		// The relations between operations and organizations are in the 'associations' graph and have the following structure (same with '/ORGANISATION' for producer):
-		// <http://baseUri/series/serie/42/STAKEHOLDERS> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/organismes/organisme/10/STAKEHOLDERS>
-
-		logger.debug("Type of relationship extracted " + organizationRole);
-		Map<String, List<String>> organizationMappings = new HashMap<String, List<String>>();
-		String suffix = "/" + organizationRole.toString();
-
-		if (m0AssociationModel == null) return extractOrganizationalRelations(organizationRole);
-		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
-			// Override 'selects' method to retain only statements whose subject and object URIs end with the appropriate suffix
-	        public boolean selects(Statement statement) {
-	        	return ((statement.getSubject().getURI().endsWith(suffix)) && (statement.getObject().isResource())
-	        			&& (statement.getObject().asResource().getURI().startsWith("http://baseUri/organismes")) && (statement.getObject().asResource().getURI().endsWith(suffix)));
-	        }
-	    };
-	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
-			@Override
-			public void accept(Statement statement) {
-				String operation = StringUtils.removeEnd(statement.getSubject().getURI(), suffix);
-				String organization = StringUtils.removeEnd(statement.getObject().asResource().getURI(), suffix);
-				if (!organizationMappings.containsKey(operation)) organizationMappings.put(operation, new ArrayList<String>());
-				organizationMappings.get(operation).add(organization);
-			}
-		});
-
-		return organizationMappings;	
 	}
 
 	/**
@@ -1035,31 +926,5 @@ public class M0Converter {
 		if (organizationURIMappings == null) readOrganizationURIMappings();
 		if (organizationURIMappings.containsKey(m0URI)) return organizationURIMappings.get(m0URI);
 		return null;
-	}
-
-	/**
-	 * Enumeration of the different roles in which an organization can appear in the M0 model.
-	 */
-	public enum OrganizationRole {
-		PRODUCER,
-		STAKEHOLDER;
-
-		@Override
-		public String toString() {
-			switch(this) {
-				case PRODUCER: return "ORGANISATION";
-				case STAKEHOLDER: return "STAKEHOLDERS";
-				default: return "unknown";
-			}
-		}
-
-		/** Returns the OWL property associated to the organization role */
-		public Property getProperty() {
-			switch(this) {
-				case PRODUCER: return DCTerms.creator;
-				case STAKEHOLDER: return DCTerms.contributor;
-				default: return null;
-			}
-		}
 	}
 }

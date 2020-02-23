@@ -427,4 +427,30 @@ public class Configuration {
 
 		return result;
 	}
+
+	/**
+	 * Enumeration of the different roles in which an organization can appear in the M0 model.
+	 */
+	public enum OrganizationRole {
+		PRODUCER,
+		STAKEHOLDER;
+	
+		@Override
+		public String toString() {
+			switch(this) {
+				case PRODUCER: return "ORGANISATION";
+				case STAKEHOLDER: return "STAKEHOLDERS";
+				default: return "unknown";
+			}
+		}
+	
+		/** Returns the OWL property associated to the organization role */
+		public Property getProperty() {
+			switch(this) {
+				case PRODUCER: return DCTerms.creator;
+				case STAKEHOLDER: return DCTerms.contributor;
+				default: return null;
+			}
+		}
+	}
 }

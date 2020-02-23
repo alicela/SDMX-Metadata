@@ -26,7 +26,6 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
-import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Selector;
@@ -79,7 +78,7 @@ public class M0SIMSConverter extends M0Converter {
 	 * Converts a list (or all) of M0 'documentation' models to SIMS models.
 	 * 
 	 * @param m0Ids A <code>List</code> of M0 'documentation' metadata set identifiers, or <code>null</code> to convert all models.
-	 * @param namedModels If <code>true</code>, a named model will be created for each identifier, otherwise all models will be merged in the dataset.
+	 * @param namedModels If <code>true</code>, a named model will be created for each identifier, otherwise all models will be included in the dataset.
 	 * @return A Jena dataset containing the models corresponding to the identifiers received.
 	 */
 	public static Dataset convertToSIMS(List<Integer> m0Ids, boolean namedModels) {
@@ -97,7 +96,7 @@ public class M0SIMSConverter extends M0Converter {
 		// If parameter was null, get the list of all existing M0 'documentation' models
 		SortedSet<Integer> docIdentifiers = new TreeSet<Integer>();
 		if (m0Ids == null) {
-			docIdentifiers = getM0DocumentationIds();
+			docIdentifiers = M0Extractor.getM0DocumentationIds(m0DocumentationModel);
 			logger.debug("Converting all M0 'documentation' models to SIMSFr format (" + docIdentifiers.size() + " models)");
 		}
 		else {
@@ -280,102 +279,10 @@ public class M0SIMSConverter extends M0Converter {
 		readDataset();
 		logger.debug("Extracting the information on SIMS metadata sets attachment from dataset " + Configuration.M0_FILE_NAME);
 		Model m0Model = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
-		Map<String, String> attachmentMappings = extractSIMSAttachments(m0Model, includeIndicators);
+		Map<String, String> attachmentMappings = M0Extractor.extractSIMSAttachments(m0Model, includeIndicators);
 	    m0Model.close();
 
 	    return attachmentMappings;
-	}
-
-	/**
-	 * Reads all the relations between SIMS metadata sets and series and operations (and possibly indicators), and returns them as a map.
-	 * The map keys will be the SIMS 'documentation' and the values the series, operation or indicator, both expressed as M0 URIs.
-	 * 
-	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @param includeIndicators If <code>true</code>, the attachments to indicators will also be returned, otherwise only series and operations are considered.
-	 * @return A map containing the attachment relations.
-	 */
-	public static Map<String, String> extractSIMSAttachments(Model m0AssociationModel, boolean includeIndicators) {
-
-		// The attachment relations are in the 'associations' graph and have the following structure:
-		// <http://baseUri/documentations/documentation/1527/ASSOCIE_A> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/operations/operation/1/ASSOCIE_A>
-
-		logger.debug("Extracting the information on attachment between SIMS metadata sets and series or operations");
-		Map<String, String> attachmentMappings = new HashMap<String, String>();
-
-		if (m0AssociationModel == null) return extractSIMSAttachments(includeIndicators);
-		Selector selector = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
-			// Override 'selects' method to retain only statements whose subject and object URIs end with 'ASSOCIE_A' and begin with expected objects
-			@Override
-	        public boolean selects(Statement statement) {
-	        	String subjectURI = statement.getSubject().getURI();
-	        	String objectURI = statement.getObject().asResource().getURI();
-	        	if (!((subjectURI.endsWith("ASSOCIE_A")) && (objectURI.endsWith("ASSOCIE_A")))) return false;
-	        	if (subjectURI.startsWith("http://baseUri/documentations")) {
-	        		if (objectURI.startsWith("http://baseUri/series")) return true;
-	        		if (objectURI.startsWith("http://baseUri/operations")) return true;
-	        		if (includeIndicators && objectURI.startsWith("http://baseUri/indicateurs")) return true;
-	        	}
-	        	return false;
-	        }
-	    };
-	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
-			@Override
-			public void accept(Statement statement) {
-				String simsSet = StringUtils.removeEnd(statement.getSubject().getURI(), "/ASSOCIE_A");
-				String operation = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/ASSOCIE_A");
-				// We can check that each operation or series has not more than one SIMS metadata set attached
-				if (attachmentMappings.containsValue(operation)) logger.warn("Several SIMS metadata sets are attached to " + operation);
-				// Each SIMS metadata set should be attached to only one series/operation
-				if (attachmentMappings.containsKey(simsSet)) logger.error("SIMS metadata set " + simsSet + " is attached to both " + operation + " and " + attachmentMappings.get(simsSet));
-				else attachmentMappings.put(simsSet, operation);
-			}
-		});
-
-		return attachmentMappings;	
-	}
-
-	/**
-	 * Returns the set of documentation identifiers in the M0 'documentations' model of the current dataset.
-	 * 
-	 * @return The set of identifiers as integers in ascending order.
-	 */
-	public static SortedSet<Integer> getM0DocumentationIds() {
-
-		if (m0Dataset == null) m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		logger.debug("Listing M0 documentation identifiers from dataset " + Configuration.M0_FILE_NAME);
-
-		Model m0 = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
-		SortedSet<Integer> m0DocumentIdSet = getM0DocumentationIds(m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations"));
-		m0.close();
-		return m0DocumentIdSet;
-	}
-
-	/**
-	 * Returns the set of documentation identifiers in a M0 'documentations' model.
-	 * 
-	 * @param m0DocumentationModel The M0 'documentations' model.
-	 * @return The set of identifiers as integers in ascending order.
-	 */
-	private static SortedSet<Integer> getM0DocumentationIds(Model m0DocumentationModel) {
-
-		SortedSet<Integer> m0DocumentIdSet = new TreeSet<Integer>();
-
-		ResIterator subjectsIterator = m0DocumentationModel.listSubjects();
-		while (subjectsIterator.hasNext()) {
-			String m0DocumentationURI = subjectsIterator.next().getURI();
-			// Documentation URIs will typically look like http://baseUri/documentations/documentation/1608/ASSOCIE_A
-			String m0DocumentationId = m0DocumentationURI.substring(M0_DOCUMENTATION_BASE_URI.length()).split("/")[0];
-			// Series identifiers are integers (but careful with the sequence number)
-			try {
-				m0DocumentIdSet.add(Integer.parseInt(m0DocumentationId));
-			} catch (NumberFormatException e) {
-				// Should be the sequence number resource: http://baseUri/documentations/documentation/sequence
-				if (!("sequence".equals(m0DocumentationId))) logger.error("Invalid documentation URI: " + m0DocumentationURI);
-			}
-		}
-		logger.debug("Found a total of " + m0DocumentIdSet.size() + " documentations in the M0 model");
-
-		return m0DocumentIdSet;
 	}
 
 	/**

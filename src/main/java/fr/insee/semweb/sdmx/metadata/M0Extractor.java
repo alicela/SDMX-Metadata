@@ -8,7 +8,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.SortedMap;
+import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 
 import org.apache.commons.lang3.StringUtils;
@@ -16,6 +18,7 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Selector;
 import org.apache.jena.rdf.model.SimpleSelector;
@@ -74,6 +77,46 @@ public class M0Extractor {
 		logger.debug("Number of triples extracted: " + reportNumber);
 	
 		return extractModel;
+	}
+
+	/**
+	 * Reads all the relation properties between operation-like resources and stores them as a sorted map.
+	 * Each relation will be store twice: one for each direction.
+	 * NB: the relations between code lists and codes is not returned.
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @return A sorted map containing the relations where keys are M0 URIs and values are lists of related M0 URIs, sorted on keys.
+	 */
+	public static SortedMap<String, List<String>> extractRelations(Model m0AssociationModel) {
+	
+		// The relations are in the 'associations' graph and have the following structure:
+		// <http://baseUri/series/serie/99/RELATED_TO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/series/serie/98/RELATED_TO>
+	
+		logger.debug("Extracting the information on relations between series, indicators, etc.");
+		SortedMap<String, List<String>> relationMappings = new TreeMap<String, List<String>>();
+	
+		// Will select the 'RELATED_TO/RELATED_TO' relations between relevant resources
+		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
+			// Override 'selects' method to retain only statements whose subject URI ends with 'RELATED_TO' and object URI with 'RELATED_TO'
+	        public boolean selects(Statement statement) {
+	        	// There are also RELATED_TO relations between code lists and codes in the association model, that must be eliminated
+	        	String subjectURI = statement.getSubject().getURI();
+	        	if (subjectURI.startsWith("http://baseUri/code")) return false;
+	        	return ((subjectURI.endsWith("RELATED_TO")) && (statement.getObject().isResource()) && (statement.getObject().asResource().getURI().endsWith("RELATED_TO")));
+	        }
+	    };
+	    // Read the selected statements and fill the map that will be returned (will throw an exception if model is null)
+	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String oneEnd = StringUtils.removeEnd(statement.getSubject().getURI(), "/RELATED_TO");
+				String otherEnd = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/RELATED_TO");
+				if (!relationMappings.containsKey(oneEnd)) relationMappings.put(oneEnd, new ArrayList<String>());
+				relationMappings.get(oneEnd).add(otherEnd);
+			}
+		});
+		logger.debug("Size of the map to return is: " + relationMappings.size());
+		return relationMappings;	
 	}
 
 	/**
@@ -159,7 +202,7 @@ public class M0Extractor {
 	 * The map keys will be the indicators and the values the lists of series they are produced from, all expressed as M0 URIs.
 	 * 
 	 * @param m0AssociationModel The M0 model containing information about all associations.
-	 * @return A sorted map containing the relations.
+	 * @return A sorted map containing the relations where keys are M0 URIs and values are lists of replacing M0 URIs, sorted on keys.
 	 */
 	public static SortedMap<String, List<String>> extractProductionRelations(Model m0AssociationModel) {
 
@@ -201,7 +244,7 @@ public class M0Extractor {
 	 * 
 	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
 	 * @param organizationRole Role of the organizations to extract: producers or stakeholders.
-	 * @return A sorted map containing the relations.
+	 * @return A sorted map containing the relations where keys are M0 URIs and values are lists of linked organizations M0 URIs, sorted on keys.
 	 */
 	public static SortedMap<String, List<String>> extractOrganizationalRelations(Model m0AssociationModel, OrganizationRole organizationRole) {
 	
@@ -233,6 +276,84 @@ public class M0Extractor {
 	
 		logger.debug("Size of the map to return is: " + organizationMappings.size());
 		return organizationMappings;
+	}
+
+	/**
+	 * Reads all the relations between SIMS metadata sets and series and operations (and possibly indicators), and returns them as a sorted map.
+	 * The map keys will be the SIMS 'documentation' and the values the series, operation or indicator, both expressed as M0 URIs.
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @param includeIndicators If <code>true</code>, the attachments to indicators will also be returned, otherwise only series and operations are considered.
+	 * @return A map containing the attachment relations.
+	 */
+	public static SortedMap<String, String> extractSIMSAttachments(Model m0AssociationModel, boolean includeIndicators) {
+	
+		// The attachment relations are in the 'associations' graph and have the following structure:
+		// <http://baseUri/documentations/documentation/1527/ASSOCIE_A> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/operations/operation/1/ASSOCIE_A>
+	
+		logger.debug("Extracting the information on attachment between SIMS metadata sets and series or operations");
+		SortedMap<String, String> attachmentMappings = new TreeMap<String, String>();
+		// Will select all RELATED_TO relations between documentations and series, operations and, if requested, indicators
+		Selector selector = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
+			// Override 'selects' method to retain only statements whose subject and object URIs end with 'ASSOCIE_A' and begin with expected objects
+			@Override
+	        public boolean selects(Statement statement) {
+	        	String subjectURI = statement.getSubject().getURI();
+	        	String objectURI = statement.getObject().asResource().getURI();
+	        	if (!((subjectURI.endsWith("ASSOCIE_A")) && (objectURI.endsWith("ASSOCIE_A")))) return false;
+	        	if (subjectURI.startsWith("http://baseUri/documentations")) {
+	        		if (objectURI.startsWith("http://baseUri/series")) return true;
+	        		if (objectURI.startsWith("http://baseUri/operations")) return true;
+	        		if (includeIndicators && objectURI.startsWith("http://baseUri/indicateurs")) return true;
+	        	}
+	        	return false;
+	        }
+	    };
+	    // Read the selected statements and fill the map that will be returned (will throw an exception if model is null)
+	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String simsSet = StringUtils.removeEnd(statement.getSubject().getURI(), "/ASSOCIE_A");
+				String operation = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/ASSOCIE_A");
+				// We can check that each operation or series has not more than one SIMS metadata set attached
+				if (attachmentMappings.containsValue(operation)) M0SIMSConverter.logger.warn("Several SIMS metadata sets are attached to " + operation);
+				// Each SIMS metadata set should be attached to only one series/operation
+				if (attachmentMappings.containsKey(simsSet)) M0SIMSConverter.logger.error("SIMS metadata set " + simsSet + " is attached to both " + operation + " and " + attachmentMappings.get(simsSet));
+				else attachmentMappings.put(simsSet, operation);
+			}
+		});
+	
+		logger.debug("Size of the map to return is: " + attachmentMappings.size());
+		return attachmentMappings;	
+	}
+
+	/**
+	 * Returns the sorted set of documentation identifiers in a M0 'documentations' model.
+	 * 
+	 * @param m0DocumentationModel The M0 'documentations' model.
+	 * @return The set of identifiers as integers in ascending order.
+	 */
+	public static SortedSet<Integer> getM0DocumentationIds(Model m0DocumentationModel) {
+
+		logger.debug("Extracting the list of M0 documentation identifiers");
+		SortedSet<Integer> m0DocumentIdSet = new TreeSet<Integer>();
+	
+		ResIterator subjectsIterator = m0DocumentationModel.listSubjects();
+		while (subjectsIterator.hasNext()) {
+			String m0DocumentationURI = subjectsIterator.next().getURI();
+			// Documentation URIs will typically look like http://baseUri/documentations/documentation/1608/ASSOCIE_A
+			String m0DocumentationId = m0DocumentationURI.substring(M0SIMSConverter.M0_DOCUMENTATION_BASE_URI.length()).split("/")[0];
+			// Series identifiers are integers (but careful with the sequence number)
+			try {
+				m0DocumentIdSet.add(Integer.parseInt(m0DocumentationId));
+			} catch (NumberFormatException e) {
+				// Should be the sequence number resource: http://baseUri/documentations/documentation/sequence
+				if (!("sequence".equals(m0DocumentationId))) M0SIMSConverter.logger.error("Invalid documentation URI: " + m0DocumentationURI);
+			}
+		}
+		logger.debug("Found a total of " + m0DocumentIdSet.size() + " documentations in the M0 model");
+	
+		return m0DocumentIdSet;
 	}
 
 	/**
@@ -299,5 +420,7 @@ public class M0Extractor {
 			sourceModel.close();
 		}
 	}
+
+
 
 }

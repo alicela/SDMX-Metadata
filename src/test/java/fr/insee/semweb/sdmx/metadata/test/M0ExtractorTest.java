@@ -23,6 +23,24 @@ import fr.insee.semweb.sdmx.metadata.M0Extractor;
 class M0ExtractorTest {
 
 	/**
+	 * Extracts from the M0 dataset the list of all relations between operation-like resources, and saves it to a file.
+	 * 
+	 * @throws IOException In case of problems while creating the output file.
+	 */
+	@Test
+	public void testExtractRelations() throws IOException {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0AssociationModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		SortedMap<String, List<String>> relations = M0Extractor.extractRelations(m0AssociationModel);
+		for (String related : relations.keySet()) System.out.println(related + " is related to " + relations.get(related));
+		m0AssociationModel.close();
+		try (PrintWriter writer = new PrintWriter("src/test/resources/m0-relations.txt", "UTF-8")) {
+			relations.entrySet().stream().forEach(writer::println);
+		}
+ 	}
+
+	/**
 	 * Extracts from the M0 dataset the list of hierarchical relations between families, series and operations, and saves it to a file.
 	 * 
 	 * @throws IOException In case of problems while creating the output file.

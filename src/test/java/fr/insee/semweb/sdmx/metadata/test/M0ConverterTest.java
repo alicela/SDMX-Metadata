@@ -133,7 +133,6 @@ public class M0ConverterTest {
 	public void testCreateURIMappings() throws IOException {
 
 		Map<String, String> mappings = M0Converter.createURIMappings();
-		M0Converter.checkMappings(mappings);
 		Files.write(Paths.get("src/test/resources/mappings-uri.txt"), () -> mappings.entrySet().stream().<CharSequence>map(e -> e.getKey() + "\t" + e.getValue()).iterator());
 	}
 
@@ -269,13 +268,6 @@ public class M0ConverterTest {
 		Map<String, List<String>> relations = M0Converter.getFamilyThemesRelations();
 		for (String family : relations.keySet()) System.out.println(family + " has theme(s) " + relations.get(family));
 	}
-
-	@Test
-	public void testExtractRelations() throws IOException {
-
-		Map<String, List<String>> relations = M0Converter.extractRelations();
-		for (String related : relations.keySet()) System.out.println(related + " is related to " + relations.get(related));
- 	}
 
 	@Test
 	public void testExtractAttributeLinks() throws IOException {

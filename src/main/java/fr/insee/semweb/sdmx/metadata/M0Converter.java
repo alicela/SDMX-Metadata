@@ -25,8 +25,6 @@ import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
-import org.apache.jena.rdf.model.Selector;
-import org.apache.jena.rdf.model.SimpleSelector;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.riot.RDFDataMgr;
@@ -335,7 +333,7 @@ public class M0Converter {
 		Map<String, Integer> idCounters = new HashMap<String, Integer>();
 
 		readDataset();
-		SortedMap<String, String> mappings = new TreeMap<String, String>(Comparator.nullsFirst(new URIComparator()));
+		SortedMap<String, String> uriMappings = new TreeMap<String, String>(Comparator.nullsFirst(new URIComparator()));
 		List<String> types = Arrays.asList("famille", "serie", "operation", "indicateur");
 		logger.info("Starting the creation of all the URI mappings for families, series, operations and indicators");
 
@@ -350,12 +348,12 @@ public class M0Converter {
 			else logger.info("Number of fixed mappings for type " + resourceType + ": " + typeMappings.size() + ", a corresponding amount of available identifiers will be removed");
 			for (int index : typeMappings.keySet()) {
 				// Add fixed mapping to the global list of all mappings
-				mappings.put("http://baseUri/" + resourceType + "s/" + resourceType + "/" + index, typeMappings.get(index));
+				uriMappings.put("http://baseUri/" + resourceType + "s/" + resourceType + "/" + index, typeMappings.get(index));
 				int toRemove = Integer.parseInt(StringUtils.substringAfterLast(typeMappings.get(index), "/").substring(1));
 				availableNumbers.removeIf(number -> number == toRemove); // Not super-efficient, but the list is not that big
 			}
 		}
-		logger.info("Total number of fixed mappings: " + mappings.size());
+		logger.info("Total number of fixed mappings: " + uriMappings.size());
 
 		// 2: Attribute remaining identifiers to all resources that don't have a fixed mapping
 		for (String resourceType : types) {
@@ -365,16 +363,16 @@ public class M0Converter {
 			int maxNumber = M0Extractor.getMaxSequence(m0Model);
 			for (int index = 1; index <= maxNumber; index++) {
 				String m0URI = "http://baseUri/" + resourceType + "s/" + resourceType + "/" + index;
-				if (mappings.containsKey(m0URI)) continue; // Fixed mappings already dealt with
+				if (uriMappings.containsKey(m0URI)) continue; // Fixed mappings already dealt with
 				// The following instruction does not actually add the resource to the model, so the test on the next line will work as expected
 				Resource m0Resource = m0Model.createResource(m0URI);
 				if (!m0Model.contains(m0Resource, null)) continue; // Verify that M0 resource actually exist
 				// At this point, the resource exists and has not a fixed mapping: attribute target URI based on first available number, except for families who use the M0 index
-				if ("famille".equals(resourceType)) mappings.put(m0Resource.getURI(), operationResourceURI(Integer.toString(index), resourceType));
+				if ("famille".equals(resourceType)) uriMappings.put(m0Resource.getURI(), operationResourceURI(Integer.toString(index), resourceType));
 				else {
 					Integer targetId = availableNumbers.get(0);
 					availableNumbers.remove(0);
-					mappings.put(m0Resource.getURI(), operationResourceURI(targetId.toString(), resourceType));
+					uriMappings.put(m0Resource.getURI(), operationResourceURI(targetId.toString(), resourceType));
 				}
 				idCounters.put(resourceType, idCounters.get(resourceType) + 1);
 				if (idRanges.get(resourceType) > 0) idRanges.put(resourceType, idRanges.get(resourceType) - 1);
@@ -390,8 +388,18 @@ public class M0Converter {
 			logger.info("Total number of remaining identifiers for new mappings: " + availableNumbers.size());
 			logger.debug("Next available identifier is " + availableNumbers.get(0));
 		}
-		logger.info("Total number of mappings: " + mappings.size());
-		return mappings;
+
+		// 3: Check that there is no duplicate on the mapped URIs
+		logger.debug("Checking for duplicate values in the mapped target URIs"); 
+		List<String> mappedURIs = new ArrayList<String>();
+		for (String m0URI : uriMappings.keySet()) {
+			String mappedURI = uriMappings.get(m0URI);
+			if (mappedURIs.contains(mappedURI)) logger.error("Duplicate value in mappings: " + mappedURI); 
+			else mappedURIs.add(mappedURI);
+		}
+
+		logger.info("Total number of mappings: " + uriMappings.size());
+		return uriMappings;
 	}
 
 	/**
@@ -619,7 +627,7 @@ public class M0Converter {
 			}
 		}
 		// RELATED_TO relations (limited to indicators)
-		multipleRelations = extractRelations();
+		multipleRelations = M0Extractor.extractRelations(m0AssociationModel);
 		for (String startM0URI : multipleRelations.keySet()) {
 			if (!startM0URI.startsWith("http://baseUri/indicateurs")) continue;
 			Resource startResource = indicatorModel.createResource(allURIMappings.get(startM0URI));
@@ -722,7 +730,7 @@ public class M0Converter {
 			logger.debug("Hierarchy properties created between child " + child.getURI() + " and parent " + parent.getURI());
 		}
 		// RELATED_TO relations (excluding indicators)
-		Map<String, List<String>> multipleRelations = extractRelations(m0AssociationModel);
+		Map<String, List<String>> multipleRelations = M0Extractor.extractRelations(m0AssociationModel);
 		for (String startM0URI : multipleRelations.keySet()) {
 			if (startM0URI.startsWith("http://baseUri/indicateurs")) continue;
 			Resource startResource = operationModel.createResource(allURIMappings.get(startM0URI));
@@ -759,65 +767,6 @@ public class M0Converter {
 		}
 		m0AssociationModel.close();
 		return operationModel;
-	}
-
-	/**
-	 * Reads all the relation properties between operation-like resources and stores them as a map.
-	 * Each relation will be store twice: one for each direction.
-	 * NB: the relations between code lists and codes is not returned.
-	 * 
-	 * @return A map containing the relations.
-	 */
-	public static Map<String, List<String>> extractRelations() {
-
-		// Read the M0 'associations' model
-		readDataset();
-		logger.debug("Extracting the information on relations from dataset " + M0_FILE_NAME);
-		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
-		Map<String, List<String>> relationMappings = extractRelations(m0Model);
-	    m0Model.close();
-
-		return relationMappings;
-	}
-	
-	/**
-	 * Reads all the relation properties between operation-like resources and stores them as a map.
-	 * Each relation will be store twice: one for each direction.
-	 * NB: the relations between code lists and codes is not returned.
-	 * 
-	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
-	 * @return A map containing the relations.
-	 */
-	public static Map<String, List<String>> extractRelations(Model m0AssociationModel) {
-
-		// The relations are in the 'associations' graph and have the following structure:
-		// <http://baseUri/series/serie/99/RELATED_TO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/series/serie/98/RELATED_TO>
-
-		logger.debug("Extracting the information on relations between series, indicators, etc.");
-		Map<String, List<String>> relationMappings = new HashMap<String, List<String>>();
-
-		if (m0AssociationModel == null) return extractRelations();
-		Selector selector = new SimpleSelector(null, M0_RELATED_TO, (RDFNode) null) {
-			// Override 'selects' method to retain only statements whose subject URI ends with 'RELATED_TO' and object URI with 'RELATED_TO'
-	        public boolean selects(Statement statement) {
-	        	// There are also RELATED_TO relations between code lists and codes in the association model, that must be eliminated
-	        	String subjectURI = statement.getSubject().getURI();
-	        	if (subjectURI.startsWith("http://baseUri/code")) return false;
-	        	return ((subjectURI.endsWith("RELATED_TO")) && (statement.getObject().isResource()) && (statement.getObject().asResource().getURI().endsWith("RELATED_TO")));
-	        }
-	    };
-	    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
-			@Override
-			// 
-			public void accept(Statement statement) {
-				String oneEnd = StringUtils.removeEnd(statement.getSubject().getURI(), "/RELATED_TO");
-				String otherEnd = StringUtils.removeEnd(statement.getObject().asResource().getURI(), "/RELATED_TO");
-				if (!relationMappings.containsKey(oneEnd)) relationMappings.put(oneEnd, new ArrayList<String>());
-				relationMappings.get(oneEnd).add(otherEnd);
-			}
-		});
-
-		return relationMappings;	
 	}
 
 	/**
@@ -860,22 +809,6 @@ public class M0Converter {
 		try { familyThemesWorkbook.close(); } catch (IOException ignored) { }
 
 		return relationMappings;
-	}
-
-	/**
-	 * Checks the URI mappings to detect any duplicates in the target URI.
-	 * 
-	 * @param mappings The URI mappings (M0 URIs as keys, target URIs as values).
-	 */
-	public static void checkMappings(Map<String, String> mappings) {
-
-		logger.debug("Checking for duplicate values in the URI mappings"); 
-		List<String> values = new ArrayList<String>();
-		for (String key : mappings.keySet()) {
-			String value = mappings.get(key);
-			if (values.contains(value)) logger.error("Duplicate value in mappings: " + value); 
-			else values.add(value);
-		}
 	}
 
 	/**

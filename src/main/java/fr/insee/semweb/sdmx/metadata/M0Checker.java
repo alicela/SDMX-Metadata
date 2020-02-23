@@ -724,7 +724,7 @@ public class M0Checker {
 
 		// Read the mappings between operations/series and SIMS 'documentations'
 		Model m0AssociationModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
-		Map<String, String> attachmentMappings = M0SIMSConverter.extractSIMSAttachments(m0AssociationModel, includeIndicators); // Associations SIMS -> resources
+		Map<String, String> attachmentMappings = M0Extractor.extractSIMSAttachments(m0AssociationModel, includeIndicators); // Associations SIMS -> resources
 		m0AssociationModel.close();
 
 		// Make model containing both series and operations, and possibly indicators (families have no SIMS attached)

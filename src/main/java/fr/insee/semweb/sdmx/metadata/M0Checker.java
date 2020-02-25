@@ -102,50 +102,37 @@ public class M0Checker {
 				if (!("sequence".equals(documentationId))) logger.error("Invalid documentation URI: " + documentationM0URI);
 			}
 		}
-		report.append("Found a total of " + attributesByDocumentation.size() + " documentations in the M0 model");
+		report.append("Found a total of " + attributesByDocumentation.size() + " documentations in the M0 model\n\n");
 
 		// Build the list of all properties used in the M0 documentation model
-		SortedSet<String> m0Properties = new TreeSet<String>();
-		for (Integer id : attributesByDocumentation.keySet()) {
-			System.out.println("Documentation #" + id + " uses " + attributesByDocumentation.get(id).size() + " properties");
-			m0Properties.addAll(attributesByDocumentation.get(id));
+		SortedSet<String> m0Attributes = new TreeSet<String>();
+		for (Integer docId : attributesByDocumentation.keySet()) {
+			report.append("Documentation #" + docId + " uses " + attributesByDocumentation.get(docId).size() + " properties\n");
+			m0Attributes.addAll(attributesByDocumentation.get(docId));
 		}
-		System.out.println(m0Properties.size() + " properties used in M0 'documentation' graph: " + m0Properties);
+		report.append(m0Attributes.size() + " attributes are used in M0 'documentations' graph: " + m0Attributes);
 
-		// Find the differences between the properties listed here and the SIMS/SIMS+ properties
-		SIMSFrScheme simsPlusScheme = null;
+		// Find the differences between the properties listed here and the SIMS/SIMSFr properties
+		SIMSFrScheme simsFrScheme = null;
 		try {
-			simsPlusScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+			simsFrScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 		} catch (Exception e) {
 			logger.error("Error while reading SIMSFr Excel file " + Configuration.SIMS_XLSX_FILE_NAME + " - " + e.getMessage());
-			return null;
+			return report.toString();
 		}
-		List<String> simsProps = new ArrayList<String>();
-		for (SIMSFrEntry entry : simsPlusScheme.getEntries()) {
-			simsProps.add(entry.getCode());
-		}
-		List<String> testList = new ArrayList<String>(simsProps);
-		testList.removeAll(m0Properties);
-		Collections.sort(testList);
-		System.out.println("Properties in SIMSFr and not in M0: " + testList);
-		testList = new ArrayList<String>(m0Properties);
-		testList.removeAll(simsProps);
-		Collections.sort(testList);
-		System.out.println("Properties in M0 and not in SIMSFr: " + testList);
+		SortedSet<String> simsAttributes = new TreeSet<String>();
+		for (SIMSFrEntry entry : simsFrScheme.getEntries()) simsAttributes.add(entry.getCode()); // Sorted set of the attributes in the SIMSFr scheme
+		SortedSet<String> deltaList = new TreeSet<String>(simsAttributes); // Make a copy in order to find duplicates without modifying the original
 
-		simsProps = new ArrayList<String>();
-		for (SIMSFrEntry entry : simsPlusScheme.getEntries()) {
+		report.append("\n\nProperties in SIMSFr and not in M0: " + deltaList.removeAll(m0Attributes));
+		deltaList = new TreeSet<String>();
+		System.out.println("\n\nProperties in M0 and not in SIMSFr: " + deltaList.removeAll(simsAttributes));
+
+		simsAttributes = new TreeSet<String>();
+		for (SIMSFrEntry entry : simsFrScheme.getEntries()) {
 			if (!entry.isOriginal()) continue; // Ignore Insee's additions
-			simsProps.add(entry.getCode());
+			simsAttributes.add(entry.getCode());
 		}
-		testList = new ArrayList<String>(simsProps);
-		testList.removeAll(m0Properties);
-		Collections.sort(testList);
-		System.out.println("Properties in SIMS and not in M0: " + testList);
-		testList = new ArrayList<String>(m0Properties);
-		testList.removeAll(simsProps);
-		Collections.sort(testList);
-		System.out.println("Properties in M0 and not in SIMS: " + testList);
 
 		return report.toString();
 	}

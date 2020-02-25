@@ -263,6 +263,7 @@ public class SIMSModelMaker {
 			if (entry.isPresentational()) {
 				attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "isPresentational"), msdModel.createTypedLiteral(true));
 			}
+			if (entry.isMultiple()) attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "maxOccurs"), msdModel.createLiteral("unbounded"));
 			SIMSFrEntry parent = sims.getParent(entry);
 			if (parent != null) {
 				attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "parent"), msdModel.createResource(Configuration.simsAttributeSpecificationURI(parent, simsStrict)));

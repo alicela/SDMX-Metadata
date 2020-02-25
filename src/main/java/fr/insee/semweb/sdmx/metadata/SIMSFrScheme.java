@@ -133,6 +133,7 @@ public class SIMSFrScheme {
 		for (SIMSFrEntry entry : this.getEntries()) {
 			builder.append("\nProperty ").append(entry.getNotation()).append(" (").append(entry.getCode()).append("): ");
 			builder.append(entry.getName()).append(" (").append(entry.getFrenchName()).append(")\n");
+			if (entry.isMultiple()) builder.append("Can be multiple\n");
 			builder.append("Associated concept: ").append(Configuration.simsConceptURI(entry)).append("\n");
 			if (entry.isDirect()) {
 				// Direct property, not part of metadata report

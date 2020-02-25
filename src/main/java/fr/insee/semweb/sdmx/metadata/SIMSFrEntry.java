@@ -29,6 +29,7 @@ public class SIMSFrEntry extends SIMSEntry {
 	private String frenchDescription;
 	private String origin;
 	private String inseeRepresentation;
+	private boolean multiple;
 
 	public SIMSFrEntry(String notation) {
 		super(notation);
@@ -71,6 +72,10 @@ public class SIMSFrEntry extends SIMSEntry {
 		cellValue = row.getCell(11, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
 		if (cellValue.length() > 0) entry.setInseeRepresentation(cellValue);
 
+		// Multiplicity is in column M, can be empty
+		cellValue = row.getCell(12, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
+		entry.setMultiple(cellValue.equalsIgnoreCase("oui"));
+
 		return entry;
 	}
 
@@ -80,6 +85,7 @@ public class SIMSFrEntry extends SIMSEntry {
 		builder.append(super.toString()).append("\n");
 		builder.append("Dissemination: ").append(dissemination).append(", ");
 		builder.append("French name: ").append(frenchName);
+		if (multiple) builder.append(", Multiple");
 		if (inseeRepresentation != null) builder.append(", ").append("Insee representation: ").append(inseeRepresentation);
 		return builder.toString(); // Long string members are omitted
 	}
@@ -259,4 +265,13 @@ public class SIMSFrEntry extends SIMSEntry {
 	public void setInseeRepresentation(String inseeRepresentation) {
 		this.inseeRepresentation = inseeRepresentation;
 	}
+
+	public boolean isMultiple() {
+		return multiple;
+	}
+
+	public void setMultiple(boolean multiple) {
+		this.multiple = multiple;
+	}
+
 }

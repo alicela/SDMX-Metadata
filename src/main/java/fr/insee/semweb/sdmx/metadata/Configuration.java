@@ -27,7 +27,7 @@ public class Configuration {
 
 	// Input files
 	/** Excel file containing the SIMS/SIMSFr models */
-	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V20181210.xlsx";
+	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V20190405.xlsx";
 	/** Excel file containing the code lists */
 	public static String CL_XLSX_FILE_NAME = "src/main/resources/data/CODE_LISTS_20180110.xlsx";
 	/** Excel file containing the themes code list */

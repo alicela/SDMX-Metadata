@@ -182,86 +182,86 @@ public class M0SIMSConverter extends M0Converter {
 					continue;
 				}
 			}
-			if (objectValues.size() > 1) { // TODO Some coded attributes (survey unit, collection mode) can actually be multi-valued
+			if ((objectValues.size() > 1) && (!entry.isMultiple())) { // TODO Some coded attributes (survey unit, collection mode) can actually be multi-valued
 				// Several values for the resource, we have a problem
-				logger.error("Error: there are multiple values in the M0 documentation model for SIMSFr attribute " + entry.getCode());
+				logger.error("Error: there are multiple values in the M0 documentation model for non-multiple SIMSFr attribute " + entry.getCode());
 				continue;
 			}
-			// If we arrived here, we have one value, but it can be empty (including numerous cases where the value is just new line characters)
+			// If we arrived here, we have one value (or more for multiple attributes), but they can be empty (including numerous cases where the value is just new line characters)
 			String stringValue = null;
-			if (objectValues.size() == 1) {
-				stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", ""); // TODO Check cases where value is "\n\n"
+			for (RDFNode objectValue : objectValues) {
+				stringValue = objectValue.asLiteral().getString().trim().replaceAll("^(\\n)+", ""); // TODO Check cases where value is "\n\n"
 				if (stringValue.length() == 0) {
 					logger.debug("Empty value found in the M0 documentation model for SIMSFr attribute " + entry.getCode() + ", ignoring");
 					continue;
-				}				
-			}
-			logger.debug("Non-empty value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());
+				}
+				logger.debug("Non-empty value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());
 
-			// If specified, create a reported attribute (otherwise, the metadata attribute properties will be attached to the report)
-			Resource targetResource = null;
-			if (Configuration.CREATE_REPORTED_ATTRIBUTES) {
-				String reportedAttributeURI = Configuration.simsReportedAttributeURI(m0Id, entry.getCode());
-				targetResource = simsModel.createResource(reportedAttributeURI, Configuration.SIMS_REPORTED_ATTRIBUTE);
-				targetResource.addProperty(simsModel.createProperty(Configuration.SDMX_MM_BASE_URI + "metadataReport"), report);
-			} else targetResource = report;
+				// If specified, create a reported attribute (otherwise, the metadata attribute properties will be attached to the report)
+				Resource targetResource = null;
+				if (Configuration.CREATE_REPORTED_ATTRIBUTES) {
+					String reportedAttributeURI = Configuration.simsReportedAttributeURI(m0Id, entry.getCode());
+					targetResource = simsModel.createResource(reportedAttributeURI, Configuration.SIMS_REPORTED_ATTRIBUTE);
+					targetResource.addProperty(simsModel.createProperty(Configuration.SDMX_MM_BASE_URI + "metadataReport"), report);
+				} else targetResource = report;
 
-			logger.debug("Target property is " + metadataAttributeProperty + " with range " + propertyRange);
-			if (propertyRange.equals(DCTypes.Text)) {
-				// We are in the case of a 'text + seeAlso...' object
-				Resource objectResource = simsModel.createResource(Configuration.simsFrRichText(m0Id, entry), DCTypes.Text);
-				if ((stringValue != null) && (stringValue.length() != 0)) objectResource.addProperty(RDF.value, simsModel.createLiteral(stringValue, "fr"));
-				targetResource.addProperty(metadataAttributeProperty, objectResource);
-				// We search for references to documents or links attached to this attribute
-				SortedSet<String> thisAttributeReferences = (documentReferences == null) ? null : documentReferences.get(entry.getCode());
-				logger.debug("Attribute " + entry.getCode() + " has type 'rich text', with references " + thisAttributeReferences);
-				if (thisAttributeReferences != null) {
-					for (String refURI : thisAttributeReferences) {
-						// Add the referenced link/document as additional material to the text resource
-						Resource refResource = simsModel.createResource(refURI);
-						objectResource.addProperty(Configuration.ADDITIONAL_MATERIAL, refResource);
-						// Add all the properties of the link/document extracted from the document and links model
-						simsModel.add(simsDocumentsAndLinksModel.listStatements(refResource, null, (RDFNode) null));
-						//simsModel.add(iter)
+				logger.debug("Target property is " + metadataAttributeProperty + " with range " + propertyRange);
+				if (propertyRange.equals(DCTypes.Text)) {
+					// We are in the case of a 'text + seeAlso...' object
+					Resource objectResource = simsModel.createResource(Configuration.simsFrRichText(m0Id, entry), DCTypes.Text);
+					if ((stringValue != null) && (stringValue.length() != 0)) objectResource.addProperty(RDF.value, simsModel.createLiteral(stringValue, "fr"));
+					targetResource.addProperty(metadataAttributeProperty, objectResource);
+					// We search for references to documents or links attached to this attribute
+					SortedSet<String> thisAttributeReferences = (documentReferences == null) ? null : documentReferences.get(entry.getCode());
+					logger.debug("Attribute " + entry.getCode() + " has type 'rich text', with references " + thisAttributeReferences);
+					if (thisAttributeReferences != null) {
+						for (String refURI : thisAttributeReferences) {
+							// Add the referenced link/document as additional material to the text resource
+							Resource refResource = simsModel.createResource(refURI);
+							objectResource.addProperty(Configuration.ADDITIONAL_MATERIAL, refResource);
+							// Add all the properties of the link/document extracted from the document and links model
+							simsModel.add(simsDocumentsAndLinksModel.listStatements(refResource, null, (RDFNode) null));
+							//simsModel.add(iter)
+						}
 					}
 				}
-			}
-			else if (propertyRange.equals(Configuration.SIMS_REPORTED_ATTRIBUTE)) {
-				// Just a placeholder for now, the case does not seem to exist in currently available data
-				targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(Configuration.SIMS_REPORTED_ATTRIBUTE));
-			}
-			else if (propertyRange.equals(XSD.xstring)) {
-				targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "fr"));
-				// See if there is an English version
-				objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES_EN).toList();
-				if (objectValues.size() == 0) {
-					stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", "");
-					if (stringValue.length() > 0) targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "en"));
+				else if (propertyRange.equals(Configuration.SIMS_REPORTED_ATTRIBUTE)) {
+					// Just a placeholder for now, the case does not seem to exist in currently available data
+					targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(Configuration.SIMS_REPORTED_ATTRIBUTE));
 				}
-			}
-			else if (propertyRange.equals(XSD.date)) {
-				// Try to parse the string value as a date (yyyy-MM-dd seems to be used in the documentations graph)
-				try {
-					dateFormat.parse(stringValue); // Just to make sure we have a valid date
-					targetResource.addProperty(metadataAttributeProperty, simsModel.createTypedLiteral(stringValue, XSDDatatype.XSDdate));
-				} catch (ParseException e) {
-					logger.error("Unparseable date value " + stringValue + " for M0 resource " + m0EntryResource.getURI());
+				else if (propertyRange.equals(XSD.xstring)) {
+					targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "fr"));
+					// See if there is an English version
+					objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES_EN).toList();
+					if (objectValues.size() > 0) {
+						stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", "");
+						if (stringValue.length() > 0) targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "en"));
+					}
 				}
-			}
-			else if (propertyRange.equals(DQV.Metric)) {
-				// This case should not exist, since quality indicators have been filtered out
-				logger.error("Property range should not be equal to dqv:Metric");
-			}
-			else {
-				// The only remaining case should be code list, with the range equal to the concept associated to the code list
-				String propertyRangeString = propertyRange.getURI();
-				if (!propertyRangeString.startsWith(Configuration.INSEE_CODE_CONCEPTS_BASE_URI)) logger.error("Unrecognized property range: " + propertyRangeString);
+				else if (propertyRange.equals(XSD.date)) {
+					// Try to parse the string value as a date (yyyy-MM-dd seems to be used in the documentations graph)
+					try {
+						dateFormat.parse(stringValue); // Just to make sure we have a valid date
+						targetResource.addProperty(metadataAttributeProperty, simsModel.createTypedLiteral(stringValue, XSDDatatype.XSDdate));
+					} catch (ParseException e) {
+						logger.error("Unparseable date value " + stringValue + " for M0 resource " + m0EntryResource.getURI());
+					}
+				}
+				else if (propertyRange.equals(DQV.Metric)) {
+					// This case should not exist, since quality indicators have been filtered out
+					logger.error("Property range should not be equal to dqv:Metric");
+				}
 				else {
-					// We don't verify at this stage that the value is a valid code in the code list, but just sanitize the value (by taking the first word) to avoid URI problems
-					String sanitizedCode = (stringValue.indexOf(' ') == -1) ? stringValue : stringValue.split(" ", 2)[0];
-					String codeURI = Configuration.INSEE_CODES_BASE_URI + StringUtils.uncapitalize(propertyRangeString.substring(propertyRangeString.lastIndexOf('/') + 1)) + "/" + sanitizedCode;
-					targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(codeURI));
-					logger.debug("Code list value " + codeURI + " assigned to attribute property");
+					// The only remaining case should be code list, with the range equal to the concept associated to the code list
+					String propertyRangeString = propertyRange.getURI();
+					if (!propertyRangeString.startsWith(Configuration.INSEE_CODE_CONCEPTS_BASE_URI)) logger.error("Unrecognized property range: " + propertyRangeString);
+					else {
+						// We don't verify at this stage that the value is a valid code in the code list, but just sanitize the value (by taking the first word) to avoid URI problems
+						String sanitizedCode = (stringValue.indexOf(' ') == -1) ? stringValue : stringValue.split(" ", 2)[0];
+						String codeURI = Configuration.INSEE_CODES_BASE_URI + StringUtils.uncapitalize(propertyRangeString.substring(propertyRangeString.lastIndexOf('/') + 1)) + "/" + sanitizedCode;
+						targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(codeURI));
+						logger.debug("Code list value " + codeURI + " assigned to attribute property");
+					}
 				}
 			}
 		}

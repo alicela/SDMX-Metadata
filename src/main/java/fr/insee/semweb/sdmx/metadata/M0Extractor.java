@@ -2,8 +2,6 @@ package fr.insee.semweb.sdmx.metadata;
 
 import static fr.insee.semweb.sdmx.metadata.Configuration.M0_RELATED_TO;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -401,24 +399,6 @@ public class M0Extractor {
 		if (!sequenceStatement.getObject().isLiteral()) return 0;
 	
 		return (Integer.parseInt(sequenceStatement.getObject().asLiteral().toString())); // Assuming we have a string parseable to integer
-	}
-
-	/**
-	 * Splits the base M0 SIMS model into smaller M0 models corresponding to metadata set identifiers passed as a list, and saves the smaller models to disk.
-	 * 
-	 * @param m0SIMSModel A Jena <code>Model</code> containing the SIMS metadata in M0 format.
-	 * @param m0Ids A <code>List</code> of M0 metadata set identifiers.
-	 * @throws IOException In case of problem while writing the model to disk.
-	 */
-	public static void m0SplitAndSave(Model m0SIMSModel, List<String> m0Ids) throws IOException {
-	
-		M0Converter.logger.debug("Splitting M0 model into " + m0Ids.size() + " models");
-		for (String m0Id : m0Ids) {
-			// Create model for the current source
-			Model sourceModel = extractM0ResourceModel(m0SIMSModel, "http://baseUri/documentations/documentation/" + m0Id);
-			sourceModel.write(new FileOutputStream("src/main/resources/data/models/m0-"+ m0Id + ".ttl"), "TTL");
-			sourceModel.close();
-		}
 	}
 
 

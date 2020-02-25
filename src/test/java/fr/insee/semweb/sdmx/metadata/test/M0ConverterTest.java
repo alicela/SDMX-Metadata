@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
@@ -29,7 +30,6 @@ import org.junit.Test;
 import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
 import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.M0Converter;
-import fr.insee.semweb.sdmx.metadata.M0Extractor;
 import fr.insee.semweb.sdmx.metadata.M0SIMSConverter;
 import fr.insee.semweb.sdmx.metadata.OrganizationModelMaker;
 
@@ -110,7 +110,7 @@ public class M0ConverterTest {
 	}
 
 	/**
-	 * Creates a RDF dataset containing all families, series, operations and indicators in the target model and saves it to a TRIG file.
+	 * Creates a RDF dataset containing all families, series, operations and indicators in the target model and saves it to a TriG file.
 	 * 
 	 * @throws Exception In case of problem while writing the output file.
 	 */
@@ -123,7 +123,7 @@ public class M0ConverterTest {
 	}
 
 	/**
-	 * Creates a RDF dataset containing all base resources (code lists, organizations, families, series, operations and indicators) in the target model and saves it to a TRIG file.
+	 * Creates a RDF dataset containing all base resources (code lists, organizations, families, series, operations and indicators) in the target model and saves it to a TriG file.
 	 * 
 	 * @throws Exception In case of problem while writing the output file.
 	 */
@@ -241,58 +241,94 @@ public class M0ConverterTest {
 	}
 
 	/**
-	 * Reads from the M0 dataset and write to different files the list of documents associated to each documentation number and SIMS attribute.
+	 * Reads from the M0 dataset and write to different files the list of links associated to each documentation number and SIMS attribute.
 	 * Files created are: (documentation id, attribute name, link id) triples for French and English, and list of all links referenced in the model.
 	 * 
-	 * @throws IOException In case of problem while writing the output file.
+	 * @throws IOException In case of problem while writing an output file.
 	 */
 	@Test
-	public void testExtractAttributeLinks() throws IOException {
+	public void testGetAttributeLinks() throws IOException {
 
 		// We also list all the links that are actually referenced in the documentations
 		SortedSet<String> referencedLinks = new TreeSet<String>();
-		SortedMap<Integer, SortedMap<String, SortedSet<String>>> relations = M0SIMSConverter.extractAttributeReferences("fr", true);
-		for (Integer documentationId : relations.keySet()) {
-			System.out.println("Documentation " + documentationId + " is associated to the following French links: " + relations.get(documentationId));
-			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0AssociationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		SortedMap<Integer, SortedMap<String, SortedSet<String>>> relations = M0SIMSConverter.getAttributeReferences(m0AssociationsModel, "fr", true);
+		try (PrintWriter writer = new PrintWriter("src/test/resources/links-references-french.txt", "UTF-8")) {
+			for (Integer documentationId : relations.keySet()) {
+				writer.println(documentationId + "\t" + relations.get(documentationId));
+				for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
+			}			
 		}
-		relations = M0SIMSConverter.extractAttributeReferences("en", true);
-		for (Integer documentationId : relations.keySet()) {
-			System.out.println("Documentation " + documentationId + " is associated to the following English links: " + relations.get(documentationId));
-			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
+		relations = M0SIMSConverter.getAttributeReferences(m0AssociationsModel, "en", true);
+		try (PrintWriter writer = new PrintWriter("src/test/resources/links-references-english.txt", "UTF-8")) {
+			for (Integer documentationId : relations.keySet()) {
+				writer.println(documentationId + "\t" + relations.get(documentationId));
+				for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
+			}
 		}
-		System.out.println("The following links are referenced in the associations " + referencedLinks);
+		try (PrintWriter writer = new PrintWriter("src/test/resources/links-referenced.txt", "UTF-8")) {
+			referencedLinks.stream().forEach(writer::println);
+		}
+		m0AssociationsModel.close();
+		m0Dataset.close();
  	}
 
+	/**
+	 * Reads from the M0 dataset and writes to different files the list of documents associated to each documentation number and SIMS attribute.
+	 * Files created are: (documentation id, attribute name, document id) triples for French and English, and list of all documents referenced in the model.
+	 * 
+	 * @throws IOException In case of problem while writing an output file.
+	 */
 	@Test
-	public void testExtractAttributeDocuments() throws IOException {
+	public void testGetAttributeDocuments() throws IOException {
 
-		// We also list the links that are actually referenced in the relations
-		SortedSet<String> referencedLinks = new TreeSet<String>();
-		SortedMap<Integer, SortedMap<String, SortedSet<String>>> relations = M0SIMSConverter.extractAttributeReferences("fr", false);
-		for (Integer documentationId : relations.keySet()) {
-			System.out.println("Documentation " + documentationId + " is associated to the following French documents: " + relations.get(documentationId));
-			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
+		// We also list the documents that are actually referenced in the relations
+		SortedSet<String> referencedDocuments = new TreeSet<String>();
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0AssociationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		SortedMap<Integer, SortedMap<String, SortedSet<String>>> relations = M0SIMSConverter.getAttributeReferences(m0AssociationsModel, "fr", false);
+		try (PrintWriter writer = new PrintWriter("src/test/resources/documents-references-french.txt", "UTF-8")) {
+			for (Integer documentationId : relations.keySet()) {
+				writer.println(documentationId + "\t" + relations.get(documentationId));
+				for (String attributeName : relations.get(documentationId).keySet()) referencedDocuments.addAll(relations.get(documentationId).get(attributeName));
+			}
 		}
-		relations = M0SIMSConverter.extractAttributeReferences("en", false);
-		for (Integer documentationId : relations.keySet()) {
-			System.out.println("Documentation " + documentationId + " is associated to the following English documents: " + relations.get(documentationId));
-			for (String attributeName : relations.get(documentationId).keySet()) referencedLinks.addAll(relations.get(documentationId).get(attributeName));
+		relations = M0SIMSConverter.getAttributeReferences(m0AssociationsModel, "en", false);
+		try (PrintWriter writer = new PrintWriter("src/test/resources/documents-references-english.txt", "UTF-8")) {
+			for (Integer documentationId : relations.keySet()) {
+				writer.println(documentationId + "\t" + relations.get(documentationId));
+				for (String attributeName : relations.get(documentationId).keySet()) referencedDocuments.addAll(relations.get(documentationId).get(attributeName));
+			}			
 		}
-		System.out.println("The following documents are referenced in the associations " + referencedLinks);
+		try (PrintWriter writer = new PrintWriter("src/test/resources/links-referenced.txt", "UTF-8")) {
+			referencedDocuments.stream().forEach(writer::println);
+		}
+		m0AssociationsModel.close();
+		m0Dataset.close();
  	}
 
+	/**
+	 * Reads from the M0 dataset and writes to files the lists of language tags associated with each documents and link identifier.
+	 * Files created are: (documentation id, language tag) and (link identifier, language tag).
+	 * 
+	 * @throws IOException In case of problem while writing an output file.
+	 */
 	@Test
-	public void testGetLanguageTags() {
+	public void testGetLanguageTags() throws IOException {
 
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0AssociationModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0AssociationModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
 		SortedMap<Integer, String> languageTags = M0SIMSConverter.getLanguageTags(m0AssociationModel, true);
-		System.out.println("Results for links:");
-		for (Integer linkId : languageTags.keySet()) System.out.println("Link " + linkId + " is tagged with language " + languageTags.get(linkId));
+		try (PrintWriter writer = new PrintWriter("src/test/resources/links-languages.txt", "UTF-8")) {
+			languageTags.forEach((key, value) -> writer.println(key + "\t" + value));
+		}
 		languageTags = M0SIMSConverter.getLanguageTags(m0AssociationModel, false);
-		System.out.println("\nResults for documents:");
-		for (Integer linkId : languageTags.keySet()) System.out.println("Document " + linkId + " is tagged with language " + languageTags.get(linkId));
+		try (PrintWriter writer = new PrintWriter("src/test/resources/documents-languages.txt", "UTF-8")) {
+			languageTags.forEach((key, value) -> writer.println(key + "\t" + value));
+		}
+		m0AssociationModel.close();
+		m0Dataset.close();
 	}
 
 	/**
@@ -321,41 +357,65 @@ public class M0ConverterTest {
 		documentsModel.close();
 	}
 
+	/**
+	 * Reads from the M0 dataset and writes to a file the list of documents with their publication dates.
+	 * 
+	 * @throws IOException In case of problems while writing the output file.
+	 */
 	@Test
 	public void testGetDocumentDates() {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documents");
+		Model m0DocumentsModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documents");
 
-		SortedMap<Integer, Date> documentDates = M0SIMSConverter.getDocumentDates(m0Model);
+		SortedMap<Integer, Date> documentDates = M0SIMSConverter.getDocumentDates(m0DocumentsModel);
 		for (Integer documentNumber : documentDates.keySet()) System.out.println(documentNumber + "\t" + documentDates.get(documentNumber));
 	}
 
+	/**
+	 * Converts all SIMS to the target model and writes the result as a TriG or Turtle file.
+	 * 
+	 * @throws IOException In case of problems while writing the output file.
+	 */
 	@Test
 	public void testConvertAllToSIMS() throws IOException {
 
 		boolean namedGraphs = true;
 
 		Dataset simsDataset = M0SIMSConverter.convertToSIMS(null, namedGraphs);
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-all." + (namedGraphs ? "trig" : "ttl")), simsDataset, Lang.TRIG); // TODO Check if Lang.TRIG is OK for both cases
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-all." + (namedGraphs ? "trig" : "ttl")), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE));
 	}
 
+	/**
+	 * Converts a list of SIMS to the target model and writes the result as a TriG or Turtle file.
+	 * 
+	 * @throws IOException In case of problems while writing the output file.
+	 */
 	@Test
 	public void testConvertListToSIMS() throws IOException {
 
 		boolean namedGraphs = true;
+		List<Integer> simsNumbers = Arrays.asList(1501, 1508);
 
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(Arrays.asList(1501, 1508), namedGraphs);
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1501." + (namedGraphs ? "trig" : "ttl")), simsDataset, Lang.TRIG); // TODO Check if Lang.TRIG is OK for both cases
+		List<String> simsNumberStrings = simsNumbers.stream().map(Object::toString).collect(Collectors.toList());
+		String fileName = "src/main/resources/data/models/sims-" + String.join("-", simsNumberStrings) + "." + (namedGraphs ? "trig" : "ttl");
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simsNumbers, namedGraphs);
+		RDFDataMgr.write(new FileOutputStream(fileName), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE));
 	}
 
+	/**
+	 * Converts one SIMS to the target model and writes the result as a TriG or Turtle file.
+	 * 
+	 * @throws IOException In case of problems while writing the output file.
+	 */
 	@Test
 	public void testConvertOneToSIMS() throws IOException {
 
 		boolean namedGraphs = false;
+		List<Integer> simNumber = Arrays.asList(1501);
 
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(Arrays.asList(1501), namedGraphs);
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1501." + (namedGraphs ? "trig" : "ttl")), simsDataset, Lang.TRIG); // TODO Check if Lang.TRIG is OK for both cases
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simNumber, namedGraphs);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-1501." + (namedGraphs ? "trig" : "ttl")), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE)); // TODO Check if Lang.TRIG is OK for both cases
 	}
 
 	@Test
@@ -364,30 +424,4 @@ public class M0ConverterTest {
 		M0Converter.readOrganizationURIMappings();
 	}
 
-	@Test
-	public void testM0SplitAndSave() throws IOException {
-
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0SIMSModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
-		List<String> m0IdList = Arrays.asList("1502", "1508", "1509");
-		M0Extractor.m0SplitAndSave(m0SIMSModel, m0IdList);
-	}
-
-	@Test
-	public void testExtractM0ResourceModel() throws IOException {
-
-		// Extracts the 'documentations' model from the dataset
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
-		m0Model.write(new FileOutputStream("src/test/resources/m0-extract.ttl"), "TTL");
-	}
-
-	@Test
-	public void testExtractModel() throws IOException {
-
-		// Extracts a model from the dataset
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
-		m0Model.write(new FileOutputStream("src/test/resources/m0-extract-documentations.ttl"), "TTL");
-	}
 }

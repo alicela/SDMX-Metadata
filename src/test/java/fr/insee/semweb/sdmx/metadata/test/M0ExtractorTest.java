@@ -221,4 +221,44 @@ class M0ExtractorTest {
 
 		System.out.println("Max sequence number for model " + m0ModelName + " is " + M0Extractor.getMaxSequence(m0Model));
 	}
+
+	/**
+	 * Extracts a model from the M0 dataset and writes it in a Turtle file.
+	 * 
+	 * @throws IOException In case of problem while writing the output file.
+	 */
+	@Test
+	public void testExtractM0Model() throws IOException {
+
+		String m0ModelName = "documentations"; // Can be replaced by any other M0 model name
+		// Extract the model from the M0 dataset
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0Model = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + m0ModelName);
+		m0Model.write(new FileOutputStream("src/test/resources/m0-" + m0ModelName + ".ttl"), "TTL");
+		m0Model.close();
+		m0Dataset.close();
+	}
+
+	/**
+	 * Extracts a documentation model from the M0 dataset and writes it in a Turtle file.
+	 * 
+	 * @throws IOException In case of problem while writing the output file.
+	 */
+	@Test
+	public void testExtractM0DocumentationModel() throws IOException {
+
+		List<String> m0IdList = Arrays.asList("1502", "1508", "1509");
+
+		// Extract the documentation model from the M0 dataset
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0DocumentationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
+		for (String m0Id : m0IdList) {
+			// Extract M0 model for the current documentation identifier
+			Model sourceModel = M0Extractor.extractM0ResourceModel(m0DocumentationsModel, "http://baseUri/documentations/documentation/" + m0Id);
+			sourceModel.write(new FileOutputStream("src/main/resources/data/models/m0-documentation-"+ m0Id + ".ttl"), "TTL");
+			sourceModel.close();
+		}
+		m0DocumentationsModel.close();
+		m0Dataset.close();
+	}
 }

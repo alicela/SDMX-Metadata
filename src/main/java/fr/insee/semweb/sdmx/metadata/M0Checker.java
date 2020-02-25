@@ -7,6 +7,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -72,37 +73,42 @@ public class M0Checker {
 		checkDocumentDates();
 	}
 
-	public static void studyDocumentations() {
+	public static String studyDocumentations() {
 
-		String baseURI = "http://baseUri/documentations/documentation/";
+		Model m0DocumentationsModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
+		StringWriter report = new StringWriter().append("Study of documemtations in the M0 model\n\n");
 
-		Model documentations = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
-
-		// Build the mapping between documentation id (number) and the list of associated properties
-		Map<Integer, List<String>> propertiesByDocumentation = new TreeMap<Integer, List<String>>();
-		ResIterator subjectsIterator = documentations.listSubjects();
+		// Build the mapping between documentation id (number) and the list of associated SIMS attributes.
+		report.append("SIMS attributes by documentation identifier\n");
+		SortedMap<Integer, SortedSet<String>> attributesByDocumentation = new TreeMap<Integer, SortedSet<String>>();
+		ResIterator subjectsIterator = m0DocumentationsModel.listSubjects();
 		while (subjectsIterator.hasNext()) {
 			String documentationM0URI = subjectsIterator.next().getURI();
-			String[] pathComponents = documentationM0URI.substring(baseURI.length()).split("/");
-			String documentationId = pathComponents[0];
+			String[] pathComponents = documentationM0URI.substring(Configuration.M0_SIMS_BASE_URI.length()).split("/");
+			String documentationId = pathComponents[0]; // pathComponents is normally of the form [DOC_ID, ATTRIBUTE_NAME]
 			// Documentation identifiers are integers (but careful with the sequence number)
 			try {
 				Integer documentationIntId = Integer.parseInt(documentationId);
-				if (!propertiesByDocumentation.containsKey(documentationIntId)) propertiesByDocumentation.put(documentationIntId, new ArrayList<String>());
-				// In this case we make lists of property names, not full URIs
-				if (pathComponents.length > 1) propertiesByDocumentation.get(documentationIntId).add(pathComponents[1]);
+				// Create map entry if it does not exist already
+				if (!attributesByDocumentation.containsKey(documentationIntId)) attributesByDocumentation.put(documentationIntId, new TreeSet<String>());
+				// In this case we make lists of attribute names, not full URIs
+				if (pathComponents.length == 1) {
+					report.append(Arrays.toString(pathComponents)).append(System.lineSeparator());
+					if (!attributesByDocumentation.get(documentationIntId).add(pathComponents[1])) logger.warn("Duplicate values: " + Arrays.toString(pathComponents));
+				}
+				else logger.error("Invalid documentation URI: " + documentationM0URI);
 			} catch (NumberFormatException e) {
 				// Should be the sequence number resource: http://baseUri/documentations/documentation/sequence
-				if (!("sequence".equals(documentationId))) System.out.println("Invalid documentation URI: " + documentationM0URI);
+				if (!("sequence".equals(documentationId))) logger.error("Invalid documentation URI: " + documentationM0URI);
 			}
 		}
-		System.out.println("Found a total of " + propertiesByDocumentation.size() + " documentations in the M0 model");
+		report.append("Found a total of " + attributesByDocumentation.size() + " documentations in the M0 model");
 
 		// Build the list of all properties used in the M0 documentation model
-		Set<String> m0Properties = new TreeSet<String>();
-		for (Integer id : propertiesByDocumentation.keySet()) {
-			System.out.println("Documentation #" + id + " uses " + propertiesByDocumentation.get(id).size() + " properties");
-			m0Properties.addAll(propertiesByDocumentation.get(id));
+		SortedSet<String> m0Properties = new TreeSet<String>();
+		for (Integer id : attributesByDocumentation.keySet()) {
+			System.out.println("Documentation #" + id + " uses " + attributesByDocumentation.get(id).size() + " properties");
+			m0Properties.addAll(attributesByDocumentation.get(id));
 		}
 		System.out.println(m0Properties.size() + " properties used in M0 'documentation' graph: " + m0Properties);
 
@@ -111,8 +117,8 @@ public class M0Checker {
 		try {
 			simsPlusScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 		} catch (Exception e) {
-			System.out.println("Error reading SIMS Plus Excel file");
-			return;
+			logger.error("Error while reading SIMSFr Excel file " + Configuration.SIMS_XLSX_FILE_NAME + " - " + e.getMessage());
+			return null;
 		}
 		List<String> simsProps = new ArrayList<String>();
 		for (SIMSFrEntry entry : simsPlusScheme.getEntries()) {
@@ -140,6 +146,8 @@ public class M0Checker {
 		testList.removeAll(simsProps);
 		Collections.sort(testList);
 		System.out.println("Properties in M0 and not in SIMS: " + testList);
+
+		return report.toString();
 	}
 
 	public static void studySeries() {

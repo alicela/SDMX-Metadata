@@ -61,7 +61,7 @@ public class M0Converter {
 	static Map<String, String> fixedURIMappings = null;
 
 	/** The mappings between M0 and target URIs for organizations */
-	static Map<String, String> organizationURIMappings = null;
+	static SortedMap<String, String> organizationURIMappings = null;
 
 	/** All the mappings between M0 and target URIs for families, series, operations and indicators */
 	static Map<String, String> allURIMappings = null;
@@ -823,14 +823,16 @@ public class M0Converter {
 
 	/**
 	 * Reads the mappings between M0 and target URIs for organizations.
+	 * 
+	 * @return A sorted map in which the keys are the M0 URIs of the organizations and the values their target URIs.
 	 */
-	public static void readOrganizationURIMappings() {
+	public static SortedMap<String, String> readOrganizationURIMappings() {
 
 		readDataset();
-		organizationURIMappings = new HashMap<String, String>();
+		SortedMap<String, String> organizationURIMappings = new TreeMap<String, String>();
 		// Read the 'organismes' model and loop through the statements with 'ID_CODE' subjects
-		Model m0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "organismes");
-		Model extractModel = M0Extractor.extractAttributeStatements(m0Model, "ID_CODE");
+		Model m0OrganizationsModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "organismes");
+		Model extractModel = M0Extractor.extractAttributeStatements(m0OrganizationsModel, "ID_CODE");
 		extractModel.listStatements().forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
@@ -846,6 +848,7 @@ public class M0Converter {
 				organizationURIMappings.put(m0URI, orgURI);
 			}
 		});
+		return organizationURIMappings;
 	}
 
 	/**
@@ -856,7 +859,7 @@ public class M0Converter {
 	 */
 	public static String convertM0OrganizationURI(String m0URI) {
 
-		if (organizationURIMappings == null) readOrganizationURIMappings();
+		if (organizationURIMappings == null) organizationURIMappings = readOrganizationURIMappings();
 		if (organizationURIMappings.containsKey(m0URI)) return organizationURIMappings.get(m0URI);
 		return null;
 	}

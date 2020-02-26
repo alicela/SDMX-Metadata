@@ -27,7 +27,7 @@ public class Configuration {
 
 	// Input files
 	/** Excel file containing the SIMS/SIMSFr models */
-	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V20190405.xlsx";
+	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V20200225.xlsx";
 	/** Excel file containing the code lists */
 	public static String CL_XLSX_FILE_NAME = "src/main/resources/data/CODE_LISTS_20180110.xlsx";
 	/** Excel file containing the themes code list */
@@ -110,6 +110,8 @@ public class Configuration {
 
 	/** The range of metadata attribute properties corresponding to 'rich text' attributes */
 	public static Resource RICH_TEXT_MAP_RANGE = DCTypes.Text;
+	/** The range of metadata attribute properties corresponding to the 'territory' attributes */
+	public static Resource TERRITORY_MAP_RANGE = ResourceFactory.createResource("http://www.opengis.net/ont/geosparql#Feature");
 
 	/** Specifies if reported attributes are created or if attribute properties are directly attached to the report */
 	public static boolean CREATE_REPORTED_ATTRIBUTES = true;
@@ -199,6 +201,11 @@ public class Configuration {
 	/** URI of a DCType:Text resource corresponding to a rich text attribute */
 	public static String simsFrRichText(String m0Id, SIMSFrEntry entry) {
 		return QUALITY_BASE_URI + "attribut/" + m0Id + "/" + entry.getNotation() + "/texte";
+	}
+
+	/** URI of a geo:Feature resource corresponding to territorial attribute */
+	public static String geoFeatureURI(String m0Id, String code) {
+		return simsReportURI(m0Id) + "/" + camelCase(code.replace("_", ""), true, false);
 	}
 
 	// Methods for concept schemes components

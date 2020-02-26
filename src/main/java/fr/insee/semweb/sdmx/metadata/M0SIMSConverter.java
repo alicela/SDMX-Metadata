@@ -251,6 +251,12 @@ public class M0SIMSConverter extends M0Converter {
 					// This case should not exist, since quality indicators have been filtered out
 					logger.error("Property range should not be equal to dqv:Metric");
 				}
+				else if (propertyRange.equals(Configuration.TERRITORY_MAP_RANGE)) {
+					// TODO Handle English labels for features
+					Resource feature = simsModel.createResource(Configuration.geoFeatureURI(m0Id, entry.getCode()), Configuration.TERRITORY_MAP_RANGE);
+					feature.addProperty(RDFS.label, simsModel.createLiteral(stringValue, "fr"));
+					targetResource.addProperty(metadataAttributeProperty, feature);
+				}
 				else {
 					// The only remaining case should be code list, with the range equal to the concept associated to the code list
 					String propertyRangeString = propertyRange.getURI();

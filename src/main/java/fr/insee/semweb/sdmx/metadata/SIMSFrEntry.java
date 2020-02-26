@@ -191,6 +191,8 @@ public class SIMSFrEntry extends SIMSEntry {
 		if (type.equals("rich text")) return XSD.xstring;
 		// The other cases of 'rich text' ('Rich text + other material...') are associated with references: the corresponding type is defined in the configuration class
 		if (type.startsWith("rich text")) return Configuration.RICH_TEXT_MAP_RANGE;
+		// Cases when the property range is a territory
+		if (type.startsWith("territory")) return Configuration.TERRITORY_MAP_RANGE;
 		// If representation starts with 'code list', either the list is indicated with CL_*, or it is the list of SSMs
 		// FIXME There are also cases where the representation contains only the code list name (CL_FREQ_FR, CL_COLLECTION_MODE)
 		else if ((type.startsWith("code list")) || (type.startsWith("cl_"))) {

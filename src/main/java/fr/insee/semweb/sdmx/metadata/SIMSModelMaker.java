@@ -234,6 +234,7 @@ public class SIMSModelMaker {
 		msdModel.setNsPrefix("xsd", XSD.getURI());
 		msdModel.setNsPrefix("dc", DC.getURI());
 		msdModel.setNsPrefix("dcterms", DCTerms.getURI());
+		msdModel.setNsPrefix("geo", "http://www.opengis.net/ont/geosparql#");
 		msdModel.setNsPrefix(Configuration.SDMX_MM_PREFIX, Configuration.SDMX_MM_BASE_URI);
 
 		// Create the metadata structure definition

@@ -168,7 +168,7 @@ public class SIMSModelMaker {
 						qualityMetric.addProperty(RDFS.label, skosCSModel.createLiteral(entry.getFrenchName(), "fr")); // FIXME Names are not translated for some metrics
 						if (entry.getFrenchDescription() != null) qualityMetric.addProperty(RDFS.comment, skosCSModel.createLiteral(entry.getFrenchDescription(), "fr"));
 					}
-					qualityMetric.addProperty(DQV.inDimension, simsConcept); // TODO Add expectedDataType property, but corresponding colum content should be improved first
+					qualityMetric.addProperty(DQV.inDimension, simsConcept); // TODO Add expectedDataType property, but corresponding column content should be improved first
 				}
 				continue;
 			}

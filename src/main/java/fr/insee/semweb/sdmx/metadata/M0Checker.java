@@ -13,7 +13,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -56,26 +55,185 @@ import com.github.difflib.algorithm.DiffException;
 import com.github.difflib.patch.AbstractDelta;
 import com.github.difflib.patch.Patch;
 
+/**
+ * Methods for checking and reporting on information in the interim format ("M0 model").
+ * 
+ * @author Franck
+ */
 public class M0Checker {
 
 	public static Logger logger = LogManager.getLogger(M0Checker.class);
 
 	static Dataset dataset = null;
 
-	public static void main(String[] args) throws IOException {
+	/**
+	 * Runs basic reporting on M0 families and returns a text report.
+	 * 
+	 * @param m0Families The Jena model containing M0 information about operations.
+	 * @return A <code>String</code> containing the report.
+	 */
+	public static String checkFamilies(Model m0Families) {
 
-		dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-//		extractModels(dataset);
-//		studySeries();
-//		studyFamilies();
-//		studyOperations();
-//		studyDocumentations();
-		checkDocumentDates();
+		SortedMap<Integer, SortedSet<String>> attributesById = new TreeMap<Integer, SortedSet<String>>(); // Attributes used for each family identifier
+		SortedSet<String> allAttributes = new TreeSet<String>(); // All attributes that exist in the model
+
+		StringWriter report = new StringWriter().append("Study of families in the M0 model\n\n");
+
+		ResIterator subjectsIterator = m0Families.listSubjects();
+		while (subjectsIterator.hasNext()) {
+			String familyURI = subjectsIterator.next().getURI();
+			String[] uriComponents = familyURI.split("/");
+			String familyId = uriComponents[uriComponents.length-2];
+			String attributeId = uriComponents[uriComponents.length-1];
+			// Family identifier should be an integer, with one exception (the "sequence" triple)
+			try {
+				Integer familyIntId = Integer.parseInt(familyId);
+				if (!attributesById.containsKey(familyIntId)) attributesById.put(familyIntId, new TreeSet<String>());
+				attributesById.get(familyIntId).add(attributeId);
+			} catch (NumberFormatException e) {
+				if ("sequence".equalsIgnoreCase(attributeId)) logger.error("Invalid family URI " + familyURI);
+			}
+		}
+		report.append("Attributes filled for each family identifier\n");
+		for (Integer familyId : attributesById.keySet()) {
+			report.append(familyId + "\t");
+			report.append(attributesById.get(familyId).toString()).append(System.lineSeparator());
+			allAttributes.addAll(attributesById.get(familyId));
+		}
+		report.append("\nAll attributes used in the families\n" + allAttributes);
+
+		return report.toString();
 	}
 
-	public static String studyDocumentations() {
+	/**
+	 * Runs basic reporting on M0 series and returns a text report.
+	 * 
+	 * @param m0SeriesModel The Jena model containing M0 information about series.
+	 * @return A <code>String</code> containing the report.
+	 */
+	public static String checkSeries(Model m0SeriesModel) {
 
-		Model m0DocumentationsModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
+		SortedMap<Integer, SortedSet<String>> attributesById = new TreeMap<Integer, SortedSet<String>>(); // Attributes used for each series identifier
+		SortedSet<String> allAttributes = new TreeSet<String>(); // All attributes that exist in the model
+
+		StringWriter report = new StringWriter().append("Study of series in the M0 model\n\n");
+
+		ResIterator subjectsIterator = m0SeriesModel.listSubjects(); // Lists all series URIs
+		while (subjectsIterator.hasNext()) {
+			String seriesURI = subjectsIterator.next().getURI();
+			String[] uriComponents = seriesURI.split("/");
+			String seriesId = uriComponents[uriComponents.length-2];
+			String attributeId = uriComponents[uriComponents.length-1];
+			// Series identifier should be an integer, with one exception (the "sequence" triple)
+			try {
+				Integer seriesIntId = Integer.parseInt(seriesId);
+				if (!attributesById.containsKey(seriesIntId)) attributesById.put(seriesIntId, new TreeSet<String>());
+				attributesById.get(seriesIntId).add(attributeId);
+			} catch (NumberFormatException e) {
+				if ("sequence".equalsIgnoreCase(attributeId)) logger.error("Invalid series URI " + seriesURI);
+			}
+		}
+		report.append("Attributes filled for each series identifier\n");
+		for (Integer seriesId : attributesById.keySet()) {
+			report.append(seriesId + "\t");
+			report.append(attributesById.get(seriesId).toString()).append(System.lineSeparator());
+			allAttributes.addAll(attributesById.get(seriesId));
+		}
+		report.append("\nAll attributes used in the series\n" + allAttributes);
+
+		return report.toString();
+	}
+
+	/**
+	 * Runs basic reporting on M0 operations and returns a text report.
+	 * 
+	 * @param m0OperationsModel The Jena model containing M0 information about operations.
+	 * @param attributeNames Names of M0 attributes for which values will be included in the report.
+	 * @return A <code>String</code> containing the report.
+	 */
+	public static String checkOperations(Model m0OperationsModel, String... attributeNames) {
+
+		SortedMap<Integer, SortedSet<String>> attributesById = new TreeMap<Integer, SortedSet<String>>(); // Attributes used for each operation identifier
+		SortedSet<String> allAttributes = new TreeSet<String>(); // All attributes that exist in the model
+		SortedMap<String, SortedMap<Integer, List<String>>> valuesByNameAndId = new TreeMap<String, SortedMap<Integer, List<String>>>();
+		for (String attributeName : attributeNames) valuesByNameAndId.put(attributeName, new TreeMap<Integer, List<String>>());
+
+		// Iterate on all subject resources that are operations (characterised by their type skos:Concept)
+		m0OperationsModel.listStatements(null, RDF.type, SKOS.Concept).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement operationStatement) {
+				Resource operationResource = operationStatement.getSubject();
+				String operationURI = operationResource.getURI();
+				String[] operationURIComponents = operationURI.split("/");
+				String operationId = operationURIComponents[operationURIComponents.length - 1];
+				try {
+					Integer operationIntId = Integer.parseInt(operationId);
+					SortedSet<String> operationAttributes = new TreeSet<>();
+					// Now iterate on all statements linking the operation to its attributes via the 'varSims' predicate
+					m0OperationsModel.listStatements(operationResource, Configuration.M0_VAR_SIMS, (RDFNode)null).forEachRemaining(new Consumer<Statement>() {
+						@Override
+						public void accept(Statement attributeStatement) {
+							// Extract attribute name at the end of the object URI
+							Resource attributeResource = attributeStatement.getObject().asResource(); // Should always be a resource
+							String attributeURI = attributeResource.getURI();
+							String[] attributeURIComponents = attributeURI.split("/");
+							String attributeName = attributeURIComponents[attributeURIComponents.length - 1];
+							operationAttributes.add(attributeName);
+							if (valuesByNameAndId.containsKey(attributeName)) {
+								// Iterate over the French values of the attribute
+								List<String> attributeValues = new ArrayList<String>();
+								m0OperationsModel.listStatements(attributeResource, Configuration.M0_VALUES, (RDFNode)null).forEachRemaining(new Consumer<Statement>() {
+									@Override
+									public void accept(Statement valueStatement) {
+										attributeValues.add(valueStatement.getObject().asLiteral().getString() + "(fr)");
+									}
+								});
+								m0OperationsModel.listStatements(attributeResource, Configuration.M0_VALUES_EN, (RDFNode)null).forEachRemaining(new Consumer<Statement>() {
+									@Override
+									public void accept(Statement valueStatement) {
+										attributeValues.add(valueStatement.getObject().asLiteral().getString() + "(en)");
+									}
+								});
+								valuesByNameAndId.get(attributeName).put(operationIntId, attributeValues);
+							}
+						}
+					});
+					attributesById.put(operationIntId, operationAttributes);
+					allAttributes.addAll(operationAttributes);
+				} catch (NumberFormatException e) {
+					logger.error("Invalid operation URI " + operationURI);
+				}
+			}
+		});
+
+		// Write and return the report
+		StringWriter report = new StringWriter().append("Study of operations in the M0 model\n\n");
+
+		report.append("Attributes filled for each operation identifier\n");
+		for (Integer operationId : attributesById.keySet()) {
+			report.append(operationId + "\t");
+			report.append(attributesById.get(operationId).toString()).append(System.lineSeparator());
+			allAttributes.addAll(attributesById.get(operationId));
+		}
+		report.append("\nAll attributes used in the operations\n" + allAttributes);
+
+		// Print values for specified attributes
+		for (String attributeName : valuesByNameAndId.keySet()) {
+			report.append("\nAll values for attribute " + attributeName + " by operation");
+			for (Integer operationId : valuesByNameAndId.get(attributeName).keySet()) report.append("\n").append(operationId + "\t").append(valuesByNameAndId.get(attributeName).get(operationId).toString());
+		}
+
+		return report.toString();
+	}
+
+	/**
+	 * Runs basic counts and coherence checks on M0 documentations and returns a text report.
+	 * 
+	 * @param m0DocumentationsModel The Jena model containing M0 information about documentations.
+	 * @return A <code>String</code> containing the report.
+	 */
+	public static String checkDocumentations(Model m0DocumentationsModel) {
+
 		StringWriter report = new StringWriter().append("Study of documemtations in the M0 model\n\n");
 
 		// Build the mapping between documentation id (number) and the list of associated SIMS attributes.
@@ -126,7 +284,7 @@ public class M0Checker {
 
 		report.append("\n\nProperties in SIMSFr and not in M0: " + deltaList.removeAll(m0Attributes));
 		deltaList = new TreeSet<String>();
-		System.out.println("\n\nProperties in M0 and not in SIMSFr: " + deltaList.removeAll(simsAttributes));
+		report.append("\n\nProperties in M0 and not in SIMSFr: " + deltaList.removeAll(simsAttributes));
 
 		simsAttributes = new TreeSet<String>();
 		for (SIMSFrEntry entry : simsFrScheme.getEntries()) {
@@ -135,113 +293,6 @@ public class M0Checker {
 		}
 
 		return report.toString();
-	}
-
-	public static void studySeries() {
-
-		String baseURI = "http://baseUri/series/serie/";
-		int baseURILength = baseURI.length();
-
-		Model series = dataset.getNamedModel("http://rdf.insee.fr/graphe/series");
-
-		Map<Integer, List<String>> uriList = new TreeMap<Integer, List<String>>();
-		SortedSet<String> allProperties = new TreeSet<String>(); // All properties that exist in the model
-
-		ResIterator subjectsIterator = series.listSubjects();
-		while (subjectsIterator.hasNext()) {
-			String uri = subjectsIterator.next().getURI();
-			String seriesId = uri.substring(baseURILength).split("/")[0];
-			// Series identifier appears to be an integer, with one exception (the "sequence" triple)
-			try {
-				Integer seriesIntId = Integer.parseInt(seriesId);
-				if (!uriList.containsKey(seriesIntId)) uriList.put(seriesIntId, new ArrayList<String>());
-				uriList.get(seriesIntId).add(uri);
-			} catch (NumberFormatException e) {
-				System.out.println("Invalid series URI " + uri);
-			}
-		}
-
-		for (Integer id : uriList.keySet()) {
-			List<String> properties = new ArrayList<String>();
-			for (String propertyUri : uriList.get(id)) {
-				String[] components = propertyUri.split("/");
-				if (components.length == 7) properties.add(components[6]);
-			}
-			Collections.sort(properties);
-			allProperties.addAll(properties);
-			System.out.println(id + " " + properties);
-		}
-		System.out.println("All properties " + allProperties);
-	}
-
-	public static void studyFamilies() {
-
-		String baseURI = "http://baseUri/familles/famille/";
-		int baseURILength = baseURI.length();
-
-		Model families = dataset.getNamedModel("http://rdf.insee.fr/graphe/familles");
-
-		Map<Integer, List<String>> uriList = new TreeMap<Integer, List<String>>();
-
-		ResIterator subjectsIterator = families.listSubjects();
-		while (subjectsIterator.hasNext()) {
-			String uri = subjectsIterator.next().getURI();
-			String familyId = uri.substring(baseURILength).split("/")[0];
-			// Family identifier appears to be an integer, with one exception
-			try {
-				Integer familyIntId = Integer.parseInt(familyId);
-				if (!uriList.containsKey(familyIntId)) uriList.put(familyIntId, new ArrayList<String>());
-				uriList.get(familyIntId).add(uri);
-			} catch (NumberFormatException e) {
-				System.out.println("Invalid family URI " + uri);
-			}
-		}
-
-		for (Integer id : uriList.keySet()) {
-			if (uriList.get(id).size() != 5) System.out.println("Invalid pattern for family " + id);
-			System.out.println(id + " " + uriList.get(id));
-		}
-	}
-
-	public static void studyOperations() {
-
-		String baseURI = "http://baseUri/operations/operation/";
-		int baseURILength = baseURI.length();
-
-		Model operations = dataset.getNamedModel("http://rdf.insee.fr/graphe/operations");
-
-		Map<Integer, List<String>> uriList = new TreeMap<Integer, List<String>>();
-
-		ResIterator subjectsIterator = operations.listSubjects();
-		while (subjectsIterator.hasNext()) {
-			String uri = subjectsIterator.next().getURI();
-			String operationId = uri.substring(baseURILength).split("/")[0];
-			// Operation identifier appears to be an integer, with one exception
-			try {
-				Integer operationIntId = Integer.parseInt(operationId);
-				if (!uriList.containsKey(operationIntId)) uriList.put(operationIntId, new ArrayList<String>());
-				uriList.get(operationIntId).add(uri);
-			} catch (NumberFormatException e) {
-				System.out.println("Invalid operation URI " + uri);
-			}
-		}
-
-		for (Integer id : uriList.keySet()) {
-			if (uriList.get(id).size() != 5) System.out.println("Specific pattern for operation " + id);
-			System.out.println(id + " " + uriList.get(id));
-		}
-
-		// Check values for ID_METIER
-		Property sdmxValues = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#values");
-		for (Integer id : uriList.keySet()) {
-			Resource idMetierResource = ResourceFactory.createResource(baseURI + id + "/ID_DDS");
-			List<RDFNode> idMetierValues = operations.listObjectsOfProperty(idMetierResource, sdmxValues).toList();
-			if (idMetierValues.size() == 0) System.out.println("No DDS identifier for operation " + id);
-			else if (idMetierValues.size() > 1) System.out.println("Invalid number of values for " + idMetierResource.getURI());
-			else {
-				if (!idMetierValues.get(0).toString().startsWith("OPE-")) System.out.println("Unexpected value for ID_DDS in operation " + id + ": " + idMetierValues.get(0).toString());
-			}
-		}
 	}
 
 	/**

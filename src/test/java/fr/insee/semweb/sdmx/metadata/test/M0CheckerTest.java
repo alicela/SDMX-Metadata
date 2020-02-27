@@ -1,7 +1,5 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import static org.junit.Assert.fail;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -21,11 +19,98 @@ import org.junit.Test;
 import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.M0Checker;
 
+/**
+ * Test and launch methods for class <code>M0Checker</code>.
+ * 
+ * @author Franck
+ */
 public class M0CheckerTest {
 
+	/**
+	 * Runs the checks on the M0 families model and prints the report to a file.
+	 * 
+	 * @throws IOException In case of problem writing the report.
+	 */
 	@Test
-	public void testStudyDocumentations() {
-		fail("Not yet implemented");
+	public void testCheckFamilies() throws IOException {
+	
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0FamiliesModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/familles");
+		String report = M0Checker.checkSeries(m0FamiliesModel);
+		PrintStream outStream = new PrintStream("src/test/resources/reports/familles.txt");
+		outStream.print(report);
+		outStream.close();
+		m0FamiliesModel.close();
+	}
+
+	/**
+	 * Runs the checks on the M0 series model and prints the report to a file.
+	 * 
+	 * @throws IOException In case of problem writing the report.
+	 */
+	@Test
+	public void testCheckSeries() throws IOException {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0SeriesModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/series");
+		String report = M0Checker.checkSeries(m0SeriesModel);
+		PrintStream outStream = new PrintStream("src/test/resources/reports/series.txt");
+		outStream.print(report);
+		outStream.close();
+		m0SeriesModel.close();
+	}
+
+	/**
+	 * Runs the basic checks on the M0 operations model and prints the report to a file.
+	 * 
+	 * @throws IOException In case of problem writing the report.
+	 */
+	@Test
+	public void testCheckOperations() throws IOException {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0OperationsModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/operations");
+		String report = M0Checker.checkOperations(m0OperationsModel);
+		PrintStream outStream = new PrintStream("src/test/resources/reports/operations.txt");
+		outStream.print(report);
+		outStream.close();
+		m0OperationsModel.close();
+		System.out.println(report);
+	}
+
+	/**
+	 * Runs the basic checks on the M0 operations model and prints the report to a file.
+	 * 
+	 * @throws IOException In case of problem writing the report.
+	 */
+	@Test
+	public void testCheckOperationsWithAttributes() throws IOException {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0OperationsModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/operations");
+		String report = M0Checker.checkOperations(m0OperationsModel, "ID_DDS");
+		PrintStream outStream = new PrintStream("src/test/resources/reports/operations-id_dds.txt");
+		outStream.print(report);
+		outStream.close();
+		m0OperationsModel.close();
+		System.out.println(report);
+	}
+
+	/**
+	 * Runs the checks on the M0 documentation model and prints the report to a file.
+	 * 
+	 * @throws IOException In case of problem writing the report.
+	 */
+	@Test
+	public void testCheckDocumentations() throws IOException {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0DocumentationsModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
+		String report = M0Checker.checkDocumentations(m0DocumentationsModel);
+		PrintStream outStream = new PrintStream("src/test/resources/reports/documentations.txt");
+		outStream.print(report);
+		outStream.close();
+		m0DocumentationsModel.close();
 	}
 
 	@Test
@@ -33,21 +118,6 @@ public class M0CheckerTest {
 		PrintStream outStream = new PrintStream("src/test/resources/documents.txt");
 		M0Checker.studyDocuments(new File("src/test/resources/documents.xslx"), outStream);
 		outStream.close();
-	}
-
-	@Test
-	public void testStudySeries() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testStudyFamilies() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testStudyOperations() {
-		fail("Not yet implemented");
 	}
 
 	@Test

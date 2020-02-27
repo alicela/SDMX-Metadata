@@ -92,6 +92,8 @@ public class Configuration {
 	static Property M0_RELATED_TO = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo");
 	/** The ubiquitous 'relatedTo' property in M0, English version */
 	static Property M0_RELATED_TO_EN = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedToGb");
+	/** The ubiquitous 'varSims' property in M0 */
+	static Property M0_VAR_SIMS = ResourceFactory.createProperty("http://rem.org/schema#varSims");
 	/** The reported attribute */
 	protected static Resource SIMS_REPORTED_ATTRIBUTE = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#ReportedAttribute");
 
@@ -204,6 +206,7 @@ public class Configuration {
 	}
 
 	/** URI of a geo:Feature resource corresponding to territorial attribute */
+	// TODO Prendre l'URI de l'attribut et ajouter /feature
 	public static String geoFeatureURI(String m0Id, String code) {
 		return simsReportURI(m0Id) + "/" + camelCase(code.replace("_", ""), true, false);
 	}

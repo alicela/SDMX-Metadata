@@ -3,7 +3,6 @@ package fr.insee.semweb.sdmx.metadata;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -14,7 +13,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -293,6 +291,33 @@ public class M0Checker {
 		}
 
 		return report.toString();
+	}
+
+	/**
+	 * Checks that all attributes referenced in a M0 'documentations' model are valid SIMSFr attributes.
+	 * An error will be logged for each attribute found in the model and not defined in SIMSFr.
+	 */
+	public static void checkSIMSAttributes(Model m0DocumentationsModel) {
+
+		// Create the list of SIMSFr attribute names and other known attributes
+		SIMSFrScheme simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+		SortedSet<String> knownAttributes = new TreeSet<String>();
+		for (SIMSFrEntry entry : simsFRScheme.getEntries())	knownAttributes.add(entry.getCode());
+		// Add the 'technical' attributes
+		knownAttributes.addAll(Arrays.asList("ID", "ID_DDS", "ID_METIER", "ASSOCIE_A", "sequence", "VALIDATION_STATUS"));
+
+		// Iterates over the 'documentations' model subjects
+		ResIterator resourceIterator = m0DocumentationsModel.listSubjects();
+		resourceIterator.forEachRemaining(new Consumer<Resource>() {
+			@Override
+			public void accept(Resource resource) {
+				// Select last segment path of the URI and keep the non-numeric ones (otherwise it is a base resource)
+				String lastSegment = StringUtils.substringAfterLast(resource.toString(), "/");
+				if (!StringUtils.isNumeric(lastSegment)) {
+					if (!knownAttributes.contains(lastSegment)) logger.error("Attribute not found in SIMSFr: " + lastSegment);
+				}
+			}
+		});
 	}
 
 	/**
@@ -730,35 +755,6 @@ public class M0Checker {
 	}
 
 	/**
-	 * Checks that all attributes referenced in the SIMS M0 triples are valid SIMSFr attributes.
-	 */
-	public static void checkSIMSAttributes() {
-
-		// Create the list of SIMSFr attribute names and other known attributes
-		SIMSFrScheme simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
-		List<String> knownAttributes = new ArrayList<String>();
-		for (SIMSFrEntry entry : simsFRScheme.getEntries())	knownAttributes.add(entry.getCode());
-		// Add the 'technical' attributes
-		knownAttributes.addAll(Arrays.asList("ID", "ID_DDS", "ID_METIER", "ASSOCIE_A", "sequence", "VALIDATION_STATUS"));
-
-		// Open the 'documentations' model
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model documentationM0Model = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
-		ResIterator resourceIterator = documentationM0Model.listSubjects();
-		resourceIterator.forEachRemaining(new Consumer<Resource>() {
-			@Override
-			public void accept(Resource resource) {
-				// Select last segment path of the URI and keep the non-numeric ones (otherwise it is a base resource)
-				String lastSegment = StringUtils.substringAfterLast(resource.toString(), "/");
-				if (!StringUtils.isNumeric(lastSegment)) {
-					if (!knownAttributes.contains(lastSegment)) logger.error("Attribute not found in SIMSFr: " + lastSegment);
-				}
-			}
-		});
-		documentationM0Model.close();
-	}
-
-	/**
 	 * Checks that the values of the direct properties of series or operations have the same values than in the 'documentations' part.
 	 */
 	public static void checkCoherence(boolean includeIndicators) {
@@ -824,26 +820,27 @@ public class M0Checker {
 	}
 
 	/**
-	 * Returns the list of distinct values of a given properties in the 'documentations' graph.
+	 * Returns the list of distinct values of a given attribute in the 'documentations' graph, sorted alphabetically.
 	 * 
-	 * @param propertyName The name of the property to look for.
-	 * @return The set of the distinct values of the property.
+	 * @param m0DocumentationsModel The Jena model containing M0 information about documentations.
+	 * @param attributeName The name of the attribute to look for.
+	 * @return The sorted set of the distinct values of the attribute.
 	 */
-	public static Set<String> listPropertyValues(String propertyName) {
+	public static SortedSet<String> listAttributeValues(Model m0DocumentationsModelf, String attributeName) {
 
-		Set<String> valueSet = new HashSet<String>();
+		SortedSet<String> valueSet = new TreeSet<String>();
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model documentations = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+		Model m0DocumentationsModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 
 		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject URI ends with the expected property name
 	        public boolean selects(Statement statement) {
-	        	if (statement.getSubject().getURI().endsWith("/" + propertyName)) return true; // To avoid mixing STATUS and VALIDATION_STATUS, for example
+	        	if (statement.getSubject().getURI().endsWith("/" + attributeName)) return true; // To avoid mixing STATUS and VALIDATION_STATUS, for example
 	        	return false;
 	        }
 	    };
-	    documentations.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+	    m0DocumentationsModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				valueSet.add(statement.getObject().toString());
@@ -922,46 +919,17 @@ public class M0Checker {
         diffWriter.close();
 	}
 
-	public static void extractModels() throws IOException {
-
-		dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-
-		Iterator<String> nameIterator = dataset.listNames();
-		while (nameIterator.hasNext()) System.out.println("Named graph: " + nameIterator.next());
-
-		// Extract the code and codelists graphs
-		dataset.getNamedModel("http://rdf.insee.fr/graphe/codelists").write(new FileWriter("src/main/resources/data/m0-codelists.ttl"), "TTL");
-		dataset.getNamedModel("http://rdf.insee.fr/graphe/codes").write(new FileWriter("src/main/resources/data/m0-codes.ttl"), "TTL");
-
-		// Extract the families, series and operations graphs
-		dataset.getNamedModel("http://rdf.insee.fr/graphe/familles").write(new FileWriter("src/main/resources/data/m0-familles.ttl"), "TTL");
-		dataset.getNamedModel("http://rdf.insee.fr/graphe/series").write(new FileWriter("src/main/resources/data/m0-series.ttl"), "TTL");
-		dataset.getNamedModel("http://rdf.insee.fr/graphe/operations").write(new FileWriter("src/main/resources/data/m0-operations.ttl"), "TTL");
-
-		// Extract other graphs
-		dataset.getNamedModel("http://rdf.insee.fr/graphe/liens").write(new FileWriter("src/main/resources/data/m0-liens.ttl"), "TTL");
-		dataset.getNamedModel("http://rdf.insee.fr/graphe/documents").write(new FileWriter("src/main/resources/data/m0-documents.ttl"), "TTL");
-		dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations").write(new FileWriter("src/main/resources/data/m0-documentations.ttl"), "TTL");
-		dataset.getNamedModel("http://rdf.insee.fr/graphe/associations").write(new FileWriter("src/main/resources/data/m0-associations.ttl"), "TTL");
-
-		// New graphs in later versions
-		dataset.getNamedModel("http://rdf.insee.fr/graphe/indicateurs").write(new FileWriter("src/main/resources/data/m0-indicateurs.ttl"), "TTL");
-		dataset.getNamedModel("http://rdf.insee.fr/graphe/organismes").write(new FileWriter("src/main/resources/data/m0-organismes.ttl"), "TTL");
-
-	}
-
 	/**
-	 * Returns the list of all attributes used in a M0 model.
+	 * Returns the set of all attributes used in a M0 model, sorted alphabetically.
 	 * M0 attributes are those which correspond to the last path element of subject resources in the M0 model.
 	 * 
-	 * @param m0Model The M0 model to study.
-	 * @return The list of the M0 attributes used in the model.
+	 * @param m0Model The M0 model to check.
+	 * @return The sorted set of the M0 attributes used in the model.
 	 */
-	public static List<String> listModelAttributes(Model m0Model) {
+	public static SortedSet<String> checkModelAttributes(Model m0Model) {
 	
-		List<String> attributes = new ArrayList<String>();
-		StmtIterator iterator = m0Model.listStatements();
-		iterator.forEachRemaining(new Consumer<Statement>() {
+		SortedSet<String> attributes = new TreeSet<String>();
+		m0Model.listStatements().forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				String attributeName = StringUtils.substringAfterLast(statement.getSubject().getURI(), "/");

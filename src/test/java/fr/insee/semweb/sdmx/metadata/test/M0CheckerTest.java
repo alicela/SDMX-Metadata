@@ -7,6 +7,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 
 import org.apache.jena.query.Dataset;
@@ -75,7 +77,6 @@ public class M0CheckerTest {
 		outStream.print(report);
 		outStream.close();
 		m0OperationsModel.close();
-		System.out.println(report);
 	}
 
 	/**
@@ -93,7 +94,6 @@ public class M0CheckerTest {
 		outStream.print(report);
 		outStream.close();
 		m0OperationsModel.close();
-		System.out.println(report);
 	}
 
 	/**
@@ -128,16 +128,18 @@ public class M0CheckerTest {
 		outStream.close();
 	}
 
-	@Test
-	public void testExtractModels() throws IOException {
-
-		M0Checker.extractModels();
-	}
-
+	/**
+	 * Checks that attributes present in the 'documentations' M0 model are defined in SIMSFr.
+	 */
 	@Test
 	public void testCheckSIMSAttributes() {
 
-		M0Checker.checkSIMSAttributes();
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0DocumentationsModel = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+
+		M0Checker.checkSIMSAttributes(m0DocumentationsModel);
+		m0DocumentationsModel.close();
+		m0Dataset.close();
 	}
 
 	@Test
@@ -149,8 +151,13 @@ public class M0CheckerTest {
 	@Test
 	public void testListPropertyValues() {
 
-		Set<String> values = M0Checker.listPropertyValues("REF_AREA");
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0DocumentationsModel = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+
+		Set<String> values = M0Checker.listAttributeValues(m0DocumentationsModel, "REF_AREA");
 		System.out.println(values);
+		m0DocumentationsModel.close();
+		m0Dataset.close();
 	}
 
 	@Test
@@ -182,24 +189,38 @@ public class M0CheckerTest {
 		}
 	}
 
+	/**
+	 * Prints to console the list of attributes used in a M0 model.
+	 */
 	@Test
-	public void testListModelAttributes() {
+	public void testCheckModelAttributes() {
 
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0Model = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "indicateurs");
+		String m0ModelName = "indicateurs";
 
-		System.out.println(M0Checker.listModelAttributes(m0Model));
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0Model = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + m0ModelName);
+
+		System.out.print("Attributes used in the " + m0ModelName + " M0 model: ");
+		System.out.println(M0Checker.checkModelAttributes(m0Model));
 	}
 
+	/**
+	 * Prints to console the list of named graphs contained in the M0 dataset, sorted alphabetically.
+	 */
 	@Test
-	public void testListModel() throws IOException {
+	public void testListModels() {
 	
-		// List the names of the models in the dataset
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		dataset.listNames().forEachRemaining(new Consumer<String>() {
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		SortedSet<String> graphNames = new TreeSet<String>();
+		m0Dataset.listNames().forEachRemaining(new Consumer<String>() {
 			@Override
-			public void accept(String name) {
-				System.out.println(name);}
+			public void accept(String graphName) {
+				graphNames.add(graphName);
+
+				}
 		});
+		m0Dataset.close();
+		System.out.println("Named graphs in " + Configuration.M0_FILE_NAME + "\n");
+		for (String graphName : graphNames) System.out.println(graphName);
 	}
 }

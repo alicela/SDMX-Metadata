@@ -2,8 +2,11 @@ package fr.insee.semweb.sdmx.metadata;
 
 import static fr.insee.semweb.sdmx.metadata.Configuration.M0_RELATED_TO;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -12,6 +15,7 @@ import java.util.TreeSet;
 import java.util.function.Consumer;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
@@ -401,6 +405,27 @@ public class M0Extractor {
 		return (Integer.parseInt(sequenceStatement.getObject().asLiteral().toString())); // Assuming we have a string parseable to integer
 	}
 
+	/**
+	 * Extracts all named graphs from a M0 dataset and saves them to individual files.
+	 * 
+	 * @param m0Dataset The RDF dataset containing the M0 data.
+	 */
+	public static void extractModels(Dataset m0Dataset) {
 
-
+		logger.info("Extracting all M0 models to different files");
+		Iterator<String> nameIterator = m0Dataset.listNames();
+		nameIterator.forEachRemaining(new Consumer<String>() {
+			@Override
+			public void accept(String graphURI) {
+				String graphName = graphURI.replace(Configuration.M0_BASE_GRAPH_URI, "");
+				String fileName = "src/main/resources/data/m0-" + graphName + ".ttl";
+				try (FileWriter writer = new FileWriter(fileName)) {
+					m0Dataset.getNamedModel(graphURI).write(writer, "TTL");
+					logger.info("Graph " + graphName + " extracted and saved to file " + fileName);
+				} catch (IOException e) {
+					logger.error("Error while trying to save graph " + graphName + " to file " + fileName);
+				}
+			}
+		});
+	}
 }

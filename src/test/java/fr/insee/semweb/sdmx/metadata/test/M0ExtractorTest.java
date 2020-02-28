@@ -240,6 +240,19 @@ class M0ExtractorTest {
 	}
 
 	/**
+	 * Extracts all models from the M0 dataset and writes them in Turtle files.
+	 * 
+	 * @throws IOException In case of problem while writing the output file.
+	 */
+	@Test
+	public void testExtractModels() {
+
+		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		M0Extractor.extractModels(dataset);
+		dataset.close();
+	}
+
+	/**
 	 * Extracts a documentation model from the M0 dataset and writes it in a Turtle file.
 	 * 
 	 * @throws IOException In case of problem while writing the output file.

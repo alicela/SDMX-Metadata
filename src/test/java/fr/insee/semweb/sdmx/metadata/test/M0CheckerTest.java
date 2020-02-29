@@ -119,10 +119,19 @@ public class M0CheckerTest {
 	 * @throws IOException In case of problem writing the report.
 	 */
 	@Test
-	public void testStudyDocuments() throws IOException {
-		PrintStream outStream = new PrintStream("src/test/resources/documents.txt");
-		M0Checker.studyDocuments(new File("src/test/resources/documents.xslx"), outStream);
+	public void testCheckDocuments() throws IOException {
+
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0DocumentsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documents");
+		Model m0AssociationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+
+		String report = M0Checker.checkDocuments(m0DocumentsModel, m0AssociationsModel, new File("src/test/resources/documents.xslx"));
+		PrintStream outStream = new PrintStream("src/test/resources/m0-documents.txt");
+		outStream.print(report);
 		outStream.close();
+		m0DocumentsModel.close();
+		m0AssociationsModel.close();
+		m0Dataset.close();
 	}
 
 	/**

@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.DateFormat;
@@ -27,11 +26,9 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Selector;
 import org.apache.jena.rdf.model.SimpleSelector;
 import org.apache.jena.rdf.model.Statement;
@@ -330,7 +327,7 @@ public class M0Checker {
 	 */
 	public static String checkLinks(Model m0LinksModel, Model m0AssociationsModel, File export, List<String> attributesToExport) {
 
-		String baseURILink = "http://baseUri/liens/lien/";
+		String baseLinkURI = "http://baseUri/liens/lien/";
 
 		SortedSet<String> ignoredAttributes = new TreeSet<>(Arrays.asList("ID", "ID_METIER", "VALIDATION_STATUS")); // Technical attributes not taken into consideration
 		SortedSet<String> directAttributes = new TreeSet<>(Arrays.asList("SUMMARY", "TITLE", "TYPE", "URI")); // These attributes contain direct properties of the links
@@ -374,12 +371,12 @@ public class M0Checker {
 		// Selectors on the French and English associations starting from a 'lien' resource (and pointing to a 'documentation' resource)
 		Selector frenchSelector = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
-	        	return (statement.getSubject().getURI().startsWith(baseURILink));
+	        	return (statement.getSubject().getURI().startsWith(baseLinkURI));
 	        }
 	    };
 		Selector englishSelector = new SimpleSelector(null, Configuration.M0_RELATED_TO_EN, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
-	        	return (statement.getSubject().getURI().startsWith(baseURILink));
+	        	return (statement.getSubject().getURI().startsWith(baseLinkURI));
 	        }
 	    };
 	    // Links (number/attribute) for each documentation (number/attribute)
@@ -391,7 +388,7 @@ public class M0Checker {
 			@Override
 			public void accept(Statement statement) {
 				String documentationPart = statement.getObject().toString().substring(Configuration.M0_SIMS_BASE_URI.length());
-				String linkPart = statement.getSubject().toString().substring(baseURILink.length());
+				String linkPart = statement.getSubject().toString().substring(baseLinkURI.length());
 				if (!linksByDocumentation.containsKey(documentationPart)) linksByDocumentation.put(documentationPart, new TreeSet<String>());
 				linksByDocumentation.get(documentationPart).add(linkPart);
 				if (!documentationsByLink.containsKey(linkPart)) documentationsByLink.put(linkPart, new TreeSet<String>());
@@ -408,7 +405,7 @@ public class M0Checker {
 			@Override
 			public void accept(Statement statement) {
 				String documentationPart = statement.getObject().toString().substring(Configuration.M0_SIMS_BASE_URI.length());
-				String linkPart = statement.getSubject().toString().substring(baseURILink.length());
+				String linkPart = statement.getSubject().toString().substring(baseLinkURI.length());
 				if (!linksByDocumentation.containsKey(documentationPart)) linksByDocumentation.put(documentationPart, new TreeSet<String>());
 				linksByDocumentation.get(documentationPart).add(linkPart);
 				if (!documentationsByLink.containsKey(linkPart)) documentationsByLink.put(linkPart, new TreeSet<String>());
@@ -453,7 +450,7 @@ public class M0Checker {
 					// Select statements with 'values' and 'valuesGb' properties
 					if (!(statement.getPredicate().equals(Configuration.M0_VALUES) || statement.getPredicate().equals(Configuration.M0_VALUES_EN))) return;
 					// All subjects should start with the base links URI
-					String variablePart = statement.getSubject().toString().replace(baseURILink, "");
+					String variablePart = statement.getSubject().toString().replace(baseLinkURI, "");
 					if (variablePart.length() == statement.getSubject().toString().length()) logger.warn("Unexpected subject URI in statement " + statement);
 					String attributeName = variablePart.split("/")[1];
 					if (!attributesToExport.contains(attributeName)) return;
@@ -480,56 +477,54 @@ public class M0Checker {
 	}
 
 	/**
-	 * Study of the 'documents' model.
+	 * Runs basic counts on the 'documents' model and exports values for given attributes.
 	 * 
-	 * @param export <code>File</code> object for an Excel file that will contain the properties of the links.
-	 * @param report <code>File</code> object for a text file that will contain the report of the study.
+	 * @param m0DocumentsModel The Jena model containing M0 information about documents.
+	 * @param m0AssociationsModel The Jena model containing M0 information about associations.
+	 * @param export <code>File</code> object for an Excel file that will contain the properties of the documents.
+	 * @return A <code>String</code> containing the report.
 	 */
-	public static void studyDocuments(File export, PrintStream report) {
+	public static String checkDocuments(Model m0DocumentsModel, Model m0AssociationsModel, File export) {
 
-		if (report == null) report = System.out;
+		StringWriter report = new StringWriter().append("Study of the documents in the M0 model\n\n");
 
 		SortedSet<String> attributeSetFr = new TreeSet<String>(); // Set of SIMS attributes to which French documents are attached
 		SortedSet<String> attributeSetEn = new TreeSet<String>(); // Set of SIMS attributes to which English documents are attached
 		SortedMap<String, Integer> attributeCounts = new TreeMap<String, Integer>();
 
-		String baseURI = "http://baseUri/documents/document/";
+		String baseDocumentURI = "http://baseUri/documents/document/";
 
 		List<String> ignoredAttributes = Arrays.asList("ID", "ID_METIER", "VALIDATION_STATUS");
 
-		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model documents = dataset.getNamedModel("http://rdf.insee.fr/graphe/documents");
-		Model associations = dataset.getNamedModel("http://rdf.insee.fr/graphe/associations");
-
-		// Selectors on the French and English associations starting from a 'document' resource 
+		// Selectors on the French and English associations starting from a 'document' resource (and pointing to a 'documentation' resource)
 		Selector selectorFr = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
-	        	return (statement.getSubject().getURI().startsWith(baseURI));
+	        	return (statement.getSubject().getURI().startsWith(baseDocumentURI));
 	        }
 	    };
 		Selector selectorEn = new SimpleSelector(null, Configuration.M0_RELATED_TO_EN, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
-	        	return (statement.getSubject().getURI().startsWith(baseURI));
+	        	return (statement.getSubject().getURI().startsWith(baseDocumentURI));
 	        }
 	    };
 
 	    // List the document attributes associated to documentations in French and English
-		associations.listStatements(selectorFr).forEachRemaining(new Consumer<Statement>() {
+		m0AssociationsModel.listStatements(selectorFr).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				attributeSetFr.add(StringUtils.substringAfterLast(statement.getSubject().toString(), "/"));
 			}
 		});
-		associations.listStatements(selectorEn).forEachRemaining(new Consumer<Statement>() {
+		m0AssociationsModel.listStatements(selectorEn).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				attributeSetEn.add(StringUtils.substringAfterLast(statement.getSubject().toString(), "/"));
 			}
 		});
 
-		// List all documents (NB: the selection on skos:Concept eliminates the 'sequence' resource
+		// List all documents (NB: the selection on skos:Concept eliminates the 'sequence' resource)
 		SortedMap<Integer, SortedSet<String>> attributesByDocument = new TreeMap<Integer, SortedSet<String>>(); // List of attributes used for each document
-		documents.listStatements(new SimpleSelector(null, RDF.type, SKOS.Concept)).forEachRemaining(new Consumer<Statement>() {
+		m0DocumentsModel.listStatements(new SimpleSelector(null, RDF.type, SKOS.Concept)).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				Integer documentNumber = Integer.parseInt(StringUtils.substringAfterLast(statement.getSubject().toString(), "/"));
@@ -539,10 +534,10 @@ public class M0Checker {
 		// Now list all non-SIMS attributes for each document (NB: no M0_VALUES_EN properties in the 'documents' model
 		// Take this opportunity to create the list of all direct attributes (appearing in the document model but not in the association model)
 		Set<String> allDirectAttributes = new TreeSet<String>(ignoredAttributes);
-		documents.listStatements(new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
+		m0DocumentsModel.listStatements(new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				String variablePart = statement.getSubject().toString().replace(baseURI, "");
+				String variablePart = statement.getSubject().toString().substring(baseDocumentURI.length());
 				String attributeName = variablePart.split("/")[1];
 				if (attributeSetFr.contains(attributeName) || attributeSetEn.contains(attributeName)) return; // We only want the direct attributes
 				if (ignoredAttributes.contains(attributeName)) return; // We are not interested in the validation status, ID, or redundant ID_METIER attribute
@@ -551,27 +546,26 @@ public class M0Checker {
 				if (!attributeCounts.containsKey(attributeName)) attributeCounts.put(attributeName, 0);
 				attributeCounts.put(attributeName, attributeCounts.get(attributeName) + 1);
 				Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
-				if (!attributesByDocument.containsKey(documentNumber)) logger.error("Error: document number " + documentNumber + " not found (appears in " + baseURI + variablePart + ")");
+				if (!attributesByDocument.containsKey(documentNumber)) logger.error("Error: document number " + documentNumber + " not found (appears in " + baseDocumentURI + variablePart + ")");
 				else attributesByDocument.get(documentNumber).add(attributeName);
 			}
 		});
 
-		report.println("Number of documents: " + attributesByDocument.size());
-		report.println("\nSIMS attributes to which French documents are attached:\n" + attributeSetFr);
-		report.println("SIMS attributes to which English documents are attached:\n" + attributeSetEn);
-		report.println("All direct document attributes: " + allDirectAttributes);
-		report.println("\nDetail of direct attributes by document (excluding ID, ID_METIER and VALIDATION_STATUS):\n");
-		for (Integer number : attributesByDocument.keySet()) report.println("Document number " + number + ":\t" + attributesByDocument.get(number));
-		report.println("\nFrequencies of use of the attributes:\n");
-		for (String attribute : attributeCounts.keySet()) report.println(attribute + " is used in " + attributeCounts.get(attribute) + " documents");
+		report.append("Number of documents: " + attributesByDocument.size());
+		report.append("\n\nSIMS attributes to which French documents are attached:\n" + attributeSetFr);
+		report.append("\nSIMS attributes to which English documents are attached:\n" + attributeSetEn);
+		report.append("\nAll direct document attributes: " + allDirectAttributes);
+		report.append("\nDetail of direct attributes by document (" + String.join(", ", ignoredAttributes) + " are ignored):");
+		for (Integer number : attributesByDocument.keySet()) report.append("\nDocument number " + number + ":\t" + attributesByDocument.get(number));
+		report.append("\nFrequencies of use of the attributes:\n");
+		for (String attribute : attributeCounts.keySet()) report.append("\n" + attribute + " is used in " + attributeCounts.get(attribute) + " documents");
 
 		// Go over the 'documents' model again to find the list of SIMS attributes for each document
 		attributesByDocument.clear();
-		Property varSIMSProperty = ResourceFactory.createProperty("http://rem.org/schema#varSims");
-		documents.listStatements(new SimpleSelector(null, varSIMSProperty, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
+		m0DocumentsModel.listStatements(new SimpleSelector(null, Configuration.M0_VAR_SIMS, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				String variablePart = statement.getSubject().toString().replace(baseURI, "");
+				String variablePart = statement.getSubject().toString().substring(baseDocumentURI.length());
 				if (!variablePart.contains("/")) return; // That is a root document URI
 				String attributeName = variablePart.split("/")[1];
 				if (allDirectAttributes.contains(attributeName)) return; // We only want the SIMS attributes
@@ -580,25 +574,25 @@ public class M0Checker {
 				attributesByDocument.get(documentNumber).add(attributeName);
 			}
 		});
-		report.println("\nDetail of SIMS attributes by document (excluded: " + ignoredAttributes + "):\n");
-		for (Integer number : attributesByDocument.keySet()) report.println("Document number " + number + ":\t" + attributesByDocument.get(number));
+		report.append("\nDetail of SIMS attributes by document (" + String.join(", ", ignoredAttributes) + " are ignored):");
+		for (Integer number : attributesByDocument.keySet()) report.append("\nDocument number " + number + ":\t" + attributesByDocument.get(number));
 		// Same thing, eliminating the ASSOCIE_A attribute
 		Set<String> attributesToRemove = new TreeSet<String>(Arrays.asList("ASSOCIE_A"));
 		int exclusions = 0;
 		for (Integer number : attributesByDocument.keySet()) if (attributesByDocument.get(number).removeAll(attributesToRemove)) exclusions++;
-		report.println("\nDetail of SIMS attributes by document (further excluded: " + attributesToRemove + ", " + exclusions + " exclusions):\n");
-		for (Integer number : attributesByDocument.keySet()) report.println("Document number " + number + ":\t" + attributesByDocument.get(number));
+		report.append("\n\nDetail of SIMS attributes by document (further excluded: " + attributesToRemove + ", " + exclusions + " exclusions):");
+		for (Integer number : attributesByDocument.keySet()) report.append("\nDocument number " + number + ":\t" + attributesByDocument.get(number));
 
 		// Finally, let us check that the association endpoints in 'documents' and 'associations' match
 		SortedSet<String> orphans = new TreeSet<String>();
 		// We have to keep track of already paired endpoints to avoid problem when 'relatedTo' and 'relatedToGb' exist for the same document/attribute
 		SortedSet<String> paired = new TreeSet<String>();
-		associations.listStatements().forEachRemaining(new Consumer<Statement>() {
+		m0AssociationsModel.listStatements().forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				// All properties in the 'associations' model are 'relatedTo' or 'relatedToGb', so no selection is needed
-				if (!statement.getSubject().toString().startsWith(baseURI)) return; // Select statements about documents
-				String variablePart = statement.getSubject().toString().replace(baseURI, "");
+				if (!statement.getSubject().toString().startsWith(baseDocumentURI)) return; // Select statements about documents
+				String variablePart = statement.getSubject().toString().substring(baseDocumentURI.length());
 				String attributeName = variablePart.split("/")[1];
 				if (allDirectAttributes.contains(attributeName)) return; // We only want the SIMS attributes
 				Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
@@ -615,19 +609,18 @@ public class M0Checker {
 				paired.add(variablePart);
 			}
 		});
-		report.println("\nCoherence between 'documents' and 'associations' graphs:\n");
-		if (orphans.size() == 0) report.println("All endpoints found in the 'associations' graph match an endpoint in the 'documents' graph");
+		report.append("\n\nCoherence between 'documents' and 'associations' graphs:\n");
+		if (orphans.size() == 0) report.append("All endpoints found in the 'associations' graph match an endpoint in the 'documents' graph");
 		else {
-			report.println(orphans.size() + " endpoints referenced in the 'associations' graph but missing from the 'documents' graph");
-			for (String orphan : orphans) report.println(orphan);
+			report.append(orphans.size() + " endpoints referenced in the 'associations' graph but missing from the 'documents' graph\n");
+			for (String orphan : orphans) report.append("\n" + orphan);
 		}
-		report.println();
 		orphans.clear();
 		for (Integer documentNumber : attributesByDocument.keySet()) if (attributesByDocument.get(documentNumber).size() != 0) orphans.add(String.valueOf(documentNumber + ": " + attributesByDocument.get(documentNumber)));
-		if (orphans.size() == 0) report.println("All endpoints found in the 'documents' graph match an endpoint in the 'associations' graph");
+		if (orphans.size() == 0) report.append("\n\nAll endpoints found in the 'documents' graph match an endpoint in the 'associations' graph");
 		else {
-			report.println(orphans.size() + " documents with endpoints referenced in the 'documents' graph but not matching an endpoint in the 'associations' graph");
-			for (String orphan : orphans) report.println(orphan);
+			report.append("\n\n" + orphans.size() + " documents with endpoints referenced in the 'documents' graph but not matching an endpoint in the 'associations' graph:");
+			for (String orphan : orphans) report.append("\n" + orphan);
 		}
 		
 		// For convenience reasons, the workbook is created even if it is not saved at the end
@@ -649,10 +642,10 @@ public class M0Checker {
 			rowIndexes.put(number, index++);
 		}
 		orphans.clear();
-		documents.listStatements(new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
+		m0DocumentsModel.listStatements(new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null)).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				String variablePart = statement.getSubject().toString().replace(baseURI, "");
+				String variablePart = statement.getSubject().toString().replace(baseDocumentURI, "");
 				String attributeName = variablePart.split("/")[1];
 				if (attributeSetFr.contains(attributeName) || attributeSetEn.contains(attributeName)) return; // Same as above
 				if (ignoredAttributes.contains(attributeName) || attributesToRemove.contains(attributeName)) return; // Same as above
@@ -674,10 +667,10 @@ public class M0Checker {
 			}
 		});
 
-		if (orphans.size() == 0) report.println("\nAll document found in the 'documents' graph have at least one SIMS attribute");
+		if (orphans.size() == 0) report.append("\n\nAll document found in the 'documents' graph have at least one SIMS attribute");
 		else {
-			report.println("\n" + orphans.size() + " documents present in the 'documents' graph have no SIMS attribute, and thus no correspondence in the 'associations' graph: " + orphans);
-			if (export != null) report.println("Details on these documents can be found at the end of the export spreadsheet");
+			report.append("\n\n" + orphans.size() + " documents present in the 'documents' graph have no SIMS attribute, and thus no correspondence in the 'associations' graph: " + orphans);
+			if (export != null) report.append("\nDetails on these documents can be found at the end of the export spreadsheet");
 		}
 
 		if (export != null) {
@@ -685,15 +678,16 @@ public class M0Checker {
 			for (index = 0 ; index < attributeCounts.keySet().size(); index++) docSheet.autoSizeColumn(index);
 			try {
 				workbook.write(new FileOutputStream(export));
-				report.println("\nExcel export written to " + export.getAbsolutePath());
+				logger.debug("Excel export written to " + export.getAbsolutePath());
 			} catch (IOException e) {
-				report.println("\nError: could not write Excel export");
+				logger.error("Error: could not write Excel export");
 			} finally {
 				try {
 					workbook.close();
 				} catch (Exception ignored) { }
 			}				
 		}
+		return report.toString();
 	}
 
 	/**

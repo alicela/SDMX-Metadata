@@ -211,7 +211,7 @@ public class CodelistModelMaker {
 	}
 
 	/**
-	 * Strips a label form its righ-most parenthesis and its content when it exists.
+	 * Strips a label form its right-most parenthesis and its content when it exists.
 	 * 
 	 * @param label The label to process.
 	 * @return The label stripped from its parenthesis.

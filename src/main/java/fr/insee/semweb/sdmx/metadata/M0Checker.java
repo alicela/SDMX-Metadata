@@ -12,7 +12,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -75,7 +74,7 @@ public class M0Checker {
 		SortedMap<Integer, SortedSet<String>> attributesById = new TreeMap<Integer, SortedSet<String>>(); // Attributes used for each family identifier
 		SortedSet<String> allAttributes = new TreeSet<String>(); // All attributes that exist in the model
 
-		StringWriter report = new StringWriter().append("Study of families in the M0 model\n\n");
+		StringWriter report = new StringWriter().append("Checks on information about families in the M0 model\n\n");
 
 		ResIterator subjectsIterator = m0Families.listSubjects();
 		while (subjectsIterator.hasNext()) {
@@ -114,7 +113,7 @@ public class M0Checker {
 		SortedMap<Integer, SortedSet<String>> attributesById = new TreeMap<Integer, SortedSet<String>>(); // Attributes used for each series identifier
 		SortedSet<String> allAttributes = new TreeSet<String>(); // All attributes that exist in the model
 
-		StringWriter report = new StringWriter().append("Study of series in the M0 model\n\n");
+		StringWriter report = new StringWriter().append("Checks on information about series in the M0 model\n\n");
 
 		ResIterator subjectsIterator = m0SeriesModel.listSubjects(); // Lists all series URIs
 		while (subjectsIterator.hasNext()) {
@@ -205,7 +204,7 @@ public class M0Checker {
 		});
 
 		// Write and return the report
-		StringWriter report = new StringWriter().append("Study of operations in the M0 model\n\n");
+		StringWriter report = new StringWriter().append("Checks on information about operations in the M0 model\n\n");
 
 		report.append("Attributes filled for each operation identifier\n");
 		for (Integer operationId : attributesById.keySet()) {
@@ -232,7 +231,7 @@ public class M0Checker {
 	 */
 	public static String checkDocumentations(Model m0DocumentationsModel) {
 
-		StringWriter report = new StringWriter().append("Study of documemtations in the M0 model\n\n");
+		StringWriter report = new StringWriter().append("Checks on information about of documemtations in the M0 model\n\n");
 
 		// Build the mapping between documentation id (number) and the list of associated SIMS attributes.
 		report.append("SIMS attributes by documentation identifier\n");
@@ -321,67 +320,64 @@ public class M0Checker {
 	}
 
 	/**
-	 * Study of the 'liens' model.
+	 * Runs basic counts on the 'liens' model and exports values for given attributes.
 	 * 
+	 * @param m0LinksModel The Jena model containing M0 information about links.
+	 * @param m0AssociationsModel The Jena model containing M0 information about associations.
 	 * @param export <code>File</code> object for an Excel file that will contain the properties of the links.
-	 * @param report <code>File</code> object for a text file that will contain the report of the study.
+	 * @param attributesToExport The list of attributes that will be included in the Excel export.
+	 * @return A <code>String</code> containing the report.
 	 */
-	public static void studyLinks(File export, PrintStream report) {
-
-		if (report == null) report = System.out;
+	public static String checkLinks(Model m0LinksModel, Model m0AssociationsModel, File export, List<String> attributesToExport) {
 
 		String baseURILink = "http://baseUri/liens/lien/";
-		String baseURIDoc = "http://baseUri/documentations/documentation/";
-		List<String> ignoredAttributes = Arrays.asList("ID", "ID_METIER", "VALIDATION_STATUS");
-		List<String> directAttributes = Arrays.asList("SUMMARY", "TITLE", "TYPE", "URI");
-		List<String> exportedAttributes = Arrays.asList("TITLE","TYPE", "URI", "SUMMARY"); // Attributes that will be included in the Excel export
 
-		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model links = dataset.getNamedModel("http://rdf.insee.fr/graphe/liens");
-		Model associations = dataset.getNamedModel("http://rdf.insee.fr/graphe/associations");
+		SortedSet<String> ignoredAttributes = new TreeSet<>(Arrays.asList("ID", "ID_METIER", "VALIDATION_STATUS")); // Technical attributes not taken into consideration
+		SortedSet<String> directAttributes = new TreeSet<>(Arrays.asList("SUMMARY", "TITLE", "TYPE", "URI")); // These attributes contain direct properties of the links
+
+		StringWriter report = new StringWriter().append("Study of the links in the M0 model\n\n");
 
 		SortedSet<String> attributeList = new TreeSet<String>(); // List of all SIMS attributes that appear in the 'liens' model
-		SortedMap<Integer, SortedSet<String>> attributesByLink = new TreeMap<Integer, SortedSet<String>>(); // List of attributes used for each link
+		SortedMap<Integer, SortedSet<String>> attributesByLinkId = new TreeMap<Integer, SortedSet<String>>(); // List of attributes used for each link
 
 		// List all M0 attributes used in the 'liens' model, globally and for each link
-		StmtIterator statementIterator = links.listStatements();
+		StmtIterator statementIterator = m0LinksModel.listStatements();
 		statementIterator.forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				String subjectURI = statement.getSubject().getURI();
-				String endPath = subjectURI.substring(subjectURI.lastIndexOf("/") + 1);
+				String[] uriComponents = subjectURI.split("/");
+				String attributeName = uriComponents[uriComponents.length - 1];
 				try {
-					Integer.parseInt(endPath); // Will raise an exception for the URIs ending with attribute name
+					Integer.parseInt(attributeName); // Will raise an exception for the URIs ending with attribute name, which is what we are looking for
 				} catch (NumberFormatException e) {
-					if (!"sequence".equals(endPath)) {
-						attributeList.add(subjectURI.substring(subjectURI.lastIndexOf("/") + 1));
-						String[] lastPathElements = subjectURI.substring(baseURILink.length()).split("/");
-						if (!ignoredAttributes.contains(lastPathElements[1])) {
-							Integer serialNumber = Integer.parseInt(lastPathElements[0]);
-							if (!attributesByLink.containsKey(serialNumber)) attributesByLink.put(serialNumber, new TreeSet<String>());
-							attributesByLink.get(serialNumber).add(lastPathElements[1]);							
+					if (!"sequence".equals(attributeName)) {
+						attributeList.add(attributeName);
+						if (!ignoredAttributes.contains(attributeName)) {
+							Integer serialNumber = Integer.parseInt(uriComponents[uriComponents.length - 2]);
+							if (!attributesByLinkId.containsKey(serialNumber)) attributesByLinkId.put(serialNumber, new TreeSet<String>());
+							attributesByLinkId.get(serialNumber).add(attributeName);							
 						}
 					}
 				}
 			}
 		});
-		report.println("Attributes used in the 'liens' model:");
-		for (String attributeName : attributeList) report.println(attributeName);
-		report.println("\nList of attributes for each link (ID, ID_METIER and VALIDATION_STATUS are ignored): ");
-		for (Integer linkIndex : attributesByLink.keySet()) report.println(linkIndex + "\t\t" + attributesByLink.get(linkIndex));
-		report.println("\nList of non-direct attributes for each link (excluded: " + directAttributes + "): ");
-		for (Integer linkIndex : attributesByLink.keySet()) {
-			attributesByLink.get(linkIndex).removeAll(directAttributes);
-			report.println(linkIndex + "\t\t" + attributesByLink.get(linkIndex));
+		report.append("Attributes used in the 'liens' model:\n" + String.join(", ", attributeList));
+		report.append("\n\nList of attributes for each link (" + String.join(", ", ignoredAttributes) + " are ignored): ");
+		for (Integer linkId : attributesByLinkId.keySet()) report.append("\n" + linkId + "\t" + attributesByLinkId.get(linkId));
+		report.append("\n\nList of non-direct attributes for each link (excluded: " + String.join(", ", directAttributes) + "): ");
+		for (Integer linkId : attributesByLinkId.keySet()) {
+			attributesByLinkId.get(linkId).removeAll(directAttributes);
+			report.append("\n" + linkId + "\t" + attributesByLinkId.get(linkId));
 		}
 
-		// Selectors on the French and English associations starting from a 'lien' resource 
-		Selector selectorFr = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
+		// Selectors on the French and English associations starting from a 'lien' resource (and pointing to a 'documentation' resource)
+		Selector frenchSelector = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return (statement.getSubject().getURI().startsWith(baseURILink));
 	        }
 	    };
-		Selector selectorEn = new SimpleSelector(null, Configuration.M0_RELATED_TO_EN, (RDFNode) null) {
+		Selector englishSelector = new SimpleSelector(null, Configuration.M0_RELATED_TO_EN, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return (statement.getSubject().getURI().startsWith(baseURILink));
 	        }
@@ -390,51 +386,54 @@ public class M0Checker {
 		SortedMap<String, SortedSet<String>> linksByDocumentation = new TreeMap<String, SortedSet<String>>();
 	    // Documentations (number/attribute) for each link (number/attribute)
 		SortedMap<String, SortedSet<String>> documentationsByLink = new TreeMap<String, SortedSet<String>>();
-		associations.listStatements(selectorFr).forEachRemaining(new Consumer<Statement>() {
+		// Fill the two maps for French associations
+		m0AssociationsModel.listStatements(frenchSelector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				String documentationPart = statement.getObject().toString().replaceAll(baseURIDoc, "");
-				String linkPart = statement.getSubject().toString().replaceAll(baseURILink, "");
+				String documentationPart = statement.getObject().toString().substring(Configuration.M0_SIMS_BASE_URI.length());
+				String linkPart = statement.getSubject().toString().substring(baseURILink.length());
 				if (!linksByDocumentation.containsKey(documentationPart)) linksByDocumentation.put(documentationPart, new TreeSet<String>());
 				linksByDocumentation.get(documentationPart).add(linkPart);
 				if (!documentationsByLink.containsKey(linkPart)) documentationsByLink.put(linkPart, new TreeSet<String>());
 				documentationsByLink.get(linkPart).add(documentationPart);
 			}
 		});
-		report.println("\nAssociations between documentations and French links:");
-		for (String documentationPart : linksByDocumentation.keySet()) report.println(documentationPart + "\t" + linksByDocumentation.get(documentationPart));
-		report.println("\nAssociations between French links and documentations:");
-		for (String linkPart : documentationsByLink.keySet()) report.println(linkPart + "\t" + documentationsByLink.get(linkPart));
+		report.append("\n\nAssociations between documentations and French links:");
+		for (String documentationPart : linksByDocumentation.keySet()) report.append("\n" + documentationPart + "\t" + linksByDocumentation.get(documentationPart));
+		report.append("\n\nAssociations between French links and documentations:");
+		for (String linkPart : documentationsByLink.keySet()) report.append("\n" + linkPart + "\t" + documentationsByLink.get(linkPart));
 
-		associations.listStatements(selectorEn).forEachRemaining(new Consumer<Statement>() {
+		// Fill the two maps for English associations
+		m0AssociationsModel.listStatements(englishSelector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				String documentationPart = statement.getObject().toString().replaceAll(baseURIDoc, "");
-				String linkPart = statement.getSubject().toString().replaceAll(baseURILink, "");
+				String documentationPart = statement.getObject().toString().substring(Configuration.M0_SIMS_BASE_URI.length());
+				String linkPart = statement.getSubject().toString().substring(baseURILink.length());
 				if (!linksByDocumentation.containsKey(documentationPart)) linksByDocumentation.put(documentationPart, new TreeSet<String>());
 				linksByDocumentation.get(documentationPart).add(linkPart);
 				if (!documentationsByLink.containsKey(linkPart)) documentationsByLink.put(linkPart, new TreeSet<String>());
 				documentationsByLink.get(linkPart).add(documentationPart);
 			}
 		});
-		report.println("\nAssociations between documentations and English links:");
-		for (String documentationPart : linksByDocumentation.keySet()) report.println(documentationPart + "\t" + linksByDocumentation.get(documentationPart));
-		report.println("\nAssociations between English links and documentations:");
-		for (String linkPart : documentationsByLink.keySet()) report.println(linkPart + "\t" + documentationsByLink.get(linkPart));
+		report.append("\n\nAssociations between documentations and English links:");
+		for (String documentationPart : linksByDocumentation.keySet()) report.append("\n" + documentationPart + "\t" + linksByDocumentation.get(documentationPart));
+		report.append("\n\nAssociations between English links and documentations:");
+		for (String linkPart : documentationsByLink.keySet()) report.append("\n" + linkPart + "\t" + documentationsByLink.get(linkPart));
 
 		// Creation of the Excel report
-		if (export != null) {
+		if ((export != null) && (attributesToExport != null) && (attributesToExport.size() > 0)) {
+			logger.debug("Exporting " + attributesToExport + " to Excel spreadsheet");
 			Workbook workbook = new XSSFWorkbook();
-			Sheet docSheet = workbook.createSheet("Documents");
+			Sheet docSheet = workbook.createSheet("Links");
 			Row headerRow = docSheet.createRow(0);
 			// Create header
 			headerRow.createCell(0, CellType.STRING).setCellValue("Number");
-			for (String attribute : exportedAttributes) {
-				headerRow.createCell(exportedAttributes.indexOf(attribute) + 1, CellType.STRING).setCellValue(attribute);
+			for (String attribute : attributesToExport) {
+				headerRow.createCell(attributesToExport.indexOf(attribute) + 1, CellType.STRING).setCellValue(attribute);
 			}
 			// Create all the rows and first column
 			SortedMap<Integer, Integer> rowIndexes = new TreeMap<Integer, Integer>();
-			links.listStatements(new SimpleSelector(null, RDF.type, SKOS.Concept)).forEachRemaining(new Consumer<Statement>() {
+			m0LinksModel.listStatements(new SimpleSelector(null, RDF.type, SKOS.Concept)).forEachRemaining(new Consumer<Statement>() {
 				@Override
 				public void accept(Statement statement) {
 					Integer linkNumber = Integer.parseInt(StringUtils.substringAfterLast(statement.getSubject().toString(), "/"));
@@ -448,7 +447,7 @@ public class M0Checker {
 			}
 
 			// Create cells for the values of the exported attributes
-			links.listStatements().forEachRemaining(new Consumer<Statement>() {
+			m0LinksModel.listStatements().forEachRemaining(new Consumer<Statement>() {
 				@Override
 				public void accept(Statement statement) {
 					// Select statements with 'values' and 'valuesGb' properties
@@ -457,26 +456,27 @@ public class M0Checker {
 					String variablePart = statement.getSubject().toString().replace(baseURILink, "");
 					if (variablePart.length() == statement.getSubject().toString().length()) logger.warn("Unexpected subject URI in statement " + statement);
 					String attributeName = variablePart.split("/")[1];
-					if (!exportedAttributes.contains(attributeName)) return;
+					if (!attributesToExport.contains(attributeName)) return;
 					Integer documentNumber = Integer.parseInt(variablePart.split("/")[0]);
 					// Create cell
 					String attributeValue = statement.getObject().toString();
-					docSheet.getRow(rowIndexes.get(documentNumber)).createCell(exportedAttributes.indexOf(attributeName) + 1, CellType.STRING).setCellValue(attributeValue);
+					docSheet.getRow(rowIndexes.get(documentNumber)).createCell(attributesToExport.indexOf(attributeName) + 1, CellType.STRING).setCellValue(attributeValue);
 				}
 			});
 			// Adjust columns before writing the spreadsheet
-			for (index = 0 ; index <= exportedAttributes.size(); index++) docSheet.autoSizeColumn(index);
+			for (index = 0 ; index <= attributesToExport.size(); index++) docSheet.autoSizeColumn(index);
 			try {
 				workbook.write(new FileOutputStream(export));
-				report.println("\nExcel export written to " + export.getAbsolutePath());
+				logger.debug("Excel export written to " + export.getAbsolutePath());
 			} catch (IOException e) {
-				report.println("\nError: could not write Excel export");
+				logger.error("Error: could not write Excel export");
 			} finally {
 				try {
 					workbook.close();
 				} catch (Exception ignored) { }
 			}
 		}
+		return report.toString();
 	}
 
 	/**
@@ -826,12 +826,9 @@ public class M0Checker {
 	 * @param attributeName The name of the attribute to look for.
 	 * @return The sorted set of the distinct values of the attribute.
 	 */
-	public static SortedSet<String> listAttributeValues(Model m0DocumentationsModelf, String attributeName) {
+	public static SortedSet<String> listAttributeValues(Model m0DocumentationsModel, String attributeName) {
 
 		SortedSet<String> valueSet = new TreeSet<String>();
-
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0DocumentationsModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 
 		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject URI ends with the expected property name

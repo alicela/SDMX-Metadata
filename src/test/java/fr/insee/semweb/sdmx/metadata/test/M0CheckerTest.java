@@ -39,7 +39,7 @@ public class M0CheckerTest {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0FamiliesModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/familles");
 		String report = M0Checker.checkSeries(m0FamiliesModel);
-		PrintStream outStream = new PrintStream("src/test/resources/reports/familles.txt");
+		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-families.txt");
 		outStream.print(report);
 		outStream.close();
 		m0FamiliesModel.close();
@@ -56,7 +56,7 @@ public class M0CheckerTest {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0SeriesModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/series");
 		String report = M0Checker.checkSeries(m0SeriesModel);
-		PrintStream outStream = new PrintStream("src/test/resources/reports/series.txt");
+		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-series.txt");
 		outStream.print(report);
 		outStream.close();
 		m0SeriesModel.close();
@@ -73,7 +73,7 @@ public class M0CheckerTest {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0OperationsModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/operations");
 		String report = M0Checker.checkOperations(m0OperationsModel);
-		PrintStream outStream = new PrintStream("src/test/resources/reports/operations.txt");
+		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-operations.txt");
 		outStream.print(report);
 		outStream.close();
 		m0OperationsModel.close();
@@ -90,7 +90,7 @@ public class M0CheckerTest {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0OperationsModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/operations");
 		String report = M0Checker.checkOperations(m0OperationsModel, "ID_DDS");
-		PrintStream outStream = new PrintStream("src/test/resources/reports/operations-id_dds.txt");
+		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-operations-id_dds.txt");
 		outStream.print(report);
 		outStream.close();
 		m0OperationsModel.close();
@@ -107,12 +107,17 @@ public class M0CheckerTest {
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0DocumentationsModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
 		String report = M0Checker.checkDocumentations(m0DocumentationsModel);
-		PrintStream outStream = new PrintStream("src/test/resources/reports/documentations.txt");
+		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-documentations.txt");
 		outStream.print(report);
 		outStream.close();
 		m0DocumentationsModel.close();
 	}
 
+	/**
+	 * Runs the counts and export on the 'documents' M0 model.
+	 * 
+	 * @throws IOException In case of problem writing the report.
+	 */
 	@Test
 	public void testStudyDocuments() throws IOException {
 		PrintStream outStream = new PrintStream("src/test/resources/documents.txt");
@@ -120,12 +125,24 @@ public class M0CheckerTest {
 		outStream.close();
 	}
 
+	/**
+	 * Runs the counts and export on the 'links' M0 model.
+	 * 
+	 * @throws IOException In case of problem writing the report.
+	 */
 	@Test
-	public void testStudyLinks() throws IOException {
+	public void testCheckLinks() throws IOException {
 
-		PrintStream outStream = new PrintStream("src/test/resources/links.txt");
-		M0Checker.studyLinks(new File("src/test/resources/links.xslx"), outStream);
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0LinksModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "liens");
+		Model m0AssociationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		String report = M0Checker.checkLinks(m0LinksModel, m0AssociationsModel, new File("src/test/resources/links.xslx"), Arrays.asList("TITLE", "TYPE", "URI", "SUMMARY"));
+		PrintStream outStream = new PrintStream("src/test/resources/m0-links.txt");
+		outStream.print(report);
 		outStream.close();
+		m0LinksModel.close();
+		m0AssociationsModel.close();
+		m0Dataset.close();
 	}
 
 	/**
@@ -148,14 +165,18 @@ public class M0CheckerTest {
 		M0Checker.checkCoherence(true);
 	}
 
+	/**
+	 * Prints to console the list of values of an attribute used in a M0 model.
+	 */
 	@Test
-	public void testListPropertyValues() {
+	public void testListAttributeValues() {
 
 		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0DocumentationsModel = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 
-		Set<String> values = M0Checker.listAttributeValues(m0DocumentationsModel, "REF_AREA");
-		System.out.println(values);
+		Set<String> attributeValues = M0Checker.listAttributeValues(m0DocumentationsModel, "REF_AREA");
+		System.out.println(attributeValues);
+
 		m0DocumentationsModel.close();
 		m0Dataset.close();
 	}

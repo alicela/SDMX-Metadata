@@ -19,8 +19,8 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.graph.Node;
 import org.apache.jena.query.Dataset;
@@ -33,7 +33,6 @@ import org.apache.jena.rdf.model.Selector;
 import org.apache.jena.rdf.model.SimpleSelector;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
-import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.SKOS;
 import org.apache.logging.log4j.LogManager;
@@ -58,22 +57,20 @@ public class M0Checker {
 
 	public static Logger logger = LogManager.getLogger(M0Checker.class);
 
-	static Dataset dataset = null;
-
 	/**
 	 * Runs basic reporting on M0 families and returns a text report.
 	 * 
-	 * @param m0Families The Jena model containing M0 information about operations.
+	 * @param m0FamiliesModel The Jena model containing M0 information about operations.
 	 * @return A <code>String</code> containing the report.
 	 */
-	public static String checkFamilies(Model m0Families) {
+	public static String checkFamilies(Model m0FamiliesModel) {
 
 		SortedMap<Integer, SortedSet<String>> attributesById = new TreeMap<Integer, SortedSet<String>>(); // Attributes used for each family identifier
 		SortedSet<String> allAttributes = new TreeSet<String>(); // All attributes that exist in the model
 
 		StringWriter report = new StringWriter().append("Checks on information about families in the M0 model\n\n");
 
-		ResIterator subjectsIterator = m0Families.listSubjects();
+		ResIterator subjectsIterator = m0FamiliesModel.listSubjects();
 		while (subjectsIterator.hasNext()) {
 			String familyURI = subjectsIterator.next().getURI();
 			String[] uriComponents = familyURI.split("/");
@@ -292,6 +289,8 @@ public class M0Checker {
 	/**
 	 * Checks that all attributes referenced in a M0 'documentations' model are valid SIMSFr attributes.
 	 * An error will be logged for each attribute found in the model and not defined in SIMSFr.
+	 * 
+	 * @param m0DocumentationsModel The Jena model containing M0 information about documentations.
 	 */
 	public static void checkSIMSAttributes(Model m0DocumentationsModel) {
 
@@ -691,18 +690,19 @@ public class M0Checker {
 	}
 
 	/**
-	 * Selects the cases where documents have both a DATE and a DATE_PUBLICATION attributes, and compares the values.
+	 * Lists the cases of presence of DATE and a DATE_PUBLICATION attributes on documents, and compares the values when both are present.
+	 * 
+	 * @param m0DocumentsModel The Jena model containing M0 information about documents.
 	 */
-	public static void checkDocumentDates() {
+	public static String checkDocumentDates(Model m0DocumentsModel) {
 
-		if (dataset == null) dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0DocumentModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documents");
 		DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+		StringWriter report = new StringWriter().append("Study of the document dates in the M0 model\n\n");
 
 		// First create the list of documents that have a DATE attribute
 		SortedMap<Integer, String> documentDates = new TreeMap<>();
 		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null);
-		m0DocumentModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+		m0DocumentsModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				String documentURI = statement.getSubject().getURI();
@@ -713,15 +713,14 @@ public class M0Checker {
 					try {
 						dateFormat.parse(dateString);
 					} catch (ParseException e) {
-						System.out.println("Unparseable date value: '" + dateString + "' for attribute DATE in document number " + documentNumber);
-						return;
+						logger.error("Unparseable date value: '" + dateString + "' for attribute DATE in document number " + documentNumber);
 					}
 				}
 			}
 		});
 		// Then get the list of documents that have a DATE_PUBLICATION attribute
 		SortedMap<Integer, String> documentPublicationDates = new TreeMap<>();
-		m0DocumentModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+		m0DocumentsModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				String documentURI = statement.getSubject().getURI();
@@ -732,85 +731,99 @@ public class M0Checker {
 					try {
 						dateFormat.parse(datePublicationString);
 					} catch (ParseException e) {
-						System.out.println("Unparseable date value: '" + datePublicationString + "' for attribute DATE_PUBLICATION in document number " + documentNumber);
-						return;
+						logger.error("Unparseable date value: '" + datePublicationString + "' for attribute DATE_PUBLICATION in document number " + documentNumber);
 					}
 				}
 			}
 		});
 
-		documentDates.keySet().retainAll(documentPublicationDates.keySet()); // Keep only document numbers which are in both maps
-		if (documentDates.size() > 0) System.out.println("\nBoth DATE and DATE_PUBLICATION attributes are defined for the following documents:");
-		for (Integer documentNumber : documentDates.keySet()) {
-			if (documentPublicationDates.containsKey(documentNumber)) {
-				System.out.println(documentNumber + "\t" + documentDates.get(documentNumber) + "\t" + documentPublicationDates.get(documentNumber));
-			}
+		SortedSet<Integer> commonIds = new TreeSet<Integer>(CollectionUtils.intersection(documentDates.keySet(), documentPublicationDates.keySet())); // Keep only document numbers which are in both maps
+		if (commonIds.size() == 0) report.append("No documents have both a DATE and a DATE_PUBLICATION");
+		else report.append("Both DATE and DATE_PUBLICATION attributes are defined for the following documents:");
+		for (Integer documentNumber : commonIds) {
+			report.append("\n" + documentNumber + "\t" + documentDates.get(documentNumber) + "\t" + documentPublicationDates.get(documentNumber) + "\t");
+			report.append((documentDates.get(documentNumber).equals(documentPublicationDates.get(documentNumber))) ? "(=)" : "(≠)");
 		}
+
+		documentDates.keySet().removeAll(commonIds); // Eliminate common numbers from the list of documents that have a DATE
+		if (documentDates.keySet().size() == 0) report.append("\n\nNo documents have a DATE and no DATE_PUBLICATION");
+		else report.append("\n\nThe following documents have a DATE but no DATE_PUBLICATION:");
+		for (Integer documentNumber : documentDates.keySet()) report.append("\n" + documentNumber + "\t" + documentDates.get(documentNumber));
+
+		documentPublicationDates.keySet().removeAll(commonIds); // Eliminate common numbers from the list of documents that have a DATE_PUBLICATION
+		if (documentPublicationDates.keySet().size() == 0) report.append("\n\nNo documents have a DATE_PUBLICATION and no DATE");
+		else report.append("\n\nThe following documents have a DATE_PUBLICATION but no DATE:");
+		for (Integer documentNumber : documentPublicationDates.keySet()) report.append("\n" + documentNumber + "\t" + documentPublicationDates.get(documentNumber));
+
+		return report.toString();
 	}
 
 	/**
-	 * Checks that the values of the direct properties of series or operations have the same values than in the 'documentations' part.
+	 * Checks that the values of the direct attributes of series or operations have the same values than in the 'documentations' part.
+	 * Detected differences are written to diff files for each documentation identifier and attribute name.
+	 * 
+	 * @param m0Dataset The Jena dataset containing all M0 information.
 	 */
-	public static void checkCoherence(boolean includeIndicators) {
+	public static void checkModelCoherence(Dataset m0Dataset, boolean includeIndicators) {
 
-		List<String> comparedAttributes = Configuration.propertyMappings.keySet().stream().collect(Collectors.toList()); // Can't directly use the key set which is immutable
+		SortedSet<String> comparedAttributes = new TreeSet<String>(Configuration.propertyMappings.keySet()); // Can't directly use the key set which is immutable
 		if (includeIndicators) comparedAttributes.add("FREQ_DISS"); // TODO Actually some series also have this attribute, which is a bug
 
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-
 		// Read the mappings between operations/series and SIMS 'documentations'
-		Model m0AssociationModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		Model m0AssociationModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
 		Map<String, String> attachmentMappings = M0Extractor.extractSIMSAttachments(m0AssociationModel, includeIndicators); // Associations SIMS -> resources
 		m0AssociationModel.close();
 
-		// Make model containing both series and operations, and possibly indicators (families have no SIMS attached)
-		Model m0Model = dataset.getNamedModel("http://rdf.insee.fr/graphe/series");
-		m0Model.add(dataset.getNamedModel("http://rdf.insee.fr/graphe/operations"));
-		if (includeIndicators) m0Model.add(dataset.getNamedModel("http://rdf.insee.fr/graphe/indicators"));
-		Model documentationM0Model = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
-		// Select 'documentation' triples where subject corresponds to a SIMSFr attribute to compare and predicate is M0_VALUES
-		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
+		// Make a model containing both series and operations, and possibly indicators (families have no SIMS attached)
+		Model m0Model = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "series");
+		m0Model.add(m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "operations"));
+		if (includeIndicators) m0Model.add(m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "indicators"));
+
+		// Select the 'documentation' triples where the subject corresponds to a SIMSFr attribute to compare and the predicate is M0_VALUES
+		Model m0DocumentationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
+		Selector m0DocumentationSelector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
 	        	return comparedAttributes.contains(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/"));
 	        }
 	    };
-	    documentationM0Model.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+	    // Go through the selector
+	    m0DocumentationsModel.listStatements(m0DocumentationSelector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
-				String simsURI = statement.getSubject().getURI();
-				String simsResourceURI = StringUtils.substringBeforeLast(simsURI, "/");
-				String attribute = StringUtils.substringAfterLast(simsURI, "/");
-				if (!attachmentMappings.containsKey(simsResourceURI)) {
-					logger.error("No URI mapping found for SIMSFr URI " + simsResourceURI);
+				String simsAttributeURI = statement.getSubject().getURI();
+				String simsDocumentationURI = StringUtils.substringBeforeLast(simsAttributeURI, "/");
+				String attributeName = StringUtils.substringAfterLast(simsAttributeURI, "/");
+				if (!attachmentMappings.containsKey(simsDocumentationURI)) {
+					logger.error("Documentation " + simsDocumentationURI + " is not attached to any resource");
 					return;
 				}
 				// Eliminate the statements whose object is a 0-length string literal
 				if ((statement.getObject().isLiteral()) && (statement.getObject().toString().trim().length() == 0)) return;
-				// Get the value of the same attribute in the operations model
-				String operationURI = attachmentMappings.get(simsResourceURI);
-				Resource directAttributeResource = m0Model.createResource(operationURI + "/" + attribute);
-				StmtIterator directIterator = m0Model.listStatements(directAttributeResource, Configuration.M0_VALUES, (RDFNode) null);
-				if (!directIterator.hasNext()) {
-					logger.error("SIMS resource " + simsURI + " has no correspondance as direct attribute in resource " + operationURI);
+				// Get the value of the same attribute as a direct attribute of the operations-like resource
+				String documentedResourceURI = attachmentMappings.get(simsDocumentationURI);
+				Resource directAttributeResource = m0Model.createResource(documentedResourceURI + "/" + attributeName);
+				StmtIterator directValuesIterator = m0Model.listStatements(directAttributeResource, Configuration.M0_VALUES, (RDFNode) null);
+				if (!directValuesIterator.hasNext()) {
+					logger.error("SIMS attribute resource " + simsAttributeURI + " has no correspondance as direct attribute in resource " + documentedResourceURI);
 					return;
 				}
-				while (directIterator.hasNext()) { // There should be exactly one occurrence of the attribute at this point
+				while (directValuesIterator.hasNext()) { // There should be exactly one occurrence of the attribute at this point
 					// Compare objects of both statements
-					Statement directM0Statement = directIterator.next();
-					Node directNode = directM0Statement.getObject().asNode();
+					Statement m0DirectStatement = directValuesIterator.next();
+					Node directNode = m0DirectStatement.getObject().asNode();
 					if (!statement.getObject().asNode().matches(directNode)) {
-						String logMessage = "Different values for " + simsURI + " and " + directAttributeResource.getURI() + ": '";
-						logMessage += nodeToAbbreviatedString(statement.getObject()) + "' versus '" + nodeToAbbreviatedString(directM0Statement.getObject()) + "'";
+						String logMessage = "Different values for " + simsAttributeURI + " and " + directAttributeResource.getURI() + ": '";
+						logMessage += nodeToAbbreviatedString(statement.getObject()) + "' versus '" + nodeToAbbreviatedString(m0DirectStatement.getObject()) + "'";
 						logger.error(logMessage);
-						// Create the diff file
-						String diffFileName = "src/main/resources/data/diffs/diff-" + StringUtils.substringAfterLast(simsResourceURI, "/") + "-" + attribute + ".txt";
-						printDiffs(statement.getObject(), directM0Statement.getObject(), diffFileName);
+						// Create the diff file for the documentation id and the attribute name
+						String diffFileName = "src/main/resources/data/diffs/diff-" + StringUtils.substringAfterLast(simsDocumentationURI, "/") + "-" + attributeName + ".txt";
+						printDiffs(statement.getObject(), m0DirectStatement.getObject(), diffFileName);
 					}					
 				}
 			}
 		});
 	    m0Model.close();
-	    documentationM0Model.close();
+	    m0DocumentationsModel.close();
 	}
 
 	/**
@@ -841,36 +854,35 @@ public class M0Checker {
 		return valueSet;
 	}
 
-
 	/**
 	 * Check that a given property in the 'documentations' graph takes its values from a list of valid values.
 	 * 
+	 * @param m0DocumentationsModel The Jena model containing M0 information about documentations.
 	 * @param propertyName The name of the property to check.
-	 * @return The set of the distinct values of the property.
+	 * @param validValues The set of valid values of the property to check.
+	 * @return A Jena <code>Model</code> containing the M0 statements where the set of the distinct values of the property.
 	 */
-	public static Model checkPropertyValues(String propertyName, Set<String> validValues) {
+	public static Model checkCodedAttributeValues(Model m0DocumentationsModel, String propertyName, Set<String> validValues) {
 
-		Model invalidStatements = ModelFactory.createDefaultModel();
-
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model documentations = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+		Model invalidCodesM0Model = ModelFactory.createDefaultModel();
 
 		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
-			// Override 'selects' method to retain only statements whose subject URI ends with the expected property name
+			// Override the 'selects' method to retain only statements whose subject URI ends with the expected property name
 	        public boolean selects(Statement statement) {
 	        	if (statement.getSubject().getURI().endsWith("/" + propertyName)) return true;
 	        	return false;
 	        }
 	    };
-	    documentations.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+	    // Lists values with the given property as subject and extract those whose object value is not in the expected list
+	    m0DocumentationsModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				String codeValue = statement.getObject().toString();
-				if (!validValues.contains(codeValue)) invalidStatements.add(statement);
+				if (!validValues.contains(codeValue)) invalidCodesM0Model.add(statement);
 			}
 		});
 
-		return invalidStatements;
+		return invalidCodesM0Model;
 	}
 
 	private static String nodeToAbbreviatedString(RDFNode node) {
@@ -917,7 +929,7 @@ public class M0Checker {
 	 * @param m0Model The M0 model to check.
 	 * @return The sorted set of the M0 attributes used in the model.
 	 */
-	public static SortedSet<String> checkModelAttributes(Model m0Model) {
+	public static SortedSet<String> getModelAttributes(Model m0Model) {
 	
 		SortedSet<String> attributes = new TreeSet<String>();
 		m0Model.listStatements().forEachRemaining(new Consumer<Statement>() {

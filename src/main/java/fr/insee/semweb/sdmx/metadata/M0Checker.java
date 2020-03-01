@@ -1,10 +1,8 @@
 package fr.insee.semweb.sdmx.metadata;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -43,10 +41,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import com.github.difflib.DiffUtils;
-import com.github.difflib.algorithm.DiffException;
-import com.github.difflib.patch.AbstractDelta;
-import com.github.difflib.patch.Patch;
+import fr.insee.semweb.utils.Utils;
 
 /**
  * Methods for checking and reporting on information in the interim format ("M0 model").
@@ -55,6 +50,7 @@ import com.github.difflib.patch.Patch;
  */
 public class M0Checker {
 
+	/** Log4J2 logger */
 	public static Logger logger = LogManager.getLogger(M0Checker.class);
 
 	/**
@@ -813,11 +809,11 @@ public class M0Checker {
 					Node directNode = m0DirectStatement.getObject().asNode();
 					if (!statement.getObject().asNode().matches(directNode)) {
 						String logMessage = "Different values for " + simsAttributeURI + " and " + directAttributeResource.getURI() + ": '";
-						logMessage += nodeToAbbreviatedString(statement.getObject()) + "' versus '" + nodeToAbbreviatedString(m0DirectStatement.getObject()) + "'";
+						logMessage += Utils.nodeToAbbreviatedString(statement.getObject()) + "' versus '" + Utils.nodeToAbbreviatedString(m0DirectStatement.getObject()) + "'";
 						logger.error(logMessage);
 						// Create the diff file for the documentation id and the attribute name
 						String diffFileName = "src/main/resources/data/diffs/diff-" + StringUtils.substringAfterLast(simsDocumentationURI, "/") + "-" + attributeName + ".txt";
-						printDiffs(statement.getObject(), m0DirectStatement.getObject(), diffFileName);
+						Utils.claculateDiffs(statement.getObject(), m0DirectStatement.getObject(), diffFileName);
 					}					
 				}
 			}
@@ -883,43 +879,6 @@ public class M0Checker {
 		});
 
 		return invalidCodesM0Model;
-	}
-
-	private static String nodeToAbbreviatedString(RDFNode node) {
-
-		if (node.isURIResource()) return node.asResource().getURI();
-		if (node.isAnon()) return "<blank node>";
-		// At this point, we have a literal node
-		return StringUtils.abbreviateMiddle(node.asLiteral().getLexicalForm(), " (...) ", 100);
-	}
-
-	public static void printDiffs(RDFNode node1, RDFNode node2, String diffFileName) {
-
-		if (!(node1.isLiteral() && node2.isLiteral())) return;
-		PrintWriter diffWriter = null;
-		try {
-			diffWriter = new PrintWriter(diffFileName);
-		} catch (FileNotFoundException e) {
-			logger.error("Error creating the diff file", e);
-			return;
-		}
-		String baseString = node1.asLiteral().getLexicalForm();
-		String comparedString = node2.asLiteral().getLexicalForm();
-		diffWriter.println("Base string\n" + baseString);
-		diffWriter.println("\nCompared string\n" + comparedString);
-
-		diffWriter.println("\nDifferences\n");
-        Patch<String> patch;
-		try {
-			patch = DiffUtils.diff(Arrays.asList(baseString.split("\n")), Arrays.asList(comparedString.split("\n")));
-	        for (AbstractDelta<String> delta: patch.getDeltas()) {
-	        	diffWriter.println(delta);
-	        }
-		} catch (DiffException e) {
-			logger.error("Error while calculating the differences", e);
-		}
-
-        diffWriter.close();
 	}
 
 	/**

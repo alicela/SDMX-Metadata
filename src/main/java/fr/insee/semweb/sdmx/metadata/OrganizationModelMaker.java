@@ -318,7 +318,7 @@ public class OrganizationModelMaker {
 	public static String getOrganizationURIFromLabel(String label) {
 
 		// Hack: For Banque de France we dont want to collision the URI of the daughter (also BDF)
-		String accronym = createAccronym(fr.insee.semweb.sdmx.metadata.Configuration.slug(label));
+		String accronym = createAccronym(fr.insee.semweb.utils.Utils.slug(label));
 		if (accronym.equals("b")) return Configuration.organizationURI("banque de france");
 		return Configuration.organizationURI(accronym);
 	}

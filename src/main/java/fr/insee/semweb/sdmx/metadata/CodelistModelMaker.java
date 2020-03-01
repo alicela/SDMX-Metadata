@@ -23,6 +23,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
+import fr.insee.semweb.utils.Utils;
+
 public class CodelistModelMaker {
 
 	public static Logger logger = LogManager.getLogger(CodelistModelMaker.class);
@@ -111,7 +113,7 @@ public class CodelistModelMaker {
 			if (notation.length() == 0) continue;
 			englishLabel = row.getCell(1, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
 			frenchLabel = row.getCell(2, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
-			Resource code = codeList.createResource(Configuration.inseeCodeURI(notation, Configuration.camelCase(pathElement, false, false)), SKOS.Concept);
+			Resource code = codeList.createResource(Configuration.inseeCodeURI(notation, Utils.camelCase(pathElement, false, false)), SKOS.Concept);
 			code.addProperty(RDF.type, codeClass); // The codes are instances of the code concept class
 			code.addProperty(SKOS.notation, notation);
 			code.addProperty(SKOS.prefLabel, codeList.createLiteral(englishLabel, "en"));

@@ -3,8 +3,6 @@ package fr.insee.semweb.sdmx.metadata;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.text.Normalizer;
-import java.text.Normalizer.Form;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -12,7 +10,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
@@ -22,6 +19,7 @@ import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SKOS;
 
 import eu.casd.semweb.psp.PSPOperationEntry;
+import fr.insee.semweb.utils.Utils;
 
 public class Configuration {
 
@@ -208,7 +206,7 @@ public class Configuration {
 	/** URI of a geo:Feature resource corresponding to territorial attribute */
 	// TODO Prendre l'URI de l'attribut et ajouter /feature
 	public static String geoFeatureURI(String m0Id, String code) {
-		return simsReportURI(m0Id) + "/" + camelCase(code.replace("_", ""), true, false);
+		return simsReportURI(m0Id) + "/" + Utils.camelCase(code.replace("_", ""), true, false);
 	}
 
 	// Methods for concept schemes components
@@ -251,12 +249,12 @@ public class Configuration {
 
 	/** URI of a code list */
 	public static String codelistURI(String conceptName) {
-		return INSEE_CODES_BASE_URI + camelCase(conceptName, true, true); // Lower camel case and plural
+		return INSEE_CODES_BASE_URI + Utils.camelCase(conceptName, true, true); // Lower camel case and plural
 	}
 
 	/** URI of the concept associated to a code list */
 	public static String codeConceptURI(String conceptName) {
-		return INSEE_CODE_CONCEPTS_BASE_URI + camelCase(conceptName, false, false); // Upper camel case and singular
+		return INSEE_CODE_CONCEPTS_BASE_URI + Utils.camelCase(conceptName, false, false); // Upper camel case and singular
 	}
 
 	/** URI of the concept associated to a SDMX code list */
@@ -268,7 +266,7 @@ public class Configuration {
 
 	/** URI of a code list element */
 	public static String inseeCodeURI(String notation, String conceptName) {
-		return INSEE_CODES_BASE_URI + camelCase(conceptName, true, false) + "/" + notation;
+		return INSEE_CODES_BASE_URI + Utils.camelCase(conceptName, true, false) + "/" + notation;
 	}
 
 	/** URI of a SIMSv2 concept as a function of its notation */
@@ -294,7 +292,7 @@ public class Configuration {
 
 	/** URI of an organization */
 	public static String organizationURI(String organizationId) {
-		return INSEE_ORG_BASE_URI + slug(organizationId);
+		return INSEE_ORG_BASE_URI + Utils.slug(organizationId);
 	}
 
 	/** URI of an Insee organizational unit */
@@ -328,17 +326,17 @@ public class Configuration {
 
 	/** URI of a statistical operation */
 	public static String statisticalOperationURI(String name) {
-		return INSEE_OPS_BASE_URI + "operation/" + slug(name);
+		return INSEE_OPS_BASE_URI + "operation/" + Utils.slug(name);
 	}
 
 	/** URI of a statistical operation series */
 	public static String statisticalOperationSeriesURI(String name) {
-		return INSEE_OPS_BASE_URI + "serie/" + slug(name);
+		return INSEE_OPS_BASE_URI + "serie/" + Utils.slug(name);
 	}
 
 	/** URI of a statistical operation family */
 	public static String statisticalOperationFamilyURI(String name) {
-		return INSEE_OPS_BASE_URI + "famille/" + slug(name);
+		return INSEE_OPS_BASE_URI + "famille/" + Utils.slug(name);
 	}
 
 	/** URI of a statistical indicator */
@@ -373,69 +371,7 @@ public class Configuration {
 
 	/** URI of a CASD dataset */
 	public static String datasetURI(String name, String operation) {
-		return CASD_PRODUCTS_BASE_URI + "dataset/" + slug(operation) + "-" + slug(name);
-	}
-
-	// Utility string manipulation methods
-
-	/**
-	 * String "sanitization": removes diacritics, trims and replaces spaces by dashes.
-	 * 
-	 * @param string The original string.
-	 * @return The resulting string.
-	 */
-	public static String slug(String string) {
-		
-	    return Normalizer.normalize(string.toLowerCase(), Form.NFD)
-	            .replaceAll("\\p{InCombiningDiacriticalMarks}|[^\\w\\s]", "") // But see http://stackoverflow.com/questions/5697171/regex-what-is-incombiningdiacriticalmarks
-	            .replaceAll("[\\s-]+", " ")
-	            .trim()
-	            .replaceAll("\\s", "-");
-	}
-
-	/** Removes diacritic marks */
-	public static String removeDiacritics(String original) {
-
-		return Normalizer.normalize(original, Form.NFD).replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
-	}
-
-	/**
-	 * Transforms a group of words into a CamelCase token.
-	 * 
-	 * @param original The group of words to process.
-	 * @param lower If true, the result will be lowerCamelCase (otherwise UpperCamelCase).
-	 * @param plural If true, the result will be in plural form (first token only, and 's' is the only form supported)
-	 * @return The CamelCase token.
-	 */
-	public static String camelCase(String original, boolean lower, boolean plural) {
-
-		final List<String> VOID_TOKENS = Arrays.asList("de", "l");
-
-		if (original == null) return null;
-
-		String[] tokens = removeDiacritics(original).trim().replace("'",  " ").split("\\s"); // Replace quote with space and separate the tokens
-
-		StringBuilder builder = new StringBuilder();
-		boolean nextSingular = false;
-		for (String token : tokens) {
-			if (token.length() > 0) {
-				if (VOID_TOKENS.contains(token.toLowerCase())) {
-					// The word following a void token stays singular
-					nextSingular = true;
-					continue;
-				}
-				if (plural) {
-					token += (nextSingular ? "" : "s");
-					nextSingular = false;
-				}
-				StringUtils.capitalize(token);
-				builder.append(StringUtils.capitalize(token));
-			}
-		}
-		String result = builder.toString();
-		if (lower) result = StringUtils.uncapitalize(result);
-
-		return result;
+		return CASD_PRODUCTS_BASE_URI + "dataset/" + Utils.slug(operation) + "-" + Utils.slug(name);
 	}
 
 	/**

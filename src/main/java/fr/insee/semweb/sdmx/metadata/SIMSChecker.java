@@ -29,12 +29,6 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
  */
 public class SIMSChecker {
 
-	public static void main(String[] args) {
-
-		//System.out.println(checkCoherence());
-		System.out.println(simsFrMSDReport());
-	}
-
 	/**
 	 * Produces a coherence report between SIMS and SIMSFr.
 	 * 

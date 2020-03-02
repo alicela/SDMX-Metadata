@@ -344,7 +344,7 @@ public class M0Extractor {
 		while (subjectsIterator.hasNext()) {
 			String m0DocumentationURI = subjectsIterator.next().getURI();
 			// Documentation URIs will typically look like http://baseUri/documentations/documentation/1608/ASSOCIE_A
-			String m0DocumentationId = m0DocumentationURI.substring(M0SIMSConverter.M0_DOCUMENTATION_BASE_URI.length()).split("/")[0];
+			String m0DocumentationId = m0DocumentationURI.substring(Configuration.M0_SIMS_BASE_URI.length()).split("/")[0];
 			// Series identifiers are integers (but careful with the sequence number)
 			try {
 				m0DocumentIdSet.add(Integer.parseInt(m0DocumentationId));

@@ -55,7 +55,7 @@ public class M0SIMSConverter extends M0Converter {
 
 	public static Logger logger = LogManager.getLogger(M0SIMSConverter.class);
 
-	public static String M0_DOCUMENTATION_BASE_URI = "http://baseUri/documentations/documentation/";
+	// TODO Move to Configuration
 	public static String M0_LINK_BASE_URI = "http://baseUri/liens/lien/";
 	public static String M0_DOCUMENT_BASE_URI = "http://baseUri/documents/document/";
 
@@ -70,6 +70,8 @@ public class M0SIMSConverter extends M0Converter {
 	protected static SortedMap<Integer, SortedMap<String, SortedSet<String>>> attributeReferences = null;
 	/** The SIMS model for documents and links */
 	protected static Model simsDocumentsAndLinksModel = null;
+	/** Attachments between documentations and their target (series, operation or indicator) */
+	protected static SortedMap<Integer, String> simsAttachments = null;
 
 	// Will be handy for parsing dates
 	final static DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
@@ -79,9 +81,10 @@ public class M0SIMSConverter extends M0Converter {
 	 * 
 	 * @param m0Ids A <code>List</code> of M0 'documentation' metadata set identifiers, or <code>null</code> to convert all models.
 	 * @param namedModels If <code>true</code>, a named model will be created for each identifier, otherwise all models will be included in the dataset.
+	 * @param withAttachments If <code>true</code>, the resulting model will include the triple attaching the SIMS to its target.
 	 * @return A Jena dataset containing the models corresponding to the identifiers received.
 	 */
-	public static Dataset convertToSIMS(List<Integer> m0Ids, boolean namedModels) {
+	public static Dataset convertToSIMS(List<Integer> m0Ids, boolean namedModels, boolean withAttachments) {
 
 		// We will need the documentation model, the SIMSFr scheme and the SIMSFr MSD
 		if (m0Dataset == null) m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
@@ -94,7 +97,10 @@ public class M0SIMSConverter extends M0Converter {
 		attributeReferences = M0SIMSConverter.getAllAttributeReferences(m0AssociationsModel);
 		simsDocumentsAndLinksModel = convertDocumentsToSIMS().add(convertLinksToSIMS());
 
-		// If parameter was null, get the list of all existing M0 'documentation' models
+		// Finally, if attachments are requested, we need the correspondence between documentations and the documented resources
+		if (withAttachments) simsAttachments = getSIMSAttachments(m0AssociationsModel);
+
+		// If list of identifiers received was null, get the list of all existing M0 'documentation' model identifiers
 		SortedSet<Integer> docIdentifiers = new TreeSet<Integer>();
 		if (m0Ids == null) {
 			docIdentifiers = M0Extractor.getM0DocumentationIds(m0DocumentationModel);
@@ -108,9 +114,9 @@ public class M0SIMSConverter extends M0Converter {
 		Dataset simsDataset = DatasetFactory.create();
 		for (Integer docIdentifier : docIdentifiers) {
 			// Extract the M0 model containing the resource of the current documentation
-			Model docModel = M0Extractor.extractM0ResourceModel(m0DocumentationModel, M0_DOCUMENTATION_BASE_URI + docIdentifier);
+			Model docModel = M0Extractor.extractM0ResourceModel(m0DocumentationModel, Configuration.M0_SIMS_BASE_URI + docIdentifier);
 			// Convert to SIMS format
-			Model simsModel = m0ConvertToSIMS(docModel);
+			Model simsModel = convertM0ModelToSIMS(docModel);
 			if (!namedModels) simsDataset.getDefaultModel().add(simsModel);
 			else {
 				simsDataset.addNamedModel(Configuration.simsReportGraphURI(docIdentifier.toString()), simsModel);
@@ -129,7 +135,7 @@ public class M0SIMSConverter extends M0Converter {
 	 * @param m0Model A Jena <code>Model</code> containing the metadata in M0 format.
 	 * @return A Jena <code>Model</code> containing the metadata in SIMSFr format.
 	 */
-	public static Model m0ConvertToSIMS(Model m0Model) {
+	private static Model convertM0ModelToSIMS(Model m0Model) {
 
 		// Retrieve base URI (the base resource is a skos:Concept) and the corresponding M0 identifier
 		// TODO Secure this part
@@ -148,11 +154,19 @@ public class M0SIMSConverter extends M0Converter {
 		simsModel.setNsPrefix("insee", Configuration.BASE_INSEE_ONTO_URI);
 
 		// Create the metadata report resource
-		Resource report = simsModel.createResource(Configuration.simsReportURI(m0Id), simsModel.createResource(Configuration.SDMX_MM_BASE_URI + "MetadataReport"));
+		Resource report = simsModel.createResource(Configuration.simsReportURI(m0Id), Configuration.SIMS_METADATA_REPORT);
 		report.addProperty(RDFS.label, simsModel.createLiteral("Metadata report " + m0Id, "en"));
 		report.addProperty(RDFS.label, simsModel.createLiteral("Rapport de métadonnées " + m0Id, "fr"));
 		logger.debug("MetadataReport resource created for report: " + report.getURI());
 
+		// Attach the report to its metadata target if the attachments are available
+		if (simsAttachments != null) {
+			String metadataTargetURI = simsAttachments.get(documentNumber);
+			if (metadataTargetURI != null) {
+				report.addProperty(Configuration.SIMS_TARGET, simsModel.createResource(metadataTargetURI));
+				logger.debug("Metadata attached to target resource: " + metadataTargetURI);
+			}
+		}
 		// Shortcut to the list of document and link references on attributes of the current documentation
 		SortedMap<String, SortedSet<String>> documentReferences = attributeReferences.get(documentNumber);
 
@@ -492,7 +506,7 @@ public class M0SIMSConverter extends M0Converter {
 		Selector selector = new SimpleSelector(null, associationProperty, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject and object URIs conform to what we expect
 	        public boolean selects(Statement statement) {
-	        	return ((statement.getSubject().getURI().startsWith(M0_DOCUMENTATION_BASE_URI)) && (statement.getObject().isResource())
+	        	return ((statement.getSubject().getURI().startsWith(Configuration.M0_SIMS_BASE_URI)) && (statement.getObject().isResource())
 	        			&& (statement.getObject().asResource().getURI().startsWith(m0BaseURI)));
 	        }
 	    };
@@ -510,7 +524,7 @@ public class M0SIMSConverter extends M0Converter {
 				// Hopefully the identifiers are really integers
 				try {
 					Integer referenceNumber = Integer.parseInt(pathElements[0]);
-					Integer documentationNumber = Integer.parseInt(statement.getSubject().getURI().replace(M0_DOCUMENTATION_BASE_URI, "").split("/")[0]);
+					Integer documentationNumber = Integer.parseInt(statement.getSubject().getURI().replace(Configuration.M0_SIMS_BASE_URI, "").split("/")[0]);
 					String attributeName = pathElements[1];
 					// HACK: some associations are made on the 'ASSOCIE_A' attribute, which is not a SIMS attribute, we don't want those associations
 					if ("ASSOCIE_A".equals(attributeName)) return;
@@ -574,7 +588,7 @@ public class M0SIMSConverter extends M0Converter {
 		// Will select triples corresponding to French links or documents
 		Selector selector = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
-	        	return ((statement.getSubject().getURI().startsWith(M0_DOCUMENTATION_BASE_URI)) && (statement.getObject().isResource())
+	        	return ((statement.getSubject().getURI().startsWith(Configuration.M0_SIMS_BASE_URI)) && (statement.getObject().isResource())
 	        			&& (statement.getObject().asResource().getURI().startsWith(m0BaseURI)));
 	        }
 	    };
@@ -597,7 +611,7 @@ public class M0SIMSConverter extends M0Converter {
 		// Will select triples corresponding to English links or document
 		selector = new SimpleSelector(null, Configuration.M0_RELATED_TO_EN, (RDFNode) null) {
 	        public boolean selects(Statement statement) {
-	        	return ((statement.getSubject().getURI().startsWith(M0_DOCUMENTATION_BASE_URI)) && (statement.getObject().isResource())
+	        	return ((statement.getSubject().getURI().startsWith(Configuration.M0_SIMS_BASE_URI)) && (statement.getObject().isResource())
 	        			&& (statement.getObject().asResource().getURI().startsWith(m0BaseURI)));
 	        }
 	    };
@@ -624,7 +638,7 @@ public class M0SIMSConverter extends M0Converter {
 
 	/**
 	 * Returns the dates of publication for each document.
-	 * Specification is DATE_PUBLICATION if existing, otherwise DATE if existing.
+	 * Specification is: DATE_PUBLICATION if existing, otherwise DATE if existing.
 	 * 
 	 * @param m0DocumentModel The M0 'documents' model where the information should be read.
 	 * @return A map whose keys are the document numbers and the values the dates.
@@ -660,5 +674,32 @@ public class M0SIMSConverter extends M0Converter {
 		});
 
 		return documentDates;
+	}
+
+	/**
+	 * Returns the correspondence between M0 documentations identifiers and URIs of associated target resources documented, sorted numerically.
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information about associations should be read.
+	 * @return A <code>Map</code> whose keys are documentation identifiers and values are target URI of the documented resources, sorted numerically.
+	 */
+	public static SortedMap<Integer, String> getSIMSAttachments(Model m0AssociationsModel) {
+
+		logger.debug("Calculating attachments between documentations and target resources");
+
+		// Create the URI mappings if necessary
+		if (allURIMappings == null) allURIMappings = createURIMappings();
+		SortedMap<Integer, String> simsAttachmments = new TreeMap<Integer, String>();
+		SortedMap<String, String> m0SIMSAttachmments = M0Extractor.extractSIMSAttachments(m0AssociationsModel, true);
+		for (String m0DocumentationURI : m0SIMSAttachmments.keySet()) {
+			Integer m0DocumentationId = Integer.parseInt(StringUtils.substringAfterLast(m0DocumentationURI, "/")); // We are sure of the URI structure
+			String m0ResourceURI = m0SIMSAttachmments.get(m0DocumentationURI);
+			if (!allURIMappings.containsKey(m0ResourceURI)) {
+				logger.error("No URI mapping found for M0 resource " + m0ResourceURI + " which has attached documentation " + m0DocumentationURI);
+			}
+			String targetURI = allURIMappings.get(m0ResourceURI);
+			simsAttachmments.put(m0DocumentationId, targetURI);
+		}
+		logger.debug("Returning " + simsAttachmments.size() + " attachments");
+		return simsAttachmments;
 	}
 }

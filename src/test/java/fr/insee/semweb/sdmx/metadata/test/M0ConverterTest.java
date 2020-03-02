@@ -363,13 +363,36 @@ public class M0ConverterTest {
 	 * @throws IOException In case of problems while writing the output file.
 	 */
 	@Test
-	public void testGetDocumentDates() {
+	public void testGetDocumentDates() throws IOException {
 
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0DocumentsModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documents");
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0DocumentsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documents");
 
 		SortedMap<Integer, Date> documentDates = M0SIMSConverter.getDocumentDates(m0DocumentsModel);
-		for (Integer documentNumber : documentDates.keySet()) System.out.println(documentNumber + "\t" + documentDates.get(documentNumber));
+		try (PrintWriter writer = new PrintWriter("src/test/resources/document-dates.txt", "UTF-8")) {
+			for (Integer documentNumber : documentDates.keySet()) writer.println(documentNumber + "\t" + documentDates.get(documentNumber));
+		}
+		m0DocumentsModel.close();
+		m0Dataset.close();
+	}
+
+	/**
+	 * Reads from the M0 dataset and writes to a file the correspondence between M0 documentation identifiers and the URIs of the documented resources.
+	 * 
+	 * @throws IOException In case of problems while writing the output file.
+	 */
+	@Test
+	public void testGetSIMSAttachments() throws IOException {
+
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0AssociationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+
+		SortedMap<Integer, String> simsAttachments = M0SIMSConverter.getSIMSAttachments(m0AssociationsModel);
+		try (PrintWriter writer = new PrintWriter("src/test/resources/sims-attachments.txt", "UTF-8")) {
+			for (Integer documentNumber : simsAttachments.keySet()) writer.println(documentNumber + "\t" + simsAttachments.get(documentNumber));
+		}
+		m0AssociationsModel.close();
+		m0Dataset.close();
 	}
 
 	/**
@@ -382,7 +405,7 @@ public class M0ConverterTest {
 
 		boolean namedGraphs = true;
 
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(null, namedGraphs);
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(null, namedGraphs, true);
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-all." + (namedGraphs ? "trig" : "ttl")), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE));
 	}
 
@@ -399,7 +422,7 @@ public class M0ConverterTest {
 
 		List<String> simsNumberStrings = simsNumbers.stream().map(Object::toString).collect(Collectors.toList());
 		String fileName = "src/main/resources/data/models/sims-" + String.join("-", simsNumberStrings) + "." + (namedGraphs ? "trig" : "ttl");
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simsNumbers, namedGraphs);
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simsNumbers, namedGraphs, false);
 		RDFDataMgr.write(new FileOutputStream(fileName), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE));
 	}
 
@@ -415,7 +438,7 @@ public class M0ConverterTest {
 		List<Integer> simNumber = Arrays.asList(1893);
 
 		String fileName = "src/main/resources/data/models/sims-" + simNumber.get(0) + "." + (namedGraphs ? "trig" : "ttl");
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simNumber, namedGraphs);
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simNumber, namedGraphs, false);
 		RDFDataMgr.write(new FileOutputStream(fileName), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE)); // TODO Check if Lang.TRIG is OK for both cases
 	}
 

@@ -24,12 +24,11 @@ import fr.insee.semweb.utils.Utils;
 public class Configuration {
 
 	// Input files
+
 	/** Excel file containing the SIMS/SIMSFr models */
 	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V20200225.xlsx";
 	/** Excel file containing the code lists */
 	public static String CL_XLSX_FILE_NAME = "src/main/resources/data/CODE_LISTS_20180110.xlsx";
-	/** Excel file containing the themes code list */
-	public static String THEMES_XLSX_FILE_NAME = "src/main/resources/data/Themes.xlsx";
 	/** Turtle file containing the SDMX metadata model vocabulary */
 	public static String SDMX_MM_TURTLE_FILE_NAME = "src/main/resources/data/sdmx-metadata.ttl";
 	/** TriG file containing the "M0" (temporary model) RDF dataset */
@@ -38,10 +37,17 @@ public class Configuration {
 	public static String OPERATIONS_XLSX_FILE_NAME = "src/main/resources/data/Liste sources_20170612_CASD.xlsx";
 	/** Excel file containing the information on organizations */
 	public static String ORGANIZATIONS_XLSX_FILE_NAME = "src/main/resources/data/OrganisationScheme_20170719.xlsx";
+	/** Excel file containing the themes code list */
+	public static String THEMES_XLSX_FILE_NAME = "src/main/resources/data/Themes.xlsx";
 	/** Excel file containing the links between families and themes */
 	public static String FAMILY_THEMES_XLSX_FILE_NAME = "src/main/resources/data/themes-familles.xlsx";
+	/** Correspondence between DDS identifiers and Web4G identifiers for series */
+	public static String DDS_ID_TO_WEB4G_ID_FILE_NAME = "src/main/resources/data/idSources.csv";
+	/** Correspondence between M0 identifiers and Web4G identifiers for operations */
+	public static String M0_ID_TO_WEB4G_ID_FILE_NAME = "src/main/resources/data/idOperations.csv";
 
 	// Output files
+
 	/** Concepts and concept schemes associated to the SIMS attributes */
 	public static String SIMS_CS_TURTLE_FILE_NAME = "src/main/resources/data/sims-cs.ttl";
 	/** Concepts and concept schemes associated to the SIMSFr attributes */
@@ -56,6 +62,7 @@ public class Configuration {
 	public static String THEMES_TURTLE_FILE_NAME = "src/main/resources/data/themes.ttl";
 
 	// Constants for naming
+
 	/** Base URI for Insee's base ontology */
 	public static String BASE_INSEE_ONTO_URI = "http://rdf.insee.fr/def/base#";
 	/** Base URI for SIMSv2 resources */ // TODO Officialize SIMS namespace
@@ -82,6 +89,17 @@ public class Configuration {
 	static String M0_CODES_BASE_URI = "http://baseUri/codes/code/";
 	/** Base URI for SIMS-related resources in M0 */
 	static String M0_SIMS_BASE_URI = "http://baseUri/documentations/documentation/";
+	/** Base URI for Insee operations (and families, series) */
+	public static String INSEE_OPS_BASE_URI = "http://id.insee.fr/operations/";
+	/** Base URI for Insee codes */
+	public static String INSEE_CODES_BASE_URI = "http://id.insee.fr/codes/";
+	/** Base URI for Insee code concepts */
+	public static String INSEE_CODE_CONCEPTS_BASE_URI = INSEE_CODES_BASE_URI + "concept/";
+	/** Base URI for organizations */
+	public static String INSEE_ORG_BASE_URI = "http://id.insee.fr/organisations/";
+
+	// Resources in the M0 model
+
 	/** The ubiquitous 'values' property in M0 */
 	protected static Property M0_VALUES = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#values");
 	/** The ubiquitous 'values' property in M0, English version */
@@ -92,32 +110,31 @@ public class Configuration {
 	static Property M0_RELATED_TO_EN = ResourceFactory.createProperty("http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedToGb");
 	/** The ubiquitous 'varSims' property in M0 */
 	static Property M0_VAR_SIMS = ResourceFactory.createProperty("http://rem.org/schema#varSims");
+
+	// Resources in the target model
+
 	/** The reported attribute */
 	protected static Resource SIMS_REPORTED_ATTRIBUTE = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#ReportedAttribute");
-
-	/** Base URI for Insee operations (and families, series) */
-	public static String INSEE_OPS_BASE_URI = "http://id.insee.fr/operations/";
-	/** Base URI for Insee codes */
-	public static String INSEE_CODES_BASE_URI = "http://id.insee.fr/codes/";
-	/** Base URI for Insee code concepts */
-	public static String INSEE_CODE_CONCEPTS_BASE_URI = INSEE_CODES_BASE_URI + "concept/";
-	/** Base URI for organizations */
-	public static String INSEE_ORG_BASE_URI = "http://id.insee.fr/organisations/";
-	// Numbers of the columns where the SIMS information is stored in SIMS and SIMSFr Excel formats
-	// Notation and name, Concept name, Concept code, Description, Representation, ESS guidelines, Quality indicators
-	public static int[] SIMS_COLUMNS_SIMS = {0, 1, 2, 3, 4, 5, 6};
-	public static int[] SIMS_COLUMNS_SIMS_FR = {1, 5, 4, 6, 9, -1, -1};
-
+	/** The metadata report */
+	protected static Resource SIMS_METADATA_REPORT = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#MetadataReport");
+	/** The reported attribute */
+	protected static Property SIMS_TARGET = ResourceFactory.createProperty("http://www.w3.org/ns/sdmx-mm#target");
 	/** The range of metadata attribute properties corresponding to 'rich text' attributes */
 	public static Resource RICH_TEXT_MAP_RANGE = DCTypes.Text;
 	/** The range of metadata attribute properties corresponding to the 'territory' attributes */
 	public static Resource TERRITORY_MAP_RANGE = ResourceFactory.createResource("http://www.opengis.net/ont/geosparql#Feature");
+	/** RDF predicate connecting rich text resources to documents/links resources */
+	public static Property ADDITIONAL_MATERIAL = ResourceFactory.createProperty("http://rdf.insee.fr/def/base#additionalMaterial");
+
+	// Parameters, mapping and other useful objects
 
 	/** Specifies if reported attributes are created or if attribute properties are directly attached to the report */
 	public static boolean CREATE_REPORTED_ATTRIBUTES = true;
 
-	/** RDF predicate connecting rich text resources to documents/links resources */
-	public static Property ADDITIONAL_MATERIAL = ResourceFactory.createProperty("http://rdf.insee.fr/def/base#additionalMaterial");
+	// Numbers of the columns where the SIMS information is stored in SIMS and SIMSFr Excel formats
+	// Notation and name, Concept name, Concept code, Description, Representation, ESS guidelines, Quality indicators
+	public static int[] SIMS_COLUMNS_SIMS = {0, 1, 2, 3, 4, 5, 6};
+	public static int[] SIMS_COLUMNS_SIMS_FR = {1, 5, 4, 6, 9, -1, -1};
 
 	/** Static mapping between direct attributes of operations and RDF Properties */
 	public static Map<String, Property> propertyMappings;
@@ -139,24 +156,24 @@ public class Configuration {
 	public static List<String> stringProperties = Arrays.asList("TITLE", "ALT_LABEL", "SUMMARY", "HISTORY");
 
 	/** Correspondence between DDS identifiers and Web4G identifiers (for series) */
-	public static Map<String, String> dds2Web4GIdMappings = null;
+	public static Map<String, String> ddsToWeb4GIdMappings = null;
 	static {
-		try (Stream<String> stream = Files.lines(Paths.get("src/main/resources/data/idSources.csv"))) {
-			dds2Web4GIdMappings = stream.filter(line -> line.startsWith("FR-")).map(line -> line.substring(3)).collect(Collectors.toMap(line -> line.split(",")[0], line -> line.split(",")[1]));
+		try (Stream<String> stream = Files.lines(Paths.get(DDS_ID_TO_WEB4G_ID_FILE_NAME))) {
+			ddsToWeb4GIdMappings = stream.filter(line -> line.startsWith("FR-")).map(line -> line.substring(3)).collect(Collectors.toMap(line -> line.split(",")[0], line -> line.split(",")[1]));
 			// HACK Delete three lines to correct errors
-			dds2Web4GIdMappings.remove("ENQUETE-PATRIMOINE"); // Series 125, web4G id 1282 is instead attributed to the 2014 survey (operation 158)
-			dds2Web4GIdMappings.remove("ENQ-SDF"); // Series 85, web4G id 1267 is instead attributed to the 2001 survey (operation 189)
-			dds2Web4GIdMappings.remove("ENQ-TRAJECTOIRES-2008-TEO"); // Series 118, web4G id 1276 is instead attributed to the survey (operation 199)
+			ddsToWeb4GIdMappings.remove("ENQUETE-PATRIMOINE"); // Series 125, web4G id 1282 is instead attributed to the 2014 survey (operation 158)
+			ddsToWeb4GIdMappings.remove("ENQ-SDF"); // Series 85, web4G id 1267 is instead attributed to the 2001 survey (operation 189)
+			ddsToWeb4GIdMappings.remove("ENQ-TRAJECTOIRES-2008-TEO"); // Series 118, web4G id 1276 is instead attributed to the survey (operation 199)
 		} catch (IOException ignored) {
 			// Do nothing, we will have an exception when trying to use the mapping
 		}
 	}
 
-	/** Correspondence between M0 identifiers and Web4G identifiers (for operations) */
-	public static Map<Integer, String> m02Web4GIdMappings = null;
+	/** Correspondence between M0 identifiers and Web4G (target) identifiers (for operations) */
+	public static Map<Integer, String> m0ToWeb4GIdMappings = null;
 	static {
-		try (Stream<String> stream = Files.lines(Paths.get("src/main/resources/data/idOperations.csv"))) {
-			m02Web4GIdMappings = stream.collect(Collectors.toMap(line -> Integer.parseInt(line.split(",")[0]), line -> line.split(",")[1]));
+		try (Stream<String> stream = Files.lines(Paths.get(M0_ID_TO_WEB4G_ID_FILE_NAME))) {
+			m0ToWeb4GIdMappings = stream.collect(Collectors.toMap(line -> Integer.parseInt(line.split(",")[0]), line -> line.split(",")[1]));
 		} catch (IOException ignored) {
 			// Do nothing, we will have an exception when trying to use the mapping
 		}

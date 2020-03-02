@@ -270,24 +270,33 @@ public class M0Converter {
 
 		Map<Integer, String> mappings = new HashMap<Integer, String>();
 
-		// For families and indicators, there is no fixed mappings: return an empty map
-		if (("famille".equals(type)) || ("indicateur".equals(type))) return mappings;
+		// For families and indicators, there are no fixed mappings: return an empty map
+		if (("famille".equals(type)) || ("indicateur".equals(type))) {
+			logger.debug("There are no fixed mappings for type " + type);
+			return mappings;
+		}
 
 		// For operations, there are only a few cases where the Web4G identifier is fixed
 		if ("operation".equals(type)) {
-			for (Integer m0Id : m02Web4GIdMappings.keySet()) mappings.put(m0Id, operationResourceURI(m02Web4GIdMappings.get(m0Id), type));
+			logger.debug("Fixed mappings for operations are read from " + Configuration.M0_ID_TO_WEB4G_ID_FILE_NAME);
+			for (Integer m0Id : m0ToWeb4GIdMappings.keySet()) mappings.put(m0Id, operationResourceURI(m0ToWeb4GIdMappings.get(m0Id), type));
 			return mappings;
 		}
 
 		// Here we should only have type 'serie'
-		if (!("serie".equals(type))) return null;
+		if (!("serie".equals(type))) {
+			logger.error("Invalid resource type: " + type);
+			return null;
+		}
 
 		// For series, the Web4G identifier is obtained through the DDS identifier: extract the ID_DDS property from the series model
-		String graphURI = M0_BASE_GRAPH_URI + type + "s";
-		Model extract = M0Extractor.extractAttributeStatements(m0Dataset.getNamedModel(graphURI), "ID_DDS");
-		logger.debug("Extracted ID_DDS property statements from graph " + graphURI + ", size of resulting model is " + extract.size());
+		logger.debug("Mappings for series are defined between DDS identifiers and target (Web4G) identifiers, read from " + Configuration.DDS_ID_TO_WEB4G_ID_FILE_NAME);
+		logger.debug("So the correspondence between series identifier and DDS identifier is needed to calculate the fixed URI mappings");
+		String m0SeriesGraphURI = M0_BASE_GRAPH_URI + "series";
+		Model m0IdDDSModel = M0Extractor.extractAttributeStatements(m0Dataset.getNamedModel(m0SeriesGraphURI), "ID_DDS");
+		logger.debug("Extracted ID_DDS property statements from graph " + m0SeriesGraphURI + ", size of resulting model is " + m0IdDDSModel.size());
 
-		extract.listStatements().forEachRemaining(new Consumer<Statement>() {
+		m0IdDDSModel.listStatements().forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				// Retrieve the M0 numeric identifier, assuming URI structure http://baseUri/{type}s/{type}/{nn}/ID_DDS
@@ -296,17 +305,17 @@ public class M0Converter {
 				// Retrieve the "DDS" identifier from the object of the ID_DDS statement (eg OPE-ENQ-SECTORIELLE-ANNUELLE-ESA, skip the 'OPE-' start)
 				String ddsId = statement.getObject().asLiteral().toString().substring(4);
 				// Retrieve the "Web4G" identifier from the "DDS" identifier and the mappings contained in the Configuration class
-				if (!dds2Web4GIdMappings.containsKey(ddsId)) {
-					logger.warn("No correspondence found for DDS identifier " + ddsId + " (M0 resource " + m0URI + ")");
+				if (!ddsToWeb4GIdMappings.containsKey(ddsId)) {
+					logger.warn("No correspondence found in mapping file for DDS identifier " + ddsId + " (M0 resource is " + m0URI + ")");
 				} else {
-					String web4GId = dds2Web4GIdMappings.get(ddsId);
-					logger.debug("Correspondence found for " + type + " " + m0Id + " with DDS identifier " + ddsId + ": Web4G identifier is " + web4GId);
+					String web4GId = ddsToWeb4GIdMappings.get(ddsId);
+					logger.trace("Correspondence found for operation " + m0Id + " with DDS identifier " + ddsId + ": Web4G identifier is " + web4GId);
 					String targetURI = operationResourceURI(web4GId, type);
 					mappings.put(m0Id, targetURI);
 				}
 			}
 		});
-		extract.close();
+		m0IdDDSModel.close();
 		// HACK Add three direct mappings for series 135, 136 and 137 because they have an ID_DDS but it is not in the M0 dataset
 		mappings.put(135, operationResourceURI("1241", "serie"));
 		mappings.put(136, operationResourceURI("1371", "serie")); // Changed from 1195, see mail 2/20
@@ -344,8 +353,7 @@ public class M0Converter {
 		// We have to do a complete pass on all types of objects because there is no separation of the ranges for identifiers of different types
 		for (String resourceType : types) {
 			Map<Integer, String> typeMappings = getIdURIFixedMappings(m0Dataset, resourceType);
-			if (typeMappings.size() == 0) logger.info("No fixed mappings for type " + resourceType);
-			else logger.info("Number of fixed mappings for type " + resourceType + ": " + typeMappings.size() + ", a corresponding amount of available identifiers will be removed");
+			if (typeMappings.size() != 0) logger.info("Number of fixed mappings for type " + resourceType + ": " + typeMappings.size() + ", a corresponding amount of available identifiers will be removed");
 			for (int index : typeMappings.keySet()) {
 				// Add fixed mapping to the global list of all mappings
 				uriMappings.put("http://baseUri/" + resourceType + "s/" + resourceType + "/" + index, typeMappings.get(index));

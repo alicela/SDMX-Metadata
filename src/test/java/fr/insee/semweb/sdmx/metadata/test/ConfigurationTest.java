@@ -55,6 +55,6 @@ public class ConfigurationTest {
 
 	@Test
 	public void testIdMapping() {
-		System.out.println(Configuration.dds2Web4GIdMappings);
+		System.out.println(Configuration.ddsToWeb4GIdMappings);
 	}
 }

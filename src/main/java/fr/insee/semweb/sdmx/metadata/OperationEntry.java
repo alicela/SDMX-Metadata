@@ -96,7 +96,7 @@ public class OperationEntry {
 
 		// Operation information is in column F (we have to deal with numeric values)
 		Cell opInfoCell = row.getCell(5, MissingCellPolicy.CREATE_NULL_AS_BLANK);
-		if (opInfoCell.getCellTypeEnum() == CellType.NUMERIC) { // Both getCellType() and getCellTypeEnum() are deprecated...
+		if (opInfoCell.getCellType() == CellType.NUMERIC) { // Both getCellType() and getCellTypeEnum() are deprecated...
 			Integer numericCellValue = (int)opInfoCell.getNumericCellValue();
 			entry.setOperationInfo(numericCellValue.toString());
 		} else {
@@ -179,7 +179,7 @@ public class OperationEntry {
 
 	private static String getStringValue(Cell cell) {
 
-		if (cell.getCellTypeEnum() == CellType.NUMERIC) { // Both getCellType() and getCellTypeEnum() are deprecated...
+		if (cell.getCellType() == CellType.NUMERIC) {
 			Integer numericCellValue = (int)cell.getNumericCellValue();
 			return numericCellValue.toString();
 		} else return cell.toString().trim();

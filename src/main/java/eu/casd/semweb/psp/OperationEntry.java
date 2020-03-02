@@ -1,4 +1,4 @@
-package fr.insee.semweb.sdmx.metadata;
+package eu.casd.semweb.psp;
 
 import java.util.HashMap;
 import java.util.List;
@@ -13,7 +13,7 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
 
-import eu.casd.semweb.psp.PSPModelMaker;
+import fr.insee.semweb.sdmx.metadata.Configuration;
 
 /**
  * Represents an entry in the operation spreadsheet.

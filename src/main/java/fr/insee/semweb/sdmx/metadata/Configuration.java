@@ -18,7 +18,6 @@ import org.apache.jena.vocabulary.DCTypes;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SKOS;
 
-import eu.casd.semweb.psp.PSPOperationEntry;
 import fr.insee.semweb.utils.Utils;
 
 public class Configuration {
@@ -33,8 +32,6 @@ public class Configuration {
 	public static String SDMX_MM_TURTLE_FILE_NAME = "src/main/resources/data/sdmx-metadata.ttl";
 	/** TriG file containing the "M0" (temporary model) RDF dataset */
 	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20200219.trig";
-	/** Excel file containing the information on operations */
-	public static String OPERATIONS_XLSX_FILE_NAME = "src/main/resources/data/Liste sources_20170612_CASD.xlsx";
 	/** Excel file containing the information on organizations */
 	public static String ORGANIZATIONS_XLSX_FILE_NAME = "src/main/resources/data/OrganisationScheme_20170719.xlsx";
 	/** Excel file containing the themes code list */
@@ -79,8 +76,6 @@ public class Configuration {
 	public static String SDMX_MM_BASE_URI = "http://www.w3.org/ns/sdmx-mm#";
 	/** Base URI for the SDMX code lists */
 	public static String SDMX_CODE_BASE_URI = "http://purl.org/linked-data/sdmx/2009/code#";
-	/** Base URI for CASD products */
-	public static String CASD_PRODUCTS_BASE_URI = "http://id.casd.eu/produits/";
 	/** Base URI for the names of the graphs in M0 dataset (add 'familles', 'series', 'operations', 'organismes', 'indicateurs', 'documents','documentations', 'codelists', 'codes', 'liens', 'associations') */
 	public static String M0_BASE_GRAPH_URI = "http://rdf.insee.fr/graphe/";
 	/** Base URI for code list resources in M0 */
@@ -112,6 +107,12 @@ public class Configuration {
 	static Property M0_VAR_SIMS = ResourceFactory.createProperty("http://rem.org/schema#varSims");
 
 	// Resources in the target model
+
+	/** Classes for operations and the like */ // TODO Use COOS resources
+	public static final Resource STATISTICAL_OPERATION_FAMILY = ResourceFactory.createResource(BASE_INSEE_ONTO_URI + "StatisticalOperationFamily");
+	public static final Resource STATISTICAL_OPERATION_SERIES = ResourceFactory.createResource(BASE_INSEE_ONTO_URI + "StatisticalOperationSeries");
+	public static final Resource STATISTICAL_OPERATION = ResourceFactory.createResource(BASE_INSEE_ONTO_URI + "StatisticalOperation");
+	public static final Resource STATISTICAL_INDICATOR = ResourceFactory.createResource(BASE_INSEE_ONTO_URI + "StatisticalIndicator");
 
 	/** The reported attribute */
 	protected static Resource SIMS_REPORTED_ATTRIBUTE = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#ReportedAttribute");
@@ -302,11 +303,6 @@ public class Configuration {
 		return "http://id.insee.fr/concepts/simsv2fr/" + entry.getNotation();
 	}
 
-	/** URI of an operation */
-	public static String operationURI(PSPOperationEntry entry) {
-		return "http://id.insee.fr/operations/operation/" + entry.getType().operationURIPathElement() + "/" + entry.getCode().toLowerCase();
-	}
-
 	/** URI of an organization */
 	public static String organizationURI(String organizationId) {
 		return INSEE_ORG_BASE_URI + Utils.slug(organizationId);
@@ -384,11 +380,6 @@ public class Configuration {
 	/** URI of the FOAF document representing a 'document' object */
 	public static String documentURI(int documentNumber) {
 		return "http://id.insee.fr/documents/document/" + documentNumber;
-	}
-
-	/** URI of a CASD dataset */
-	public static String datasetURI(String name, String operation) {
-		return CASD_PRODUCTS_BASE_URI + "dataset/" + Utils.slug(operation) + "-" + Utils.slug(name);
 	}
 
 	/**

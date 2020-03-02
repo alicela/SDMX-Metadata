@@ -1,4 +1,4 @@
-package fr.insee.semweb.sdmx.metadata.test;
+package eu.casd.semweb.psp.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -9,7 +9,7 @@ import java.util.List;
 
 import org.junit.Test;
 
-import fr.insee.semweb.sdmx.metadata.SourceConverter;
+import eu.casd.semweb.psp.SourceConverter;
 
 public class SourceConverterTest {
 

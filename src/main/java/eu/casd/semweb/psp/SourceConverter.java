@@ -1,4 +1,4 @@
-package fr.insee.semweb.sdmx.metadata;
+package eu.casd.semweb.psp;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -29,13 +29,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
-
-import eu.casd.semweb.psp.PSPOperationEntry;
-import eu.casd.semweb.psp.PSPOperationEntry.OperationType;
-
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+
+import eu.casd.semweb.psp.PSPOperationEntry.OperationType;
+import fr.insee.semweb.sdmx.metadata.Configuration;
 
 public class SourceConverter {
 
@@ -164,7 +163,7 @@ public class SourceConverter {
 			PSPOperationEntry entry = typedOperations.get(operation);
 			if (entry == null) continue; // TODO Log a problem
 			// Create the resource representing the operation
-			Resource operationResource = opModel.createResource(Configuration.operationURI(entry), operationClassURIs.get(entry.getType()));
+			Resource operationResource = opModel.createResource(CASDConfiguration.operationURI(entry), operationClassURIs.get(entry.getType()));
 			// For each property in the 'Identity' part of the SIMS+ model, try to get the value in M0
 			for (String propertyName : Configuration.propertyMappings.keySet()) {
 				// Get the value in French

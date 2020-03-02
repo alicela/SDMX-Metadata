@@ -28,7 +28,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
-import fr.insee.semweb.sdmx.metadata.OperationModelMaker;
+import fr.insee.semweb.sdmx.metadata.Configuration;
 
 public class PSPModelMaker {
 
@@ -56,7 +56,7 @@ public class PSPModelMaker {
 		dcatModel.setNsPrefix("dcterms", DCTerms.getURI());
 		dcatModel.setNsPrefix("prov", "http://www.w3.org/ns/prov#");
 
-		Resource pspCatalog = dcatModel.createResource(fr.insee.semweb.sdmx.metadata.Configuration.CASD_PRODUCTS_BASE_URI + "catalog", DCAT.Catalog);
+		Resource pspCatalog = dcatModel.createResource(eu.casd.semweb.psp.CASDConfiguration.CASD_PRODUCTS_BASE_URI + "catalog", DCAT.Catalog);
 		pspCatalog.addProperty(DCTerms.title, dcatModel.createLiteral("Produits mis à disposition par le CASD", "fr"));
 		Calendar now = Calendar.getInstance();
 		pspCatalog.addProperty(DCTerms.issued, dcatModel.createTypedLiteral(now));
@@ -86,7 +86,7 @@ public class PSPModelMaker {
 
 			if (!pspModel.contains(sofResource, RDF.type)) {
 				// Family not yet created in the model: create with attributes
-				sofResource.addProperty(RDF.type, OperationModelMaker.statisticalOperationFamily);
+				sofResource.addProperty(RDF.type, Configuration.STATISTICAL_OPERATION_FAMILY);
 				// Add the statistical operation family name as both rdfs:label and skos:prefLabel
 				sofResource.addProperty(RDFS.label, pspModel.createLiteral(sofName, "fr"));
 				sofResource.addProperty(SKOS.prefLabel, pspModel.createLiteral(sofName, "fr"));
@@ -100,7 +100,7 @@ public class PSPModelMaker {
 			}
 			// Create the statistical operation series; prefLabel in column E, altLabel in column D
 			String sosShortName = row.getCell(3, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
-			Resource sosResource = pspModel.createResource(fr.insee.semweb.sdmx.metadata.Configuration.statisticalOperationSeriesURI(sosShortName), OperationModelMaker.statisticalOperationSeries);
+			Resource sosResource = pspModel.createResource(fr.insee.semweb.sdmx.metadata.Configuration.statisticalOperationSeriesURI(sosShortName), Configuration.STATISTICAL_OPERATION_SERIES);
 			sosResource.addProperty(SKOS.altLabel, pspModel.createLiteral(sosShortName, "fr"));
 			sosResource.addProperty(SKOS.prefLabel, pspModel.createLiteral(row.getCell(4, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim(), "fr"));
 			sosResource.addProperty(DCTerms.isPartOf, sofResource);
@@ -113,7 +113,7 @@ public class PSPModelMaker {
 				datasetYears = getYears(temporal);
 				// Create a dcat:Dataset for each year or span
 				for (String datasetYear : datasetYears) {
-					String datasetURI = fr.insee.semweb.sdmx.metadata.Configuration.datasetURI(datasetYear, sosShortName);
+					String datasetURI = eu.casd.semweb.psp.CASDConfiguration.datasetURI(datasetYear, sosShortName);
 					Resource datasetResource = pspModel.createResource(datasetURI, DCAT.Dataset);
 					String label = (datasetYear.length() == 4) ? "Millésime " + datasetYear : "Millésimes " + datasetYear.replace('_', '-');
 					datasetResource.addProperty(DCTerms.title, pspModel.createLiteral(label, "fr"));

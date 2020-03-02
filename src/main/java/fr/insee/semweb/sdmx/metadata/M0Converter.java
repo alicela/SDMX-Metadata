@@ -449,7 +449,7 @@ public class M0Converter {
 				targetURI = operationResourceURI(Integer.toString(familyIndex), "famille");
 				logger.error("No target URI found for M0 family " + m0Resource.getURI() + ", defaulting to " + targetURI);
 			}
-			Resource targetResource = familyModel.createResource(targetURI, OperationModelMaker.statisticalOperationFamily);
+			Resource targetResource = familyModel.createResource(targetURI, Configuration.STATISTICAL_OPERATION_FAMILY);
 			logger.info("Creating target family " + targetURI + " from M0 resource " + m0Resource.getURI());
 			fillLiteralProperties(targetResource, m0Model, m0Resource);
 			// Add relation from family to theme(s)
@@ -504,7 +504,7 @@ public class M0Converter {
 				logger.error("No target URI found for M0 series " + m0Resource.getURI());
 				continue;
 			}
-			Resource targetResource = seriesModel.createResource(targetURI, OperationModelMaker.statisticalOperationSeries);
+			Resource targetResource = seriesModel.createResource(targetURI, Configuration.STATISTICAL_OPERATION_SERIES);
 			logger.info("Creating target series " + targetURI + " from M0 resource " + m0Resource.getURI());
 			fillLiteralProperties(targetResource, m0Model, m0Resource);
 		}
@@ -549,7 +549,7 @@ public class M0Converter {
 				logger.info("No target URI found for M0 operation " + m0Resource.getURI());
 				continue;
 			}
-			Resource targetResource = operationModel.createResource(targetURI, OperationModelMaker.statisticalOperation);
+			Resource targetResource = operationModel.createResource(targetURI, Configuration.STATISTICAL_OPERATION);
 			logger.info("Creating target operation " + targetURI + " from M0 resource " + m0Resource.getURI());
 			// Extract TITLE, ALT_LABEL and MILLESIME (or MILESSIME)
 			fillLiteralProperties(targetResource, m0Model, m0Resource);
@@ -607,7 +607,7 @@ public class M0Converter {
 				logger.info("No target URI found for M0 indicator " + m0Resource.getURI());
 				continue;
 			}
-			Resource targetResource = indicatorModel.createResource(targetURI, OperationModelMaker.statisticalIndicator);
+			Resource targetResource = indicatorModel.createResource(targetURI, Configuration.STATISTICAL_INDICATOR);
 			logger.info("Creating indicator " + targetURI + " from M0 resource " + m0Resource.getURI());
 			fillLiteralProperties(targetResource, m0IndicatorssModel, m0Resource);
 		}

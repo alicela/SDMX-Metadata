@@ -1,4 +1,4 @@
-package fr.insee.semweb.sdmx.metadata;
+package eu.casd.semweb.psp;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -34,11 +34,6 @@ public class OperationModelMaker {
 
 	public static Logger logger = LogManager.getLogger(OperationModelMaker.class);
 
-	/** Useful classes and properties */
-	public static final Resource statisticalOperationFamily = ResourceFactory.createResource(Configuration.BASE_INSEE_ONTO_URI + "StatisticalOperationFamily");
-	public static final Resource statisticalOperationSeries = ResourceFactory.createResource(Configuration.BASE_INSEE_ONTO_URI + "StatisticalOperationSeries");
-	public static final Resource statisticalOperation = ResourceFactory.createResource(Configuration.BASE_INSEE_ONTO_URI + "StatisticalOperation");
-	public static final Resource statisticalIndicator = ResourceFactory.createResource(Configuration.BASE_INSEE_ONTO_URI + "StatisticalIndicator");
 	public static final Property ddsIdentifier = ResourceFactory.createProperty(Configuration.BASE_INSEE_ONTO_URI + "ddsIdentifier");
 	public static final Property casdAvailable = ResourceFactory.createProperty(Configuration.BASE_INSEE_ONTO_URI + "casdAvailable");
 	public static final Property wasGeneratedBy = ResourceFactory.createProperty("http://www.w3.org/ns/prov#wasGeneratedBy");
@@ -64,7 +59,7 @@ public class OperationModelMaker {
 		Workbook opeWorkbook = null;
 		Sheet sheet = null;
 		try {
-			opeWorkbook = WorkbookFactory.create(new File(Configuration.OPERATIONS_XLSX_FILE_NAME));
+			opeWorkbook = WorkbookFactory.create(new File(CASDConfiguration.OPERATIONS_XLSX_FILE_NAME));
 			sheet = opeWorkbook.getSheetAt(0);
 		} catch (Exception e) {
 			logger.fatal("Error while opening Excel file - " + e.getMessage());
@@ -118,7 +113,7 @@ public class OperationModelMaker {
 		logger.debug("Processing family " + familyName + " (" + familyChunk.size() + " line(s))");
 
 		// Add family resource to model
-		Resource family = familyModel.createResource(Configuration.statisticalOperationFamilyURI(familyName), fr.insee.semweb.sdmx.metadata.OperationModelMaker.statisticalOperationFamily);
+		Resource family = familyModel.createResource(Configuration.statisticalOperationFamilyURI(familyName), Configuration.STATISTICAL_OPERATION_FAMILY);
 		family.addProperty(SKOS.prefLabel, familyModel.createLiteral(familyName, "fr"));
 		family.addProperty(DCTerms.abstract_, familyModel.createLiteral("Description pour la famille " + familyName, "fr")); // HACK: we have no descriptions for now
 		
@@ -173,7 +168,7 @@ public class OperationModelMaker {
 		logger.debug("Processing series " + seriesName + " (" + seriesChunk.size() + " line(s))");
 
 		// Add series to model
-		Resource series = seriesModel.createResource(fr.insee.semweb.sdmx.metadata.Configuration.statisticalOperationSeriesURI(seriesName), fr.insee.semweb.sdmx.metadata.OperationModelMaker.statisticalOperationSeries);
+		Resource series = seriesModel.createResource(fr.insee.semweb.sdmx.metadata.Configuration.statisticalOperationSeriesURI(seriesName), fr.insee.semweb.sdmx.metadata.Configuration.STATISTICAL_OPERATION_SERIES);
 		series.addProperty(SKOS.prefLabel, seriesModel.createLiteral(seriesName, "fr"));
 		series.addProperty(DCTerms.abstract_, seriesModel.createLiteral("Description pour la serie " + seriesName, "fr")); // HACK: we have no descriptions for now
 		if (seriesEntry.getShortName() != null) series.addProperty(SKOS.altLabel, seriesEntry.getShortName());
@@ -192,7 +187,7 @@ public class OperationModelMaker {
 			// There are no operations defined for that series: if CASD products exist, they are attached to the series
 			if (seriesEntry.getCASDProductsYears() != null) {
 				for (String casdYear : seriesEntry.getCASDProductsYears()) {
-					String datasetURI = fr.insee.semweb.sdmx.metadata.Configuration.datasetURI(casdYear, seriesName);
+					String datasetURI = eu.casd.semweb.psp.CASDConfiguration.datasetURI(casdYear, seriesName);
 					Resource datasetResource = productModel.createResource(datasetURI, DCAT.Dataset);
 					datasetResource.addProperty(DCTerms.title, productModel.createLiteral(seriesName + " - Fichier " + casdYear, "fr"));
 					datasetResource.addProperty(wasGeneratedBy, series);
@@ -204,7 +199,7 @@ public class OperationModelMaker {
 			for (OperationEntry entry : seriesChunk) {
 				if (entry.getSeriesName() == null) { // Checked: if series name is empty, then we have an operation line (isOnlyOperationInfo is true)
 					String operationName = seriesName + " " + entry.getOperationInfo();
-					Resource operation = seriesModel.createResource(fr.insee.semweb.sdmx.metadata.Configuration.statisticalOperationURI(operationName), fr.insee.semweb.sdmx.metadata.OperationModelMaker.statisticalOperation);
+					Resource operation = seriesModel.createResource(fr.insee.semweb.sdmx.metadata.Configuration.statisticalOperationURI(operationName), fr.insee.semweb.sdmx.metadata.Configuration.STATISTICAL_OPERATION);
 					operation.addProperty(SKOS.prefLabel, seriesModel.createLiteral(operationName, "fr"));
 					operation.addProperty(DCTerms.abstract_, seriesModel.createLiteral("Description pour l'opération " + operationName, "fr")); // HACK: we have no descriptions for now
 					if (entry.getDdsIdentifier() != null) operation.addProperty(ddsIdentifier, entry.getDdsIdentifier()); // Rare, but happens
@@ -212,7 +207,7 @@ public class OperationModelMaker {
 					operation.addProperty(DCTerms.isPartOf, series);
 					// if operation has a corresponding CASD product, create the product and link it to the operation, and to the series if requested
 					if (casdProducts.contains(entry.getOperationInfo())) {
-						String datasetURI = fr.insee.semweb.sdmx.metadata.Configuration.datasetURI(operationName, seriesName);
+						String datasetURI = eu.casd.semweb.psp.CASDConfiguration.datasetURI(operationName, seriesName);
 						Resource datasetResource = productModel.createResource(datasetURI, DCAT.Dataset);
 						datasetResource.addProperty(DCTerms.title, productModel.createLiteral(seriesName + " - Fichier " + operationName, "fr"));
 						datasetResource.addProperty(wasGeneratedBy, operation);
@@ -223,7 +218,7 @@ public class OperationModelMaker {
 			}
 			// Create remaining CASD products and attach them to the series
 			for (String casdYear : casdProducts) {
-				String datasetURI = fr.insee.semweb.sdmx.metadata.Configuration.datasetURI(casdYear, seriesName);
+				String datasetURI = eu.casd.semweb.psp.CASDConfiguration.datasetURI(casdYear, seriesName);
 				Resource datasetResource = productModel.createResource(datasetURI, DCAT.Dataset);
 				datasetResource.addProperty(DCTerms.title, productModel.createLiteral(seriesName + " - Fichier " + casdYear, "fr"));
 				datasetResource.addProperty(wasGeneratedBy, series);

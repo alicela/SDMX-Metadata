@@ -316,12 +316,21 @@ public class M0Converter {
 			}
 		});
 		m0IdDDSModel.close();
-		// HACK Add three direct mappings for series 135, 136 and 137 because they have an ID_DDS but it is not in the M0 dataset
-		mappings.put(135, operationResourceURI("1241", "serie"));
-		mappings.put(136, operationResourceURI("1371", "serie")); // Changed from 1195, see mail 2/20
-		mappings.put(137, operationResourceURI("1284", "serie"));
-		// HACK Add new mapping (mail RC 3/7)
-		mappings.put(21, operationResourceURI("1229", "serie"));
+		logger.debug("A total of " + mappings.size() + " URI mappings where calculated via the DDS identifier");
+
+		// HACK Add special direct mappings
+		Map<Integer, String[]> specialMappings = new HashMap<>();
+		specialMappings.put(135, new String[]{"1241", "has an ID_DDS but it is not in the M0 dataset"});
+		specialMappings.put(136, new String[]{"1371", "has an ID_DDS but it is not in the M0 dataset, changed from 1195, see mail 2/20"});
+		specialMappings.put(137, new String[]{"1284", "has an ID_DDS but it is not in the M0 dataset"});
+		specialMappings.put(21, new String[]{"1229", "new mapping added (mail RC 3/7)"});
+		logger.debug("Adding " + specialMappings.size() + " special fixed mappings");
+		for (Integer m0Id : specialMappings.keySet()) {
+			mappings.put(m0Id, operationResourceURI(specialMappings.get(m0Id)[0], "serie"));
+			logger.debug("Adding special mapping from M0 series " + m0Id + " to target series " + specialMappings.get(m0Id)[0] + " (" + specialMappings.get(m0Id)[1] + ")");
+		}
+
+		logger.debug("A total of " + mappings.size() + " URI mappings will be returned");
 
 		return mappings;
 	}

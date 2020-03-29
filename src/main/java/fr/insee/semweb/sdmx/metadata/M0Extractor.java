@@ -330,14 +330,14 @@ public class M0Extractor {
 	}
 
 	/**
-	 * Returns the sorted set of documentation identifiers in a M0 'documentations' model.
+	 * Returns the sorted set of all documentation identifiers in a M0 'documentations' model.
 	 * 
 	 * @param m0DocumentationModel The M0 'documentations' model.
 	 * @return The set of identifiers as integers in ascending order.
 	 */
 	public static SortedSet<Integer> getM0DocumentationIds(Model m0DocumentationModel) {
 
-		logger.debug("Extracting the list of M0 documentation identifiers");
+		logger.debug("Extracting the list of all M0 documentation identifiers");
 		SortedSet<Integer> m0DocumentIdSet = new TreeSet<Integer>();
 	
 		ResIterator subjectsIterator = m0DocumentationModel.listSubjects();
@@ -354,6 +354,7 @@ public class M0Extractor {
 			}
 		}
 		logger.debug("Found a total of " + m0DocumentIdSet.size() + " documentations in the M0 model");
+		logger.debug("Minimum identifier is " + m0DocumentIdSet.first() + ", maximum identifier is " + m0DocumentIdSet.last());
 	
 		return m0DocumentIdSet;
 	}

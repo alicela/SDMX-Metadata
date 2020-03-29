@@ -11,8 +11,18 @@ import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
 import fr.insee.semweb.sdmx.metadata.SIMSModelMaker;
 
+/**
+ * Test and launch methods for class <code>SIMSModelMaker</code>.
+ * 
+ * @author Franck
+ */
 public class SIMSModelMakerTest {
 
+	/**
+	 * Creates and writes to a file the Concept Scheme associated to the SIMS in a Jena model.
+	 *
+	 * @throws IOException In case of problem while writing the output file.
+	 */
 	@Test
 	public void testCreateConceptScheme() throws IOException {
 
@@ -22,6 +32,11 @@ public class SIMSModelMakerTest {
 		simsSKOSModel.close();
 	}
 
+	/**
+	 * Creates and writes to a file the Metadata Structure Definition associated to the SIMS in a Jena model.
+	 *
+	 * @throws IOException In case of problem while writing the output file.
+	 */
 	@Test
 	public void testCreateMetadataStructureDefinition() throws IOException {
 
@@ -31,6 +46,9 @@ public class SIMSModelMakerTest {
 		simsMSDModel.close();
 	}
 
+	/**
+	 * Reads the SDMX metadata RDF vocabulary into a Jena ontology model.
+	 */
 	@Test
 	public void testReadSDMXModel() {
 

@@ -280,6 +280,7 @@ public class M0Converter {
 		if ("operation".equals(type)) {
 			logger.debug("Fixed mappings for operations are read from " + Configuration.M0_ID_TO_WEB4G_ID_FILE_NAME);
 			for (Integer m0Id : m0ToWeb4GIdMappings.keySet()) mappings.put(m0Id, operationResourceURI(m0ToWeb4GIdMappings.get(m0Id), type));
+			logger.debug("A total of  " + mappings.size() + " mappings for operations will be returned");
 			return mappings;
 		}
 
@@ -309,14 +310,14 @@ public class M0Converter {
 					logger.warn("No correspondence found in mapping file for DDS identifier " + ddsId + " (M0 resource is " + m0URI + ")");
 				} else {
 					String web4GId = ddsToWeb4GIdMappings.get(ddsId);
-					logger.trace("Correspondence found for operation " + m0Id + " with DDS identifier " + ddsId + ": Web4G identifier is " + web4GId);
+					logger.trace("Correspondence found for series " + m0Id + " with DDS identifier " + ddsId + ": Web4G identifier is " + web4GId);
 					String targetURI = operationResourceURI(web4GId, type);
 					mappings.put(m0Id, targetURI);
 				}
 			}
 		});
 		m0IdDDSModel.close();
-		logger.debug("A total of " + mappings.size() + " URI mappings where calculated via the DDS identifier");
+		logger.debug("A total of " + mappings.size() + " series URI mappings were calculated via the DDS identifier");
 
 		// HACK Add special direct mappings
 		Map<Integer, String[]> specialMappings = new HashMap<>();
@@ -324,13 +325,13 @@ public class M0Converter {
 		specialMappings.put(136, new String[]{"1371", "has an ID_DDS but it is not in the M0 dataset, changed from 1195, see mail 2/20"});
 		specialMappings.put(137, new String[]{"1284", "has an ID_DDS but it is not in the M0 dataset"});
 		specialMappings.put(21, new String[]{"1229", "new mapping added (mail RC 3/7)"});
-		logger.debug("Adding " + specialMappings.size() + " special fixed mappings");
+		logger.debug("Adding " + specialMappings.size() + " special fixed mappings for series");
 		for (Integer m0Id : specialMappings.keySet()) {
 			mappings.put(m0Id, operationResourceURI(specialMappings.get(m0Id)[0], "serie"));
 			logger.debug("Adding special mapping from M0 series " + m0Id + " to target series " + specialMappings.get(m0Id)[0] + " (" + specialMappings.get(m0Id)[1] + ")");
 		}
 
-		logger.debug("A total of " + mappings.size() + " URI mappings will be returned");
+		logger.debug("A total of " + mappings.size() + " URI mappings for series will be returned");
 
 		return mappings;
 	}
@@ -415,7 +416,7 @@ public class M0Converter {
 			else mappedURIs.add(mappedURI);
 		}
 
-		logger.info("Total number of mappings: " + uriMappings.size());
+		logger.info("Total number of URI mappings for operations, series, families and indicators: " + uriMappings.size());
 		return uriMappings;
 	}
 

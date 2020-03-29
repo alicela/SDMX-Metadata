@@ -37,6 +37,7 @@ import org.apache.jena.sparql.vocabulary.FOAF;
 import org.apache.jena.vocabulary.DC;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.DCTypes;
+import org.apache.jena.vocabulary.ORG;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SKOS;
@@ -170,8 +171,9 @@ public class M0SIMSConverter extends M0Converter {
 		// Shortcut to the list of document and link references on attributes of the current documentation
 		SortedMap<String, SortedSet<String>> documentReferences = attributeReferences.get(documentNumber);
 
-		// For each possible SIMSFr entry, check if the M0 model contains corresponding information and in that case convert it
+		// For each possible (non-direct) SIMSFr entry, check if the M0 model contains corresponding information and in that case convert it
 		for (SIMSFrEntry entry : simsFRScheme.getEntries()) {
+			if (entry.isDirect() || (entry.isQualityMetric())) continue; // Only SIMSFr attributes are converted: excluding direct attributes and quality indicators
 			// Create a m0 resource corresponding to the SIMSFr entry and check if the resource has values in M0 (French values are sine qua non)
 			Resource m0EntryResource = ResourceFactory.createResource(m0BaseResource.getURI() + "/" + entry.getCode());
 			logger.debug("Looking for the presence of SIMS attribute " + entry.getCode() + " (M0 URI: " + m0EntryResource + ")");
@@ -179,7 +181,8 @@ public class M0SIMSConverter extends M0Converter {
 			String propertyURI = Configuration.simsAttributePropertyURI(entry, false);
 			OntProperty metadataAttributeProperty = simsFrMSD.getOntProperty(propertyURI);
 			if (metadataAttributeProperty == null) { // This should not happen
-				logger.error("Error: property " + propertyURI + " not found in the SIMSFr MSD");
+				logger.error("Property " + propertyURI + " not found in the SIMSFr MSD");
+				System.out.println(entry.getCode());
 				continue;
 			}
 			Statement rangeStatement = metadataAttributeProperty.getProperty(RDFS.range);
@@ -188,7 +191,7 @@ public class M0SIMSConverter extends M0Converter {
 			List<RDFNode> objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES).toList();
 			if (objectValues.size() == 0) {
 				// TODO No value is acceptable if the type is DCTypes.Text and the resource has references to links or documents
-				if (propertyRange.equals(DCTypes.Text) && documentReferences.containsKey(entry.getCode())) {
+				if (DCTypes.Text.equals(propertyRange) && (documentReferences != null) && documentReferences.containsKey(entry.getCode())) {
 					logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode() + ", but references exist: " + documentReferences.get(entry.getCode()));
 				}
 				else {
@@ -198,7 +201,7 @@ public class M0SIMSConverter extends M0Converter {
 			}
 			if ((objectValues.size() > 1) && (!entry.isMultiple())) { // TODO Some coded attributes (survey unit, collection mode) can actually be multi-valued
 				// Several values for the resource, we have a problem
-				logger.error("Error: there are multiple values in the M0 documentation model for non-multiple SIMSFr attribute " + entry.getCode());
+				logger.error("There are multiple values in the M0 documentation model for non-multiple SIMSFr attribute " + entry.getCode());
 				continue;
 			}
 			// If we arrived here, we have one value (or more for multiple attributes), but they can be empty (including numerous cases where the value is just new line characters)
@@ -258,7 +261,7 @@ public class M0SIMSConverter extends M0Converter {
 						dateFormat.parse(stringValue); // Just to make sure we have a valid date
 						targetResource.addProperty(metadataAttributeProperty, simsModel.createTypedLiteral(stringValue, XSDDatatype.XSDdate));
 					} catch (ParseException e) {
-						logger.error("Unparseable date value " + stringValue + " for M0 resource " + m0EntryResource.getURI());
+						logger.error("Unparseable date value '" + stringValue + "' for M0 resource " + m0EntryResource.getURI());
 					}
 				}
 				else if (propertyRange.equals(DQV.Metric)) {
@@ -270,6 +273,18 @@ public class M0SIMSConverter extends M0Converter {
 					Resource feature = simsModel.createResource(Configuration.geoFeatureURI(m0Id, entry.getCode()), Configuration.TERRITORY_MAP_RANGE);
 					feature.addProperty(RDFS.label, simsModel.createLiteral(stringValue, "fr"));
 					targetResource.addProperty(metadataAttributeProperty, feature);
+				}
+				else if (propertyRange.equals(ORG.Organization)) {
+					String normalizedValue = StringUtils.normalizeSpace(objectValue.toString());
+					if (normalizedValue.length() == 0) {
+						logger.warn("Empty value for organization name, ignoring");
+						continue;
+					}
+					logger.warn("Conversion of organizations is not supported: for now, creating a blank organization with label " + normalizedValue);
+					Resource objectOrganization = simsModel.createResource();
+					objectOrganization.addProperty(RDF.type, ORG.Organization);
+					objectOrganization.addProperty(SKOS.prefLabel, simsModel.createLiteral(normalizedValue, "fr"));
+					targetResource.addProperty(metadataAttributeProperty, objectOrganization);
 				}
 				else {
 					// The only remaining case should be code list, with the range equal to the concept associated to the code list

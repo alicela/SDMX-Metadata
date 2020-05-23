@@ -851,21 +851,21 @@ public class M0Checker {
 	}
 
 	/**
-	 * Check that a given property in the 'documentations' graph takes its values from a list of valid values.
+	 * Check that a given SIMSFr attribute in the 'documentations' graph takes its values from a list of valid values.
 	 * 
 	 * @param m0DocumentationsModel The Jena model containing M0 information about documentations.
-	 * @param propertyName The name of the property to check.
+	 * @param attributeName The name of the SIMSFr attribute to check (e.g. COLLECTION_MODE).
 	 * @param validValues The set of valid values of the property to check.
 	 * @return A Jena <code>Model</code> containing the M0 statements where the set of the distinct values of the property.
 	 */
-	public static Model checkCodedAttributeValues(Model m0DocumentationsModel, String propertyName, Set<String> validValues) {
+	public static Model checkCodedAttributeValues(Model m0DocumentationsModel, String attributeName, Set<String> validValues) {
 
 		Model invalidCodesM0Model = ModelFactory.createDefaultModel();
 
 		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
 			// Override the 'selects' method to retain only statements whose subject URI ends with the expected property name
 	        public boolean selects(Statement statement) {
-	        	if (statement.getSubject().getURI().endsWith("/" + propertyName)) return true;
+	        	if (statement.getSubject().getURI().endsWith("/" + attributeName)) return true;
 	        	return false;
 	        }
 	    };

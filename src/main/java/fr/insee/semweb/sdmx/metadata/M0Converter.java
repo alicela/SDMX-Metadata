@@ -122,9 +122,9 @@ public class M0Converter {
 			associationIterator.forEachRemaining(new Consumer<Statement>() {
 				@Override
 				public void accept(Statement statement) {
-					// Get code identifier, which is the last part of the URI, cast to integer
+					// Get code identifier, which is the last-but-one part of the URI, cast to integer
 					String[] pathElements = statement.getObject().asResource().getURI().split("/");
-					Integer code = Integer.parseInt(pathElements[pathElements.length - 1]);
+					Integer code = Integer.parseInt(pathElements[pathElements.length - 2]);
 					listOfCodes.add(code);
 				}
 			});

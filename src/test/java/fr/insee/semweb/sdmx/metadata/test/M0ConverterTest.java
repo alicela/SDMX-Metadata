@@ -16,13 +16,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.SKOS;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.Test;
@@ -102,10 +111,54 @@ public class M0ConverterTest {
 	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
-	public void testConvertM0CodeLists() throws IOException {
+	public void testConvertM0CodeListsTurtle() throws IOException {
 
 		Model m0CodeListsModel = M0Converter.convertCodeLists();
 		m0CodeListsModel.write(new FileOutputStream("src/test/resources/m0-codelists.ttl"), "TTL");
+		m0CodeListsModel.close();
+	}
+
+	/**
+	 * Extracts the code lists defined in the M0 model and saves them in an Excel file.
+	 * 
+	 * @throws IOException In case of problem while writing the output file.
+	 */
+	@Test
+	public void testConvertM0CodeListsExcel() throws IOException {
+
+		Model m0CodeListsModel = M0Converter.convertCodeLists();
+		Workbook codeListsWorkbook = WorkbookFactory.create(true); // Create XSSF workbook
+		// Main loop on concept schemes
+		m0CodeListsModel.listStatements(null, RDF.type, SKOS.ConceptScheme).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement schemeStatement) {
+				Resource codeList = schemeStatement.getSubject();
+				Sheet currentSheet = codeListsWorkbook.createSheet(codeList.getProperty(SKOS.notation).getObject().toString());
+				currentSheet.createRow(0).createCell(0, CellType.STRING).setCellValue(codeList.getProperty(SKOS.prefLabel, "fr").getObject().asLiteral().getLexicalForm());
+				SortedMap<String, String> codeMap = new TreeMap<>();
+				// Inner loop on concepts of a scheme, with intermediate storage in a tree map for sorting purposes
+				m0CodeListsModel.listStatements(null, SKOS.inScheme, codeList).forEachRemaining(new Consumer<Statement>() {
+					@Override
+					public void accept(Statement codeStatement) {
+						Resource codeResource = codeStatement.getSubject();
+						String code = codeResource.getRequiredProperty(SKOS.notation).getObject().asLiteral().getLexicalForm();
+						String label = codeResource.getRequiredProperty(SKOS.prefLabel, "fr").getObject().asLiteral().getLexicalForm();
+						codeMap.put(code, label);
+					}
+				});
+				// Write the sorted map in the Excel sheet
+				int rowIndex = 1;
+				for (String code : codeMap.keySet()) {
+					Row currentRow = currentSheet.createRow(rowIndex++);
+					currentRow.createCell(0, CellType.STRING).setCellValue(code);
+					currentRow.createCell(1, CellType.STRING).setCellValue(codeMap.get(code));
+				}
+			}
+		});
+		try (FileOutputStream outputStream = new FileOutputStream("src/test/resources/m0-codelists.xlsx")) {
+			codeListsWorkbook.write(outputStream);
+			codeListsWorkbook.close();
+		}
 		m0CodeListsModel.close();
 	}
 

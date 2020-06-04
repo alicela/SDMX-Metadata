@@ -26,8 +26,16 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+
+import fr.insee.semweb.utils.Utils;
+
 import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
 
+/**
+ * Creates RDF datasets containing information on the organizations referred to in the SIMSFr.
+ * 
+ * @author Franck Cotton
+ */
 public class OrganizationModelMaker {
 
 	public static Logger logger = LogManager.getLogger(OrganizationModelMaker.class);
@@ -59,6 +67,11 @@ public class OrganizationModelMaker {
 		// additionalMotherReportingLinks.put(24, Arrays.asList("http://lannuaire.service-public.fr/172226"));
 	}
 
+	/**
+	 * Main method, which opens the Excel workbook and chains the production of the RDF models for Insee and SSM.
+	 * 
+	 * @param args Not used.
+	 */
 	public static void main(String[] args) {
 
 		Workbook orgWorkbook = null;
@@ -80,6 +93,12 @@ public class OrganizationModelMaker {
 		}
 	}
 
+	/**
+	 * Reads the information on Insee structures in the dedicated Excel sheet and transforms it into a Jena model.
+	 * 
+	 * @param orgWorkbook An Excel workbook containing the source information (<code>Workbook</code> object).
+	 * @return A Jena <code>Model</code> containing the organization scheme conforming to the ORG ontology.
+	 */
 	public static Model createInseeModel(Workbook orgWorkbook) {
 
 		Model inseeModel = ModelFactory.createDefaultModel();
@@ -149,6 +168,12 @@ public class OrganizationModelMaker {
 		return inseeModel;
 	}
 
+	/**
+	 * Reads the information on SSM structures in the dedicated Excel sheet and transforms it into a Jena model.
+	 * 
+	 * @param orgWorkbook An Excel workbook containing the source information (<code>Workbook</code> object).
+	 * @return A Jena <code>Model</code> containing the organization scheme conforming to the ORG ontology.
+	 */
 	public static Model createSSMModel(Workbook orgWorkbook) {
 
 		Model orgModel = ModelFactory.createDefaultModel();
@@ -297,6 +322,12 @@ public class OrganizationModelMaker {
 		return orgModel;
 	}
 
+	/**
+	 * Strips from a string any right-most parenthesis with its content.
+	 * 
+	 * @param label The string to process.
+	 * @return The string without the right-most parenthesis (if any).
+	 */
 	public static String stripTrailingParenthesis(String label) {
 
 		if (label.endsWith(")")) {
@@ -305,6 +336,12 @@ public class OrganizationModelMaker {
 		return label;
 	}
 
+	/**
+	 * Creates an acronym from a string by concatenating the first letter of each token.
+	 * 
+	 * @param label The string to process.
+	 * @return The acronym created.
+	 */
 	public static String createAccronym(String label) {
 
 		System.out.println(label);
@@ -315,10 +352,17 @@ public class OrganizationModelMaker {
 		return builder.toString();
 	}
 
+	/**
+	 * Creates a URI from the name of an organization.
+	 * Essentially deals with the BdF special case, otherwise relaying on Configuration.organizationURI().
+	 * 
+	 * @param label The name of the organization.
+	 * @return The URI for the organization.
+	 */
 	public static String getOrganizationURIFromLabel(String label) {
 
 		// Hack: For Banque de France we dont want to collision the URI of the daughter (also BDF)
-		String accronym = createAccronym(fr.insee.semweb.utils.Utils.slug(label));
+		String accronym = createAccronym(Utils.slug(label));
 		if (accronym.equals("b")) return Configuration.organizationURI("banque de france");
 		return Configuration.organizationURI(accronym);
 	}

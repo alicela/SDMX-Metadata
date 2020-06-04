@@ -25,6 +25,11 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import fr.insee.semweb.utils.Utils;
 
+/**
+ * Creates RDF models and datasets containing the code lists used in the SIMSFr.
+ * 
+ * @author Franck Cotton
+ */
 public class CodelistModelMaker {
 
 	public static Logger logger = LogManager.getLogger(CodelistModelMaker.class);

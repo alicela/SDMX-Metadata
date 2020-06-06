@@ -8,6 +8,11 @@ import org.junit.Test;
 import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.utils.Utils;
 
+/**
+ * Test and launch methods for class <code>Configuration</code>.
+ * 
+ * @author Franck
+ */
 public class ConfigurationTest {
 
 	@Test

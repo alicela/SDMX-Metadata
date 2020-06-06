@@ -131,7 +131,7 @@ public class SIMSFrScheme {
 		StringBuilder builder = new StringBuilder();
 		builder.append("Scheme ").append(name).append(" (source: '").append(source).append("')\n");
 		for (SIMSFrEntry entry : this.getEntries()) {
-			builder.append("\nProperty ").append(entry.getNotation()).append(" (").append(entry.getCode()).append("): ");
+			builder.append("\nAttribute ").append(entry.getNotation()).append(" (").append(entry.getCode()).append("): ");
 			builder.append(entry.getName()).append(" (").append(entry.getFrenchName()).append(")\n");
 			if (entry.isMultiple()) builder.append("Can be multiple\n");
 			builder.append("Associated concept: ").append(Configuration.simsConceptURI(entry)).append("\n");

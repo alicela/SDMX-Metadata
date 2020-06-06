@@ -18,8 +18,19 @@ import org.junit.Test;
 import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
 import fr.insee.semweb.sdmx.metadata.Configuration;
 
+/**
+ * Test and launch methods for class <code>CodelistModelMaker</code>.
+ * 
+ * @author Franck
+ */
 public class CodelistModelMakerTest {
 
+
+	/**
+	 * Creates all the RDF code lists, including the 'themes' concept scheme, and writes them to a TriG file.
+	 * 
+	 * @throws IOException In case of problems writing the TriG file.
+	 */
 	@Test
 	public void testReadCodelistDataset() throws IOException {
 
@@ -27,6 +38,11 @@ public class CodelistModelMakerTest {
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl.trig"), codes, Lang.TRIG);
 	}
 
+	/**
+	 * Creates the RDF 'Frequency' code list and writes it to a Turtle file.
+	 * 
+	 * @throws IOException In case of problems writing the Turtle file.
+	 */
 	@Test
 	public void testFrequencyCodelist() throws Exception {
 		Workbook clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
@@ -34,6 +50,11 @@ public class CodelistModelMakerTest {
 		code.write(new FileWriter("src/main/resources/data/cl-frequency.ttl"), "TTL");
 	}
 
+	/**
+	 * Creates the RDF 'Source category' code list and writes it to a Turtle file.
+	 * 
+	 * @throws IOException In case of problems writing the Turtle file.
+	 */
 	@Test
 	public void testSourceCategoryCodelist() throws Exception {
 		Workbook clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
@@ -41,6 +62,11 @@ public class CodelistModelMakerTest {
 		code.write(new FileWriter("src/main/resources/data/cl-source-category.ttl"), "TTL");
 	}
 
+	/**
+	 * Creates the RDF 'Survey status' code list and writes it to a Turtle file.
+	 * 
+	 * @throws IOException In case of problems writing the Turtle file.
+	 */
 	@Test
 	public void testSurveyStatusCodelist() throws Exception {
 		Workbook clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
@@ -48,6 +74,11 @@ public class CodelistModelMakerTest {
 		code.write(new FileWriter("src/main/resources/data/cl-survey-status.ttl"), "TTL");
 	}
 
+	/**
+	 * Creates the RDF 'Survey unit' code list and writes it to a Turtle file.
+	 * 
+	 * @throws IOException In case of problems writing the Turtle file.
+	 */
 	@Test
 	public void testSurveyUnitCodelist() throws Exception {
 		Workbook clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
@@ -55,6 +86,11 @@ public class CodelistModelMakerTest {
 		code.write(new FileWriter("src/main/resources/data/cl-survey-unit.ttl"), "TTL");
 	}
 
+	/**
+	 * Creates the RDF 'Collection mode' code list and writes it to a Turtle file.
+	 * 
+	 * @throws IOException In case of problems writing the Turtle file.
+	 */
 	@Test
 	public void testCollectionModeCodelist() throws Exception {
 		Workbook clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
@@ -62,6 +98,11 @@ public class CodelistModelMakerTest {
 		code.write(new FileWriter("src/main/resources/data/cl-collection-mode.ttl"), "TTL");
 	}
 
+	/**
+	 * Creates the RDF 'Themes' concept schemes and writes it to a Turtle file.
+	 * 
+	 * @throws IOException In case of problems writing the Turtle file.
+	 */
 	@Test
 	public void testThemesCodelist() throws Exception {
 
@@ -70,6 +111,10 @@ public class CodelistModelMakerTest {
 		themes.write(new FileWriter(Configuration.THEMES_TURTLE_FILE_NAME), "TTL");
 	}
 
+	/**
+	 * Writes to the console the mappings between a code list notation and the URI of the corresponding concept.
+	 * E.g. CL_COLLECTION_MODE - http://id.insee.fr/codes/concept/ModeCollecte
+	 */
 	@Test
 	public void testGetNotationConceptMappings() {
 

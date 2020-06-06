@@ -2,8 +2,10 @@ package fr.insee.semweb.sdmx.metadata;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.jena.query.Dataset;
@@ -36,23 +38,27 @@ public class CodelistModelMaker {
 
 	/**
 	 * Reads all the code lists from the dedicated Excel file into a Jena dataset.
-	 * The 'Themes' scheme will be put in a 'concepts' graph, the other lists in a 'codes' graph.
+	 * The 'Themes' scheme will be put in a 'concepts' graph (unless excluded), the other lists in a 'codes' graph.
 	 * 
 	 * @param xlsxFile The Excel file containing the code lists (<code>File</code> object).
 	 * @param conceptGraph The URI to use for the 'concepts' graph.
 	 * @param codeGraph The URI to use for the 'codes' graph.
-	 * @return A Jena <code>Dataset</code> containing the code lists as SKOS concept schemes in two graphs.
+	 * @param exclusions Identifiers (notations, e.g. CL_AREA) of code list that will be excluded from the output.
+	 * @return A Jena <code>Dataset</code> containing the code lists as SKOS concept schemes in two graphs (or one if CL_TOPICS excluded).
 	 */
-	public static Dataset readCodelistDataset(File xlxsFile, String conceptGraph, String codeGraph) {
+	public static Dataset readCodelistDataset(File xlxsFile, String conceptGraph, String codeGraph, String... exclusions) {
 
 		Workbook clWorkbook = null;
 		try {
 			clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
 		} catch (Exception e) {
-			logger.fatal("Error while opening Excel file - " + e.getMessage());
+			logger.fatal("Error while opening Excel file " + Configuration.CL_XLSX_FILE_NAME + " - " + e.getMessage());
 			return null;
 		}
 
+		logger.info("Reading code lists from Excel file " + Configuration.CL_XLSX_FILE_NAME);
+		List<String> exclusionList = Arrays.asList(exclusions);
+		if (!exclusionList.isEmpty()) logger.info("The following code lists are excluded " + exclusionList);
 		Model concepts = ModelFactory.createDefaultModel();
 		Model codes = ModelFactory.createDefaultModel();
 
@@ -60,14 +66,17 @@ public class CodelistModelMaker {
 		Iterator<Sheet> sheets = clWorkbook.sheetIterator();
 		while (sheets.hasNext()) {
 			Sheet sheet = sheets.next();
-			if (sheet.getSheetName().contains("CL_TOPICS")) concepts.add(readThemesConceptScheme(sheet));
+			String sheetName = sheet.getSheetName().trim();
+			if (exclusionList.contains(sheetName)) continue;
+			logger.info("Reading " + sheetName + " code list");
+			if (sheet.getSheetName().equals("CL_TOPICS")) concepts.add(readThemesConceptScheme(sheet));
 			else codes.add(readCodelist(sheet));
 		}
 		try { clWorkbook.close(); } catch (IOException ignored) { }
 
 		Dataset dataset = DatasetFactory.create();
-		dataset.addNamedModel(conceptGraph, concepts);
-		dataset.addNamedModel(codeGraph, codes);
+		if (concepts.size() > 0) dataset.addNamedModel(conceptGraph, concepts);
+		if (codes.size() > 0) dataset.addNamedModel(codeGraph, codes);
 
 		concepts.close();
 		codes.close();
@@ -143,6 +152,7 @@ public class CodelistModelMaker {
 		themes.setNsPrefix("rdfs", RDFS.getURI());
 
 		Resource scheme = themes.createResource(Configuration.themeSchemeURI(), SKOS.ConceptScheme);
+		logger.debug("Generating concept scheme " + scheme.getURI() + " from sheet: 'CL_TOPICS'");
 		scheme.addProperty(SKOS.prefLabel, themes.createLiteral("Thèmes statistiques", "fr"));
 		scheme.addProperty(SKOS.prefLabel, themes.createLiteral("Statistical themes", "en"));
 		// Create also the class representing the code values (see Data Cube §8.1)

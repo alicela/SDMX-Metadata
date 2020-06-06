@@ -39,6 +39,42 @@ public class CodelistModelMakerTest {
 	}
 
 	/**
+	 * Creates all the RDF code lists except CL_AREA but including the 'themes' concept scheme, and writes them to a TriG file.
+	 * 
+	 * @throws IOException In case of problems writing the TriG file.
+	 */
+	@Test
+	public void testReadCodelistDatasetExceptArea() throws IOException {
+
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes", "CL_AREA");
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl-x-area.trig"), codes, Lang.TRIG);
+	}
+
+	/**
+	 * Creates all the RDF code lists except CL_AREA and CL_UNIT_MEASURE but including the 'themes' concept scheme, and writes them to a TriG file.
+	 * 
+	 * @throws IOException In case of problems writing the TriG file.
+	 */
+	@Test
+	public void testReadCodelistDatasetExceptAreaAndMeasure() throws IOException {
+
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes", "CL_AREA", "CL_UNIT_MEASURE");
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl-x-area-measure.trig"), codes, Lang.TRIG);
+	}
+
+	/**
+	 * Creates all the RDF code lists excluding the 'themes' concept scheme, and writes them to a TriG file.
+	 * 
+	 * @throws IOException In case of problems writing the TriG file.
+	 */
+	@Test
+	public void testReadCodelistDatasetExceptThemes() throws IOException {
+
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes", "CL_TOPICS");
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl-x-themes.trig"), codes, Lang.TRIG);
+	}
+
+	/**
 	 * Creates the RDF 'Frequency' code list and writes it to a Turtle file.
 	 * 
 	 * @throws IOException In case of problems writing the Turtle file.

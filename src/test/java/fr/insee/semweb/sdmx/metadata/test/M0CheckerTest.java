@@ -248,7 +248,8 @@ public class M0CheckerTest {
 		Model m0DocumentationsModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 
 		for (String attributeToCheck : codedAttributes.keySet()) {
-			Model invalidStatements = M0Checker.checkCodedAttributeValues(m0DocumentationsModel, attributeToCheck, codeLists.get(codedAttributes.get(attributeToCheck)));
+			Set<String> attributeValues = codeLists.get(codedAttributes.get(attributeToCheck));
+			Model invalidStatements = M0Checker.checkCodedAttributeValues(m0DocumentationsModel, attributeToCheck, attributeValues);
 			if (invalidStatements.size() == 0) System.out.println("No invalid statements found for attribute " + attributeToCheck);
 			else {
 				System.out.println(invalidStatements.size() + " invalid values found for attribute " + attributeToCheck);
@@ -257,6 +258,13 @@ public class M0CheckerTest {
 				for (Statement statement : statementList) {
 					System.out.println(statement.getSubject() + " - " + statement.getObject());
 				}
+			}
+			Set<String> unusedValues = M0Checker.checkCodedAttributeUnusedValues(m0DocumentationsModel, attributeToCheck, attributeValues);
+			if (unusedValues.size() == 0) System.out.println("All valid values are used for attribute " + attributeToCheck);
+			else {
+				System.out.println("The following valid values are not actually used for attribute " + attributeToCheck + ":\n\t" + unusedValues);
+				attributeValues.removeAll(unusedValues);
+				System.out.println("Values actually used:\n\t" + attributeValues);
 			}
 			System.out.println();
 		}

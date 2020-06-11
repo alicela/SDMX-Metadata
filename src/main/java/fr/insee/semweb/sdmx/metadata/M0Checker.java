@@ -9,6 +9,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -365,18 +366,18 @@ public class M0Checker {
 
 		// Selectors on the French and English associations starting from a 'lien' resource (and pointing to a 'documentation' resource)
 		Selector frenchSelector = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
-	        public boolean selects(Statement statement) {
-	        	return (statement.getSubject().getURI().startsWith(baseLinkURI));
-	        }
-	    };
+			public boolean selects(Statement statement) {
+				return (statement.getSubject().getURI().startsWith(baseLinkURI));
+			}
+		};
 		Selector englishSelector = new SimpleSelector(null, Configuration.M0_RELATED_TO_EN, (RDFNode) null) {
-	        public boolean selects(Statement statement) {
-	        	return (statement.getSubject().getURI().startsWith(baseLinkURI));
-	        }
-	    };
-	    // Links (number/attribute) for each documentation (number/attribute)
+			public boolean selects(Statement statement) {
+				return (statement.getSubject().getURI().startsWith(baseLinkURI));
+			}
+		};
+		// Links (number/attribute) for each documentation (number/attribute)
 		SortedMap<String, SortedSet<String>> linksByDocumentation = new TreeMap<String, SortedSet<String>>();
-	    // Documentations (number/attribute) for each link (number/attribute)
+		// Documentations (number/attribute) for each link (number/attribute)
 		SortedMap<String, SortedSet<String>> documentationsByLink = new TreeMap<String, SortedSet<String>>();
 		// Fill the two maps for French associations
 		m0AssociationsModel.listStatements(frenchSelector).forEachRemaining(new Consumer<Statement>() {
@@ -493,17 +494,17 @@ public class M0Checker {
 
 		// Selectors on the French and English associations starting from a 'document' resource (and pointing to a 'documentation' resource)
 		Selector selectorFr = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
-	        public boolean selects(Statement statement) {
-	        	return (statement.getSubject().getURI().startsWith(baseDocumentURI));
-	        }
-	    };
+			public boolean selects(Statement statement) {
+				return (statement.getSubject().getURI().startsWith(baseDocumentURI));
+			}
+		};
 		Selector selectorEn = new SimpleSelector(null, Configuration.M0_RELATED_TO_EN, (RDFNode) null) {
-	        public boolean selects(Statement statement) {
-	        	return (statement.getSubject().getURI().startsWith(baseDocumentURI));
-	        }
-	    };
+			public boolean selects(Statement statement) {
+				return (statement.getSubject().getURI().startsWith(baseDocumentURI));
+			}
+		};
 
-	    // List the document attributes associated to documentations in French and English
+		// List the document attributes associated to documentations in French and English
 		m0AssociationsModel.listStatements(selectorFr).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
@@ -778,12 +779,12 @@ public class M0Checker {
 		// Select the 'documentation' triples where the subject corresponds to a SIMSFr attribute to compare and the predicate is M0_VALUES
 		Model m0DocumentationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
 		Selector m0DocumentationSelector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
-	        public boolean selects(Statement statement) {
-	        	return comparedAttributes.contains(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/"));
-	        }
-	    };
-	    // Go through the selector
-	    m0DocumentationsModel.listStatements(m0DocumentationSelector).forEachRemaining(new Consumer<Statement>() {
+			public boolean selects(Statement statement) {
+				return comparedAttributes.contains(StringUtils.substringAfterLast(statement.getSubject().getURI(), "/"));
+			}
+		};
+		// Go through the selector
+		m0DocumentationsModel.listStatements(m0DocumentationSelector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				String simsAttributeURI = statement.getSubject().getURI();
@@ -818,8 +819,8 @@ public class M0Checker {
 				}
 			}
 		});
-	    m0Model.close();
-	    m0DocumentationsModel.close();
+		m0Model.close();
+		m0DocumentationsModel.close();
 	}
 
 	/**
@@ -835,12 +836,12 @@ public class M0Checker {
 
 		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
 			// Override 'selects' method to retain only statements whose subject URI ends with the expected property name
-	        public boolean selects(Statement statement) {
-	        	if (statement.getSubject().getURI().endsWith("/" + attributeName)) return true; // To avoid mixing STATUS and VALIDATION_STATUS, for example
-	        	return false;
-	        }
-	    };
-	    m0DocumentationsModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			public boolean selects(Statement statement) {
+				if (statement.getSubject().getURI().endsWith("/" + attributeName)) return true; // To avoid mixing STATUS and VALIDATION_STATUS, for example
+				return false;
+			}
+		};
+		m0DocumentationsModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				valueSet.add(statement.getObject().toString());
@@ -862,15 +863,16 @@ public class M0Checker {
 
 		Model invalidCodesM0Model = ModelFactory.createDefaultModel();
 
+		// Select the triples that have the given attribute URI as subject and 'values' as predicate
 		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
 			// Override the 'selects' method to retain only statements whose subject URI ends with the expected property name
-	        public boolean selects(Statement statement) {
-	        	if (statement.getSubject().getURI().endsWith("/" + attributeName)) return true;
-	        	return false;
-	        }
-	    };
-	    // Lists values with the given property as subject and extract those whose object value is not in the expected list
-	    m0DocumentationsModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			public boolean selects(Statement statement) {
+				if (statement.getSubject().getURI().endsWith("/" + attributeName)) return true;
+				return false;
+			}
+		};
+		// List values with the given property as subject and extract those whose object value is not in the expected list
+		m0DocumentationsModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
 			@Override
 			public void accept(Statement statement) {
 				String codeValue = statement.getObject().toString();
@@ -879,6 +881,35 @@ public class M0Checker {
 		});
 
 		return invalidCodesM0Model;
+	}
+
+	/**
+	 * Lists the code modalities that are actually not used in the M0 model.
+	 * 
+	 * @return A set of string containing the values (from the provided valid values) that are actually not used in the 'documentations' M0  model.
+	 */
+	public static Set<String> checkCodedAttributeUnusedValues(Model m0DocumentationsModel, String attributeName, Set<String> validValues) {
+
+		Set<String> unusedValues = new HashSet<>(validValues);
+
+		// Select the triples that have the given attribute URI as subject and 'values' as predicate
+		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
+			// Override the 'selects' method to retain only statements whose subject URI ends with the expected property name
+			public boolean selects(Statement statement) {
+				if (statement.getSubject().getURI().endsWith("/" + attributeName)) return true;
+				return false;
+			}
+		};
+		// List the attribute values and remove them from the set of unused values
+		m0DocumentationsModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				String codeValue = statement.getObject().toString();
+				unusedValues.remove(codeValue);
+			};
+		});
+
+		return unusedValues;
 	}
 
 	/**

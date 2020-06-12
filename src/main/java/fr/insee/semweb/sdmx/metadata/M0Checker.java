@@ -932,4 +932,140 @@ public class M0Checker {
 		});
 		return attributes;
 	}
+
+	/**
+	 * Runs basic reporting on M0 organizations and returns a text report.
+	 * 
+	 * @param m0OrganizationsModel The Jena model containing M0 information about organizations.
+	 * @param attributeNames Names of M0 attributes for which values will be included in the report.
+	 * @return A <code>String</code> containing the report.
+	 */
+	public static String checkOrganizations(Model m0OrganizationsModel, String... attributeNames) {
+
+		SortedMap<Integer, SortedSet<String>> attributesById = new TreeMap<Integer, SortedSet<String>>(); // Attributes used for each organization identifier
+		SortedSet<String> allAttributes = new TreeSet<String>(); // All attributes that exist in the model
+		SortedMap<String, SortedMap<Integer, List<String>>> valuesByNameAndId = new TreeMap<String, SortedMap<Integer, List<String>>>();
+		for (String attributeName : attributeNames) valuesByNameAndId.put(attributeName, new TreeMap<Integer, List<String>>());
+
+		StringWriter report = new StringWriter().append("Checks on information about organizations in the M0 model\n\n");
+
+		// Iterate on all subject resources that are organizations (characterised by their type skos:Concept)
+		m0OrganizationsModel.listStatements(null, RDF.type, SKOS.Concept).forEachRemaining(new Consumer<Statement>() {
+
+			@Override
+			public void accept(Statement organizationStatement) {
+				Resource organizationResource = organizationStatement.getSubject();
+				String organizationURI = organizationResource.getURI();
+				String[] organizationURIComponents = organizationURI.split("/");
+				String organizationId = organizationURIComponents[organizationURIComponents.length - 1];
+				try {
+					Integer organizationIntId = Integer.parseInt(organizationId);
+					SortedSet<String> organizationAttributes = new TreeSet<>();
+					// Now iterate on all statements linking the organization to its attributes via the 'varSims' predicate
+					m0OrganizationsModel.listStatements(organizationResource, Configuration.M0_VAR_SIMS, (RDFNode)null).forEachRemaining(new Consumer<Statement>() {
+						@Override
+						public void accept(Statement attributeStatement) {
+							// Extract attribute name at the end of the object URI (e.g. http://baseUri/organismes/organisme/50/TITLE)
+							Resource attributeResource = attributeStatement.getObject().asResource(); // Should always be a resource
+							String attributeURI = attributeResource.getURI();
+							String[] attributeURIComponents = attributeURI.split("/");
+							String attributeName = attributeURIComponents[attributeURIComponents.length - 1];
+							organizationAttributes.add(attributeName);
+							if (valuesByNameAndId.containsKey(attributeName)) {
+								// Iterate over the French values of the attribute
+								List<String> attributeValues = new ArrayList<String>();
+								m0OrganizationsModel.listStatements(attributeResource, Configuration.M0_VALUES, (RDFNode)null).forEachRemaining(new Consumer<Statement>() {
+									@Override
+									public void accept(Statement valueStatement) {
+										attributeValues.add(valueStatement.getObject().asLiteral().getString() + "(fr)");
+									}
+								});
+								m0OrganizationsModel.listStatements(attributeResource, Configuration.M0_VALUES_EN, (RDFNode)null).forEachRemaining(new Consumer<Statement>() {
+									@Override
+									public void accept(Statement valueStatement) {
+										attributeValues.add(valueStatement.getObject().asLiteral().getString() + "(en)");
+									}
+								});
+								if (!attributeValues.isEmpty()) valuesByNameAndId.get(attributeName).put(organizationIntId, attributeValues);
+							}
+						}
+					});
+					attributesById.put(organizationIntId, organizationAttributes);
+					allAttributes.addAll(organizationAttributes);
+				} catch (NumberFormatException e) {
+					logger.error("Invalid organization URI " + organizationURI);
+				}
+			}
+		});
+		report.append("Attributes filled for each organization identifier\n");
+		for (Integer organizationId : attributesById.keySet()) {
+			report.append(organizationId + "\t");
+			report.append(attributesById.get(organizationId).toString()).append(System.lineSeparator());
+			allAttributes.addAll(attributesById.get(organizationId));
+		}
+		report.append("\nAll attributes used in the organizations\n" + allAttributes);
+
+		// Print values for specified attributes
+		for (String attributeName : valuesByNameAndId.keySet()) {
+			if (valuesByNameAndId.get(attributeName).isEmpty()) {
+				report.append("\n\nNo values found for attribute " + attributeName);
+				continue;
+			}
+			report.append("\n\nAll non-empty values for attribute " + attributeName + " by organization Id:");
+			for (Integer organizationId : valuesByNameAndId.get(attributeName).keySet()) report.append("\n").append(organizationId + "\t").append(valuesByNameAndId.get(attributeName).get(organizationId).toString());
+		}
+
+		return report.toString();
+	}
+
+	/**
+	 * Checks what organizations are actually used in the M0 model and returns a text report.
+	 * 
+	 * @param m0AssociationsModel The Jena model containing M0 information about associations.
+	 * @return A <code>String</code> containing the report.
+	 */
+	public static String checkUsedOrganizations(Model m0AssociationsModel) {
+
+		String baseOrganizationsURI = "http://baseUri/organismes/organisme/";
+		// Structure of occurrences is [org id, [att name, [source type, [ids]]]], where source type is 'famille', 'serie', 'opération' or 'documentation')
+		SortedMap<Integer, SortedMap<String, SortedMap<String, SortedSet<Integer>>>> occurrences = new TreeMap<>();
+
+		// Selector on associations starting from a organization-type resource and using 'related to' predicate (only French is considered)
+		Selector orgSelector = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
+			public boolean selects(Statement statement) {
+				return (statement.getSubject().getURI().startsWith(baseOrganizationsURI));
+			}
+		};
+		m0AssociationsModel.listStatements(orgSelector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				// Extract organization id and attribute name from the subject URI
+				String[] uriComponents = statement.getSubject().getURI().split("/");
+				String organizationId = uriComponents[uriComponents.length - 2];
+				String attributeName = uriComponents[uriComponents.length - 1];
+				// Extract source type and identifier from the object URI
+				uriComponents = statement.getObject().asResource().getURI().split("/"); // Object should always be a resource
+				String sourceId = uriComponents[uriComponents.length - 2];
+				String sourceType = uriComponents[uriComponents.length - 3];
+				// Conversions (will raise exception for invalid URI)
+				Integer organizationIntId = Integer.parseInt(organizationId);
+				Integer sourceIntId = Integer.parseInt(sourceId);
+				// Insert found values in the occurrences structure
+				if (!occurrences.containsKey(organizationIntId)) occurrences.put(organizationIntId, new TreeMap<>());
+				if (!occurrences.get(organizationIntId).containsKey(attributeName)) occurrences.get(organizationIntId).put(attributeName, new TreeMap<>());
+				if (!occurrences.get(organizationIntId).get(attributeName).containsKey(sourceType)) occurrences.get(organizationIntId).get(attributeName).put(sourceType, new TreeSet<>());
+				occurrences.get(organizationIntId).get(attributeName).get(sourceType).add(sourceIntId);
+			}
+		});
+		// Write and return report
+		StringWriter report = new StringWriter().append("Actual usage of organizations in the M0 data\n");
+		for (int orgIntId : occurrences.keySet()) {
+			report.append("\nOrganization " + orgIntId + " is used in the following cases:");
+			for (String attName : occurrences.get(orgIntId).keySet()) {
+				report.append("\n . as attribute " + attName + " in the following contexts:");
+				for (String sourceType : occurrences.get(orgIntId).get(attName).keySet()) report.append("\n\t\t" + sourceType + "\t\t" + occurrences.get(orgIntId).get(attName).get(sourceType));
+			}
+		}
+		return report.toString();
+	}
 }

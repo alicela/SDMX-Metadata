@@ -37,8 +37,8 @@ public class M0CheckerTest {
 	@Test
 	public void testCheckFamilies() throws IOException {
 	
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0FamiliesModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/familles");
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0FamiliesModel = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/familles");
 		String report = M0Checker.checkSeries(m0FamiliesModel);
 		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-families.txt");
 		outStream.print(report);
@@ -54,8 +54,8 @@ public class M0CheckerTest {
 	@Test
 	public void testCheckSeries() throws IOException {
 
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0SeriesModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/series");
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0SeriesModel = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/series");
 		String report = M0Checker.checkSeries(m0SeriesModel);
 		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-series.txt");
 		outStream.print(report);
@@ -71,8 +71,8 @@ public class M0CheckerTest {
 	@Test
 	public void testCheckOperations() throws IOException {
 
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0OperationsModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/operations");
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0OperationsModel = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/operations");
 		String report = M0Checker.checkOperations(m0OperationsModel);
 		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-operations.txt");
 		outStream.print(report);
@@ -88,8 +88,8 @@ public class M0CheckerTest {
 	@Test
 	public void testCheckOperationsWithAttributes() throws IOException {
 
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0OperationsModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/operations");
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0OperationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "operations");
 		String report = M0Checker.checkOperations(m0OperationsModel, "ID_DDS");
 		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-operations-id_dds.txt");
 		outStream.print(report);
@@ -105,8 +105,8 @@ public class M0CheckerTest {
 	@Test
 	public void testCheckDocumentations() throws IOException {
 
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0DocumentationsModel = dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0DocumentationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
 		String report = M0Checker.checkDocumentations(m0DocumentationsModel);
 		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-documentations.txt");
 		outStream.print(report);
@@ -204,7 +204,7 @@ public class M0CheckerTest {
 	public void testListAttributeValues() {
 
 		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0DocumentationsModel = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+		Model m0DocumentationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "documentations");
 
 		Set<String> attributeValues = M0Checker.listAttributeValues(m0DocumentationsModel, "REF_AREA");
 		System.out.println(attributeValues);
@@ -244,8 +244,8 @@ public class M0CheckerTest {
 		codedAttributes.put("SURVEY_UNIT", "CL_SURVEY_UNIT");
 		// NB: SOURCE_CATEGORY is also coded (with CL_SOURCE_CATEGORY), but it is a direct attribute and thus not checked by checkCodedAttributeValues
 
-		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		Model m0DocumentationsModel = dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0DocumentationsModel = m0Dataset.getNamedModel("http://rdf.insee.fr/graphe/documentations");
 
 		for (String attributeToCheck : codedAttributes.keySet()) {
 			Set<String> attributeValues = codeLists.get(codedAttributes.get(attributeToCheck));
@@ -303,5 +303,42 @@ public class M0CheckerTest {
 		m0Dataset.close();
 		System.out.println("Named graphs in " + Configuration.M0_FILE_NAME + "\n");
 		for (String graphName : graphNames) System.out.println(graphName);
+	}
+
+	/**
+	 * Runs the basic checks on the M0 organization model and prints the report to a file.
+	 * 
+	 * @throws IOException In case of problem writing the report.
+	 */
+	@Test
+	public void testCheckOrganizations() throws IOException {
+
+		// Attributes to report. Notes: 'ORGANISATION' always empty
+		String[] attributesToCheck = new String[]{"ALT_LABEL", "TITLE", "ORIGINE", "STAKEHOLDERS", "TYPE", "UNIT_OF"};
+
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0rganizationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "organismes");
+		String report = M0Checker.checkOrganizations(m0rganizationsModel, attributesToCheck);
+		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-organizations.txt");
+		outStream.print(report);
+		outStream.close();
+		m0rganizationsModel.close();
+	}
+
+	/**
+	 * Runs the basic checks on the M0 organization model and prints the report to a file.
+	 * 
+	 * @throws IOException In case of problem writing the report.
+	 */
+	@Test
+	public void testCheckUsedOrganizations() throws IOException {
+
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0AssociationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		String report = M0Checker.checkUsedOrganizations(m0AssociationsModel);
+		PrintStream outStream = new PrintStream("src/test/resources/reports/m0-organizations-usage.txt");
+		outStream.print(report);
+		outStream.close();
+		m0AssociationsModel.close();
 	}
 }

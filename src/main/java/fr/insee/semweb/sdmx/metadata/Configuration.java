@@ -149,7 +149,7 @@ public class Configuration {
 		propertyMappings.put("FREQ_COLL", DCTerms.accrualPeriodicity);
 		propertyMappings.put("ORGANISATION", DCTerms.creator);
 		propertyMappings.put("STAKEHOLDERS", DCTerms.contributor);
-		propertyMappings.put("DATA_COLLECTOR", DCTerms.contributor); // Using dcterms:contributor for now, should be a sub-property
+		propertyMappings.put("DATA_COLLECTOR", DCTerms.contributor); // TODO Using dcterms:contributor for now, should be a sub-property
 		propertyMappings.put("REPLACES", DCTerms.replaces);
 		propertyMappings.put("RELATED_TO", RDFS.seeAlso);
 	}
@@ -182,47 +182,87 @@ public class Configuration {
 
 	// Methods for MSD components
 
-	/** URI of the SIMSv2/SIMSFr metadata structure definition */
-	public static String simsMSDURI(boolean simsStrict) { // TODO Add a path segment?
+	/**
+	 * Returns the URI of the SIMSv2/SIMSFr metadata structure definition.
+	 * 
+	 * @param simsStrict Boolean indicating whether the base SIMS (<code>true</true>) or French extension URI is returned.
+	 * @return The URI of the SIMSv2/SIMSFr metadata structure definition.
+	 */
+	public static String simsMSDURI(boolean simsStrict) {
 		return (simsStrict ? BASE_SIMS_URI : BASE_SIMS_FR_URI) + "msd";
 	}
 
-	/** Label of the SIMSv2/SIMSFr metadata structure definition */
+	/**
+	 * Returns the label of the SIMSv2/SIMSFr metadata structure definition.
+	 * 
+	 * @param simsStrict Boolean indicating whether the base SIMS (<code>true</true>) or French extension label is returned.
+	 * @param inFrench Boolean indicating whether the French (<code>true</true>) or English label is returned.
+	 * @return The label of the SIMSv2/SIMSFr metadata structure definition.
+	 */
 	public static String simsMSDLabel(boolean simsStrict, boolean inFrench) {
 		if (inFrench) return "Définition de structre de métadonnées SIMSv2" + (simsStrict ? "" : " - extension française");
 		else return "SIMSv2 Metadata Structure Definition"  + (simsStrict ? "" : " - French extension");
 	}
 
-	/** URI of the SIMSv2/SIMSFr structure report */
+	/**
+	 * Returns the URI of the SIMSv2/SIMSFr structure report.
+	 * 
+	 * @param simsStrict Boolean indicating whether the base SIMS (<code>true</true>) or French extension URI is returned.
+	 * @return The URI of the SIMSv2/SIMSFr structure report.
+	 */
 	public static String simsStructureReportURI(boolean simsStrict) { // TODO Add a path segment?
 		return (simsStrict ? BASE_SIMS_URI : BASE_SIMS_FR_URI) + "reportStructure";
 	}
 
-	/** Label of the SIMSv2/SIMSFr structure report */
+	/**
+	 * Returns the label of the SIMSv2/SIMSFr structure report.
+	 * 
+	 * @param simsStrict Boolean indicating whether the base SIMS (<code>true</true>) or French extension label is returned.
+	 * @param inFrench Boolean indicating whether the French (<code>true</true>) or English label is returned.
+	 * @return The label of the SIMSv2/SIMSFr structure report.
+	 */
 	public static String simsReportStructureLabel(boolean simsStrict, boolean inFrench) {
 		if (inFrench) return "Structure de rapport de métadonnées SIMSv2" + (simsStrict ? "" : " - extension française");
 		else return "SIMSv2 Metadata Structure Report"  + (simsStrict ? "" : " - French extension");
 	}
 
-	/** URI of a SIMSv2/SIMSFr metadata attribute specification */
+	/**
+	 * Returns the URI of a SIMSv2/SIMSFr metadata attribute specification.
+	 * 
+	 * @param entry A <code>SIMSFrEntry</code> corresponding to the SIMSv2/SIMSFr attribute.
+	 * @param simsStrict Boolean indicating whether the base SIMS (<code>true</true>) or French extension URI is returned.
+	 * @return The URI of the SIMSv2/SIMSFr attribute specification.
+	 */
 	public static String simsAttributeSpecificationURI(SIMSFrEntry entry, boolean simsStrict) {
 		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "specificationAttribut/" + entry.getNotation();
 		else return BASE_SIMS_URI + "attributeSpecification/" + entry.getNotation();
 	}
 
-	/** URI of a SIMSv2/SIMSFr metadata attribute property */
+	/**
+	 * Returns the URI of a SIMSv2/SIMSFr metadata attribute property.
+	 * 
+	 * @param entry A <code>SIMSFrEntry</code> corresponding to the SIMSv2/SIMSFr attribute.
+	 * @param simsStrict Boolean indicating whether the base SIMS (<code>true</true>) or French extension URI is returned.
+	 * @return The URI of the SIMSv2/SIMSFr attribute specification.
+	 */
 	public static String simsAttributePropertyURI(SIMSFrEntry entry, boolean simsStrict) {
 		if (entry.isAddedOrModified() && (simsStrict == false)) return BASE_SIMS_FR_URI + "attribut/" + entry.getNotation();
 		return BASE_SIMS_URI + "attribute/" + entry.getNotation();
 	}
 
-	/** URI of a DCType:Text resource corresponding to a rich text attribute */
+	/**
+	 * Returns the URI of a DCType:Text resource corresponding to the value of a SIMSFr rich text attribute.
+	 * 
+	 * @param m0Id The identifier of the SIMSFr attribute to which the text is attached.
+	 * @param entry A <code>SIMSFrEntry</code> corresponding to the SIMSv2/SIMSFr attribute.
+	 * @return The URI of the DCType:Text resource.
+	 */
 	public static String simsFrRichText(String m0Id, SIMSFrEntry entry) {
 		return QUALITY_BASE_URI + "attribut/" + m0Id + "/" + entry.getNotation() + "/texte";
 	}
 
-	/** URI of a geo:Feature resource corresponding to territorial attribute */
-	// TODO Prendre l'URI de l'attribut et ajouter /feature
+	/** Returns the URI of a geo:Feature resource corresponding to territorial attribute */
+	// TODO This method should disappear and be replaced by direct mappings
 	public static String geoFeatureURI(String m0Id, String code) {
 		return simsReportURI(m0Id) + "/" + Utils.camelCase(code.replace("_", ""), true, false);
 	}
@@ -247,22 +287,12 @@ public class Configuration {
 
 	/** URI of the statistical theme class */
 	public static String themeClassURI() {
-		return "http://id.insee.fr/concepts/themes/Theme"; // Could also go in base ontology
+		return "http://id.insee.fr/concepts/themes/Theme";
 	}
 
 	/** URI of a statistical theme as a function of its code */
 	public static String themeURI(String themeNotation) {
 		return "http://id.insee.fr/concepts/theme/" + themeNotation.toLowerCase();
-	}
-
-	/** @deprecated */
-	public static String themeNotation(int topThemeNumber, int themeNumber) {
-		return String.format("%d", topThemeNumber) + ((themeNumber > 0) ? String.format("%d", themeNumber) : "");
-	}
-
-	/** @deprecated */
-	public static String themeURI(int topThemeNumber, int themeNumber) {
-		return "http://id.insee.fr/concepts/theme/" + themeNotation(topThemeNumber, themeNumber);
 	}
 
 	/** URI of a code list */

@@ -1,13 +1,27 @@
 package fr.insee.semweb.sdmx.metadata;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+
+import javax.naming.Context;
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
+import javax.naming.directory.SearchControls;
+import javax.naming.directory.SearchResult;
 
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
@@ -23,13 +37,12 @@ import org.apache.jena.vocabulary.SKOS;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import fr.insee.semweb.utils.Utils;
-
-import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
 
 /**
  * Creates RDF datasets containing information on the organizations referred to in the SIMSFr.
@@ -166,6 +179,68 @@ public class OrganizationModelMaker {
 		}
 
 		return inseeModel;
+	}
+
+	/**
+	 * Reads the information on Insee structures in the internal LDAP directory and transforms it into a Jena model.
+	 * Note: execution requires connectivity to the LDAP directory.
+	 * 
+	 * @return A Jena <code>Model</code> containing the organization scheme conforming to the ORG ontology.
+	 */
+	public static Model createInseeModelFromLDAP() {
+
+		final String LDAP_PROPERTIES_PATH = "src/main/resources/ldap.properties";
+
+		logger.info("Building Insee organization model from LDAP directory");
+
+		// Read properties (properties file should be UTF-8)
+		Properties ldapProperties = new Properties();
+		try (InputStream ldapPropertiesStream = new FileInputStream(LDAP_PROPERTIES_PATH))  {
+			ldapProperties.load(new InputStreamReader(ldapPropertiesStream, StandardCharsets.UTF_8));
+		} catch (Exception e) {
+			logger.error("Error while reading LDAP properties file " + LDAP_PROPERTIES_PATH + e.getMessage());
+			return null;
+		}
+
+		// Read and check properties
+		String ldapHostname = ldapProperties.getProperty("ldap.hostname");
+		String ldapBase = ldapProperties.getProperty("ldap.base");
+		String ldapFilter = ldapProperties.getProperty("ldap.filter");
+		String ldapAttributesString = ldapProperties.getProperty("ldap.attributes");
+		if ((ldapHostname == null) || (ldapBase == null) || (ldapFilter == null) || (ldapAttributesString == null)) {
+			logger.error("Invalid LDAP properties " + ldapProperties);
+			return null;
+		}
+		String[] ldapAttributes = ldapAttributesString.split(",");
+		logger.info("LDAP parameters - host: '" + ldapHostname + "', base: '" + ldapBase + "', filter: '" + ldapFilter + "', attributes: " + Arrays.toString(ldapAttributes));
+
+		// Construct environment and connect to the directory root
+		Hashtable<String, String> environment = new Hashtable<String, String>();
+		environment.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
+		environment.put(Context.PROVIDER_URL, ldapHostname);
+		environment.put(Context.SECURITY_AUTHENTICATION, "none");
+		try {
+			DirContext context = new InitialDirContext(environment);
+
+			// Specify search criteria for units
+			SearchControls controls = new SearchControls();
+			controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+			controls.setReturningAttributes(ldapAttributes);
+			// Execute search and browse through results to fill unit lists
+			NamingEnumeration<SearchResult> results = context.search(ldapBase, ldapFilter, controls);
+			while (results.hasMore()) {
+				SearchResult entree = results.next();
+				System.out.println(entree.getNameInNamespace());
+				System.out.println(entree.getAttributes().get("ou") + " - " + entree.getAttributes().get("description"));
+				System.out.println(entree.getAttributes().get("inseeUniteDN"));
+			}
+			context.close();
+		} catch (NamingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return null;
 	}
 
 	/**

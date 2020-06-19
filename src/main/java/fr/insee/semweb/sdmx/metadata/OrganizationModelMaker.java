@@ -14,6 +14,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import javax.naming.Context;
 import javax.naming.NamingEnumeration;
@@ -219,6 +221,8 @@ public class OrganizationModelMaker {
 		environment.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
 		environment.put(Context.PROVIDER_URL, ldapHostname);
 		environment.put(Context.SECURITY_AUTHENTICATION, "none");
+		SortedMap<String, String> units = new TreeMap<>();
+		SortedMap<String, String> hierarchy = new TreeMap<>();
 		try {
 			DirContext context = new InitialDirContext(environment);
 
@@ -230,17 +234,51 @@ public class OrganizationModelMaker {
 			NamingEnumeration<SearchResult> results = context.search(ldapBase, ldapFilter, controls);
 			while (results.hasMore()) {
 				SearchResult entree = results.next();
-				System.out.println(entree.getNameInNamespace());
-				System.out.println(entree.getAttributes().get("ou") + " - " + entree.getAttributes().get("description"));
-				System.out.println(entree.getAttributes().get("inseeUniteDN"));
+				String unit = entree.getAttributes().get(ldapAttributes[0]).toString();
+				units.put(unit, entree.getAttributes().get(ldapAttributes[1]).toString());
+				if (entree.getAttributes().get(ldapAttributes[2]) != null) {
+					String parent = entree.getAttributes().get(ldapAttributes[2]).toString().split(",")[0].substring(3);
+					hierarchy.put(unit, parent);
+				}
 			}
 			context.close();
 		} catch (NamingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("Error while querying the list of units - " + e.getMessage());
 		}
 
-		return null;
+		// Create the Jena model
+		Model inseeModel = ModelFactory.createDefaultModel();
+
+		inseeModel.setNsPrefix("rdfs", RDFS.getURI());
+		inseeModel.setNsPrefix("dcterms", DCTerms.getURI());
+		inseeModel.setNsPrefix("org", ORG.getURI());
+		inseeModel.setNsPrefix("skos", SKOS.getURI());
+
+		// Create Insee as an organization
+		String inseeURI = Configuration.organizationURI("Insee");
+		Resource insee = inseeModel.createResource(inseeURI, ORG.Organization);
+		insee.addProperty(DCTerms.identifier, "Insee");
+		insee.addProperty(SKOS.prefLabel, inseeModel.createLiteral("Institut national de la statistique et des études économiques", "fr"));
+		insee.addProperty(SKOS.prefLabel, inseeModel.createLiteral("National Institute of Statistics and Economic Studies", "en"));
+
+		for (String unitIdentifier : units.keySet()) {
+			logger.debug("Creating resource for unit " + unitIdentifier);
+			Resource unitResource = inseeModel.createResource(Configuration.inseeUnitURI(unitIdentifier));
+			unitResource.addProperty(RDF.type, ORG.OrganizationalUnit);
+			unitResource.addProperty(RDF.type, ORG.Organization); // Materialize the subsumption in order to simplify requests
+			unitResource.addProperty(DCTerms.identifier, unitIdentifier);
+			unitResource.addProperty(SKOS.prefLabel, inseeModel.createLiteral(units.get(unitIdentifier).trim(), "fr"));
+			if (hierarchy.containsKey(unitIdentifier)) {
+				Resource parentResource = inseeModel.createResource(Configuration.inseeUnitURI(hierarchy.get(unitIdentifier)));
+				parentResource.addProperty(ORG.hasUnit, unitResource);
+				unitResource.addProperty(ORG.unitOf, parentResource);
+			} else {
+				insee.addProperty(ORG.hasUnit, unitResource);
+				unitResource.addProperty(ORG.unitOf, insee);
+			}
+		}
+
+		return inseeModel;
 	}
 
 	/**

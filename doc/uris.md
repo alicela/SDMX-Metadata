@@ -87,7 +87,7 @@ For the "Thèmes" code list, the URI for codes is http://id.insee.fr/concepts/th
 
 *TODO:* Fix themes URI, currently the code is in lower case.
 
-### Conceptw
+### Concepts
 
 For ordinary code lists, the concept URI is http://id.insee.fr/codes/concept/{concept}, where {concept} is listed in the table above, for example http://id.insee.fr/codes/concept/Frequence.
 
@@ -97,6 +97,26 @@ For the "Thèmes" code list, the concept URI is http://id.insee.fr/concepts/them
 ### Publication graph
 
 The ordinary code lists will be published in the http://rdf.insee.fr/graphes/codes graph. The "Thèmes" concept scheme will be published in the http://rdf.insee.fr/graphes/concepts graph.
+
+## Organizations
+
+### Insee units
+
+URIs for Insee units are http://id.insee.fr/organisations/insee/{identifier}, where {identifier} is the lower cased identifier ("timbre") of the unit, for example http://id.insee.fr/organisations/insee/dg75-e001.
+
+*TODO:* lower case is agains the general rule that URI uses identifier as is.
+
+### Statistical services of ministries
+
+For SSMs or other statistical organisations, the URIs are http://id.insee.fr/organisations/{identifier}, where {identifier} is the "sanitized" (diacritics removed, spaces replaced by dashes) short name or accronym of the organization, for example http://id.insee.fr/organisations/drees.
+
+*TODO:* same remark as above.
+
+### Publication graph
+
+All insee units will be published in the http://rdf.insee.fr/graphes/organisations/insee graph; other organizations will be published in the http://rdf.insee.fr/graphes/organisations graph.
+
+*TODO:* do we need a specific graph for Insee units?
 
 ## Metadata set
 

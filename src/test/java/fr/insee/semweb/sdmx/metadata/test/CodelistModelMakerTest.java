@@ -25,7 +25,6 @@ import fr.insee.semweb.sdmx.metadata.Configuration;
  */
 public class CodelistModelMakerTest {
 
-
 	/**
 	 * Creates all the RDF code lists, including the 'themes' concept scheme, and writes them to a TriG file.
 	 * 

@@ -1,8 +1,6 @@
 package fr.insee.semweb.sdmx.metadata;
 
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -42,7 +40,6 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Row.MissingCellPolicy;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import fr.insee.semweb.utils.Utils;
 
@@ -80,32 +77,6 @@ public class OrganizationModelMaker {
 		// additionalReportingLinks.put(22, Arrays.asList("http://lannuaire.service-public.fr/172240"));
 		// INSERM reports to Recherche (http://lannuaire.service-public.fr/172226) - Commented out 19/07/2017
 		// additionalMotherReportingLinks.put(24, Arrays.asList("http://lannuaire.service-public.fr/172226"));
-	}
-
-	/**
-	 * Main method, which opens the Excel workbook and chains the production of the RDF models for Insee and SSM.
-	 * 
-	 * @param args Not used.
-	 */
-	public static void main(String[] args) {
-
-		Workbook orgWorkbook = null;
-
-		try {
-			orgWorkbook = WorkbookFactory.create(new File(Configuration.ORGANIZATIONS_XLSX_FILE_NAME));
-		} catch (Exception e) {
-			logger.fatal("Error while opening Excel file - " + e.getMessage());
-			System.exit(1);
-		}
-
-		Model ssmModel = createSSMModel(orgWorkbook);
-		Model inseeModel = createInseeModel(orgWorkbook);
-		try {
-			ssmModel.write(new FileWriter("src/main/resources/data/ssm.ttl"), "TTL");
-			inseeModel.write(new FileWriter("src/main/resources/data/insee.ttl"), "TTL");
-		} catch (IOException e) {
-			logger.error("Error writing models to files");
-		}
 	}
 
 	/**

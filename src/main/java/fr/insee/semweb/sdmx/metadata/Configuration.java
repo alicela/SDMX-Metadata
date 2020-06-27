@@ -20,6 +20,11 @@ import org.apache.jena.vocabulary.SKOS;
 
 import fr.insee.semweb.utils.Utils;
 
+/**
+ * Configuration parameters, useful resources and methods, etc.
+ * 
+ * @author Franck
+ */
 public class Configuration {
 
 	// Input files
@@ -30,12 +35,10 @@ public class Configuration {
 	public static String CL_XLSX_FILE_NAME = "src/main/resources/data/CODE_LISTS_20180110.xlsx";
 	/** Turtle file containing the SDMX metadata model vocabulary */
 	public static String SDMX_MM_TURTLE_FILE_NAME = "src/main/resources/data/sdmx-metadata.ttl";
-	/** TriG file containing the "M0" (temporary model) RDF dataset */
-	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20200219.trig";
 	/** Excel file containing the information on organizations */
 	public static String ORGANIZATIONS_XLSX_FILE_NAME = "src/main/resources/data/OrganisationScheme_20170719.xlsx";
-	/** Excel file containing the themes code list */
-	public static String THEMES_XLSX_FILE_NAME = "src/main/resources/data/Themes.xlsx";
+	/** TriG file containing the "M0" (temporary model) RDF dataset */
+	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20200219.trig";
 	/** Excel file containing the links between families and themes */
 	public static String FAMILY_THEMES_XLSX_FILE_NAME = "src/main/resources/data/themes-familles.xlsx";
 	/** Correspondence between DDS identifiers and Web4G identifiers for series */

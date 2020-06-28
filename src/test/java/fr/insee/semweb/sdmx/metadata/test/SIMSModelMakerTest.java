@@ -1,10 +1,15 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import org.apache.jena.query.Dataset;
+import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
 import org.junit.Test;
 
 import fr.insee.semweb.sdmx.metadata.Configuration;
@@ -53,5 +58,32 @@ public class SIMSModelMakerTest {
 	public void testReadSDMXModel() {
 
 		SIMSModelMaker.readSDMXModel(Configuration.SDMX_MM_TURTLE_FILE_NAME, true);
+	}
+
+	/**
+	 * Exports all SIMSFr metadata (MSD, concepts, base RDF vocabulary) into a TriG file.
+	 */
+	@SuppressWarnings("unused")
+	@Test
+	public void exportAllAsTriG() throws IOException {
+
+		// If not null, URI of the graph where the SDMX-MM model will be put
+		final String SDMX_MM_GRAPH = null;
+	
+		SIMSFrScheme simsFrScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
+		Dataset metadata = DatasetFactory.create();
+
+		// Adjust parameters or comment lines according to desired result
+		Model simsModel = SIMSModelMaker.createMetadataStructureDefinition(simsFrScheme, false, true);
+		simsModel.add(SIMSModelMaker.createConceptScheme(simsFrScheme, false, true, true));
+		Model sdmxMMModel = SIMSModelMaker.readSDMXModel(Configuration.SDMX_MM_TURTLE_FILE_NAME, false);
+		if (SDMX_MM_GRAPH == null) simsModel.add(sdmxMMModel);
+
+		metadata.addNamedModel(Configuration.INSEE_BASE_GRAPH_URI + "qualite/simsv2fr", simsModel);
+		if (SDMX_MM_GRAPH != null) metadata.addNamedModel(SDMX_MM_GRAPH, sdmxMMModel);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-metadata.trig"), metadata, Lang.TRIG);
+		simsModel.close();
+		sdmxMMModel.close();
+		metadata.close();
 	}
 }

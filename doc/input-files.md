@@ -12,7 +12,7 @@ The code lists defining the possible values of certain SIMS/SIMFr attributes are
 
 ## Organizations
 
-Organizations lists and hierarchies are described in an Excel file named by the value of the `ORGANIZATIONS_XLSX_FILE_NAME` configuration parameter.
+Organizations lists and hierarchies are described in an Excel file named by the value of the `ORGANIZATIONS_XLSX_FILE_NAME` configuration parameter (optionally, the scheme of Insee's organizational units can be read in the LDAP directory when connected to the internal network).
 
 ## Data
 

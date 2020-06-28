@@ -25,6 +25,19 @@ import fr.insee.semweb.sdmx.metadata.Configuration;
  */
 public class CodelistModelMakerTest {
 
+	static final String CODES_GRAPH_URI = Configuration.INSEE_BASE_GRAPH_URI + "codes";
+	static final String CONCEPTS_GRAPH_URI = Configuration.INSEE_BASE_GRAPH_URI + "concepts";
+
+	/**
+	 * Exports all useful code and concept schemes  into a TriG file.
+	 */
+	@Test
+	public void exportAllAsTriG() throws IOException {
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI, "CL_AREA", "CL_UNIT_MEASURE");
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-codes.trig"), codes, Lang.TRIG);
+		codes.close();
+	}
+	
 	/**
 	 * Creates all the RDF code lists, including the 'themes' concept scheme, and writes them to a TriG file.
 	 * 
@@ -33,8 +46,9 @@ public class CodelistModelMakerTest {
 	@Test
 	public void testReadCodelistDataset() throws IOException {
 
-		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes");
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI);
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl.trig"), codes, Lang.TRIG);
+		codes.close();
 	}
 
 	/**
@@ -45,8 +59,9 @@ public class CodelistModelMakerTest {
 	@Test
 	public void testReadCodelistDatasetExceptArea() throws IOException {
 
-		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes", "CL_AREA");
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI, "CL_AREA");
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl-x-area.trig"), codes, Lang.TRIG);
+		codes.close();
 	}
 
 	/**
@@ -57,8 +72,9 @@ public class CodelistModelMakerTest {
 	@Test
 	public void testReadCodelistDatasetExceptAreaAndMeasure() throws IOException {
 
-		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes", "CL_AREA", "CL_UNIT_MEASURE");
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI, "CL_AREA", "CL_UNIT_MEASURE");
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl-x-area-measure.trig"), codes, Lang.TRIG);
+		codes.close();
 	}
 
 	/**
@@ -69,8 +85,9 @@ public class CodelistModelMakerTest {
 	@Test
 	public void testReadCodelistDatasetExceptThemes() throws IOException {
 
-		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes", "CL_TOPICS");
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI, "CL_TOPICS");
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl-x-themes.trig"), codes, Lang.TRIG);
+		codes.close();
 	}
 
 	/**
@@ -83,6 +100,7 @@ public class CodelistModelMakerTest {
 		Workbook clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
 		Model code = CodelistModelMaker.readCodelist(clWorkbook.getSheetAt(0));
 		code.write(new FileWriter("src/main/resources/data/cl-frequency.ttl"), "TTL");
+		code.close();
 	}
 
 	/**
@@ -95,6 +113,7 @@ public class CodelistModelMakerTest {
 		Workbook clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
 		Model code = CodelistModelMaker.readCodelist(clWorkbook.getSheetAt(2));
 		code.write(new FileWriter("src/main/resources/data/cl-source-category.ttl"), "TTL");
+		code.close();
 	}
 
 	/**
@@ -107,6 +126,7 @@ public class CodelistModelMakerTest {
 		Workbook clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
 		Model code = CodelistModelMaker.readCodelist(clWorkbook.getSheetAt(3));
 		code.write(new FileWriter("src/main/resources/data/cl-survey-status.ttl"), "TTL");
+		code.close();
 	}
 
 	/**
@@ -119,6 +139,7 @@ public class CodelistModelMakerTest {
 		Workbook clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
 		Model code = CodelistModelMaker.readCodelist(clWorkbook.getSheetAt(4));
 		code.write(new FileWriter("src/main/resources/data/cl-survey-unit.ttl"), "TTL");
+		code.close();
 	}
 
 	/**
@@ -131,6 +152,7 @@ public class CodelistModelMakerTest {
 		Workbook clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
 		Model code = CodelistModelMaker.readCodelist(clWorkbook.getSheetAt(5));
 		code.write(new FileWriter("src/main/resources/data/cl-collection-mode.ttl"), "TTL");
+		code.close();
 	}
 
 	/**
@@ -144,6 +166,7 @@ public class CodelistModelMakerTest {
 		Workbook clWorkbook = WorkbookFactory.create(new File(Configuration.CL_XLSX_FILE_NAME));
 		Model themes = CodelistModelMaker.readThemesConceptScheme(clWorkbook.getSheetAt(7));
 		themes.write(new FileWriter(Configuration.THEMES_TURTLE_FILE_NAME), "TTL");
+		themes.close();
 	}
 
 	/**

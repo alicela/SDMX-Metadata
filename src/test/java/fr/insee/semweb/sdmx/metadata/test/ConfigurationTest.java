@@ -14,6 +14,11 @@ import fr.insee.semweb.sdmx.metadata.Configuration;
 public class ConfigurationTest {
 
 	@Test
+	public void testInseeCodeURI() {
+		assertEquals(Configuration.inseeCodeURI("A", "Catégorie de source"), "http://id.insee.fr/codes/categorieSource/A");
+	}
+
+	@Test
 	public void testCodeListNameToConceptName() {
 		assertEquals(Configuration.codeListNameToConceptName("CL_FREQ"), "Freq");
 		assertEquals(Configuration.codeListNameToConceptName("CL_UNIT_MEASURE"), "UnitMeasure");
@@ -37,7 +42,6 @@ public class ConfigurationTest {
 
 	@Test
 	public void testGetOrganizationURI() {
-
 		assertEquals(Configuration.organizationURI("banque-de-france"), "http://id.insee.fr/organisations/banque-de-france");
 	}
 }

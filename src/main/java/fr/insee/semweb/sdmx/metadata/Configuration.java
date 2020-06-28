@@ -32,7 +32,7 @@ public class Configuration {
 	/** Excel file containing the SIMS/SIMSFr models */
 	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V20200225.xlsx";
 	/** Excel file containing the code lists */
-	public static String CL_XLSX_FILE_NAME = "src/main/resources/data/CODE_LISTS_20180110.xlsx";
+	public static String CL_XLSX_FILE_NAME = "src/main/resources/data/CODE_LISTS_20200615.xlsx";
 	/** Turtle file containing the SDMX metadata model vocabulary */
 	public static String SDMX_MM_TURTLE_FILE_NAME = "src/main/resources/data/sdmx-metadata.ttl";
 	/** Excel file containing the information on organizations */
@@ -151,7 +151,7 @@ public class Configuration {
 		propertyMappings.put("SOURCE_CATEGORY", DCTerms.type);
 		propertyMappings.put("SUMMARY", DCTerms.abstract_);
 		propertyMappings.put("HISTORY", SKOS.historyNote);
-		propertyMappings.put("FREQ_COLL", DCTerms.accrualPeriodicity);
+		//propertyMappings.put("FREQ_COLL", DCTerms.accrualPeriodicity); FREQ_COLL is no longer a direct property
 		propertyMappings.put("ORGANISATION", DCTerms.creator);
 		propertyMappings.put("STAKEHOLDERS", DCTerms.contributor);
 		propertyMappings.put("DATA_COLLECTOR", DCTerms.contributor); // TODO Using dcterms:contributor for now, should be a sub-property
@@ -159,7 +159,7 @@ public class Configuration {
 		propertyMappings.put("RELATED_TO", RDFS.seeAlso);
 	}
 	/** Those of the direct attributes of operations that have string values (and can have an English version) */
-	public static List<String> stringProperties = Arrays.asList("TITLE", "ALT_LABEL", "SUMMARY", "HISTORY");
+	public static List<String> stringProperties = Arrays.asList("TITLE", "ALT_LABEL", "SUMMARY", "HISTORY"); // TODO Verify that ALT_LABEL is in this list
 
 	/** Correspondence between DDS identifiers and Web4G identifiers (for series) */
 	public static Map<String, String> ddsToWeb4GIdMappings = null;

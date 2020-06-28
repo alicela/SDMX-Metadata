@@ -139,8 +139,9 @@ public class M0SIMSConverter extends M0Converter {
 	private static Model convertM0ModelToSIMS(Model m0Model) {
 
 		// Retrieve base URI (the base resource is a skos:Concept) and the corresponding M0 identifier
-		// TODO Secure this part
-		Resource m0BaseResource = m0Model.listStatements(null, RDF.type, SKOS.Concept).toList().get(0).getSubject(); // Should raise an exception in case of problem
+		List<Statement> conceptStatements = m0Model.listStatements(null, RDF.type, SKOS.Concept).toList();
+		if (conceptStatements.size() != 1) logger.error("Invalid model received: should contain exactly one skos:Concept (contains " + conceptStatements.size() + ")");
+		Resource m0BaseResource = conceptStatements.get(0).getSubject(); // Should raise an exception in case of problem
 		String m0Id = m0BaseResource.getURI().substring(m0BaseResource.getURI().lastIndexOf('/') + 1);
 		Integer documentNumber = Integer.parseInt(m0Id);
 
@@ -165,7 +166,7 @@ public class M0SIMSConverter extends M0Converter {
 			String metadataTargetURI = simsAttachments.get(documentNumber);
 			if (metadataTargetURI != null) {
 				report.addProperty(Configuration.SIMS_TARGET, simsModel.createResource(metadataTargetURI));
-				logger.debug("Metadata attached to target resource: " + metadataTargetURI);
+				logger.debug("Metadata report attached to target resource: " + metadataTargetURI);
 			}
 		}
 		// Shortcut to the list of document and link references on attributes of the current documentation
@@ -187,10 +188,10 @@ public class M0SIMSConverter extends M0Converter {
 			}
 			Statement rangeStatement = metadataAttributeProperty.getProperty(RDFS.range);
 			Resource propertyRange = (rangeStatement == null) ? null : rangeStatement.getObject().asResource();
-			// Query for the list of values of the M0 resource
+			// Query for the list of values of the M0 entry resource
 			List<RDFNode> objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES).toList();
 			if (objectValues.size() == 0) {
-				// TODO No value is acceptable if the type is DCTypes.Text and the resource has references to links or documents
+				// No value is acceptable if the type is DCTypes.Text and the resource has references to links or documents
 				if (DCTypes.Text.equals(propertyRange) && (documentReferences != null) && documentReferences.containsKey(entry.getCode())) {
 					logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode() + ", but references exist: " + documentReferences.get(entry.getCode()));
 				}
@@ -199,8 +200,8 @@ public class M0SIMSConverter extends M0Converter {
 					continue;
 				}
 			}
-			if ((objectValues.size() > 1) && (!entry.isMultiple())) { // TODO Some coded attributes (survey unit, collection mode) can actually be multi-valued
-				// Several values for the resource, we have a problem
+			if ((objectValues.size() > 1) && (!entry.isMultiple())) {
+				// Several values for an attribute which is not defined as multiple: log the problem and move on
 				logger.error("There are multiple values in the M0 documentation model for non-multiple SIMSFr attribute " + entry.getCode());
 				continue;
 			}

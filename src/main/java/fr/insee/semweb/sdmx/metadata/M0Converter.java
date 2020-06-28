@@ -683,13 +683,13 @@ public class M0Converter {
 		for (String property : propertyMappings.keySet()) {
 			Resource propertyResource = m0Model.createResource(m0Resource.getURI() + "/" + property);
 			if (stringProperties.contains(property)) {
-				// Start with the string properties that can have a French and an English value (except ALT_LABEL?)
+				// Start with the string properties that can have a French and an English value
 				StmtIterator valueIterator = m0Model.listStatements(propertyResource, M0_VALUES, (RDFNode)null); // Find French values (there should be at most one)
 				if (valueIterator.hasNext()) {
 					// Must go through lexical values to avoid double escaping
 					String propertyValue = valueIterator.next().getObject().asLiteral().getLexicalForm().trim();
 					if (propertyValue.length() == 0) continue; // Ignore empty values for text properties
-					// Remove this is ALT_LABEL should have a language tag
+					// TODO Remove this is ALT_LABEL should have a language tag
 					if ("ALT_LABEL".equals(property)) {
 						targetResource.addProperty(propertyMappings.get(property), ResourceFactory.createStringLiteral(propertyValue));
 						continue;
@@ -705,17 +705,16 @@ public class M0Converter {
 					targetResource.addProperty(propertyMappings.get(property), ResourceFactory.createLangLiteral(propertyValue, "en"));
 				}
 			} else {
-				// In the other properties, select the coded ones (SOURCE_CATEGORY and FREQ_COLL)
-				// TODO FREQ_DISS (at least for indicators)? But there is no property mapping for this attribute
+				// Process the other properties (non textual)
 				StmtIterator valueIterator = m0Model.listStatements(propertyResource, M0_VALUES, (RDFNode)null);
 				if (!valueIterator.hasNext()) continue;
-				// Then process the SOURCE_CATEGORY and FREQ_COLL attributes, values are taken from code lists
-				if (("SOURCE_CATEGORY".equals(property)) || ("FREQ_COLL".equals(property))) {
-					String frenchLabel = ("SOURCE_CATEGORY".equals(property)) ? "Catégorie de source" : "Fréquence"; // TODO Find better method
-					String codeURI = inseeCodeURI(valueIterator.next().getObject().toString(), frenchLabel);
-					targetResource.addProperty(propertyMappings.get(property), m0Model.createResource(codeURI));
+				// In these other properties, there is one which is coded (SOURCE_CATEGORY)
+				if ("SOURCE_CATEGORY".equals(property)) {
+					String codeURI = inseeCodeURI(valueIterator.next().getObject().toString(), "Catégorie de source");
+					if (codeURI != null) targetResource.addProperty(propertyMappings.get(property), m0Model.createResource(codeURI));
 				}
-				// The remaining (object) properties (ORGANISATION, STAKEHOLDERS, REPLACES and RELATED_TO) are processed by dedicated methods.
+				// The remaining (object) properties (ORGANISATION, STAKEHOLDERS, DATA_COLLECTOR, REPLACES and RELATED_TO) are processed by dedicated methods.
+				// TODO Check that it is really the case for DATA_COLLECTOR
 			}
 		}
 	}

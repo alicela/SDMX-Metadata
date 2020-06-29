@@ -292,11 +292,39 @@ public class M0SIMSConverter extends M0Converter {
 					String propertyRangeString = propertyRange.getURI();
 					if (!propertyRangeString.startsWith(Configuration.INSEE_CODE_CONCEPTS_BASE_URI)) logger.error("Unrecognized property range: " + propertyRangeString);
 					else {
+						String codeConceptName = propertyRangeString.substring(propertyRangeString.lastIndexOf('/') + 1);
 						// We don't verify at this stage that the value is a valid code in the code list, but just sanitize the value (by taking the first word) to avoid URI problems
 						String sanitizedCode = (stringValue.indexOf(' ') == -1) ? stringValue : stringValue.split(" ", 2)[0];
-						String codeURI = Configuration.INSEE_CODES_BASE_URI + StringUtils.uncapitalize(propertyRangeString.substring(propertyRangeString.lastIndexOf('/') + 1)) + "/" + sanitizedCode;
-						targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(codeURI));
-						logger.debug("Code list value " + codeURI + " assigned to attribute property");
+						// HACK some recodifications needed here for CL_FREQ, CL_COLLECTION_MODE, CL_SURVEY_UNIT
+						if ("Frequence".equals(codeConceptName)) {
+							if ("T".equals(sanitizedCode)) {
+								logger.debug("Recoding M0 frequency code from 'T' to 'U'");
+								sanitizedCode = "U";
+							}
+							if ("BM".equals(sanitizedCode)) {
+								logger.debug("Recoding M0 frequency code from 'BM' to 'T'");
+								sanitizedCode = "T";
+							}
+						}
+						if ("UniteEnquetee".equals(codeConceptName)) {
+							if ("AS".equals(sanitizedCode)) {
+								logger.debug("Recoding M0 survey unit code from 'AS' to 'A'");
+								sanitizedCode = "A";
+							}
+							if ("O".equals(sanitizedCode)) {
+								logger.debug("M0 survey unit code 'O' not converted");
+								continue;
+							}
+						}
+						if ("ModeCollecte".equals(codeConceptName)) {
+							if ("O".equals(sanitizedCode)) {
+								logger.debug("M0 collection mode code 'O' not converted");
+								continue;
+							}
+						}
+						String codeURI = Configuration.inseeCodeURI(codeConceptName, sanitizedCode);
+						if (codeURI != null) targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(codeURI));
+						logger.debug("Code list value " + codeURI + " of concept " + codeConceptName + " assigned to attribute property");
 					}
 				}
 			}

@@ -16,6 +16,9 @@ public class ConfigurationTest {
 	@Test
 	public void testInseeCodeURI() {
 		assertEquals(Configuration.inseeCodeURI("A", "Catégorie de source"), "http://id.insee.fr/codes/categorieSource/A");
+		assertEquals(Configuration.inseeCodeURI("Q", "Frequence"), "http://id.insee.fr/codes/frequence/Q");
+		assertEquals(Configuration.inseeCodeURI("M", "ModeCollecte"), "http://id.insee.fr/codes/modeCollecte/M");
+		assertEquals(Configuration.inseeCodeURI("L", "UniteEnquetee"), "http://id.insee.fr/codes/uniteEnquetee/L");
 	}
 
 	@Test

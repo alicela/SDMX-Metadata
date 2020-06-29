@@ -118,6 +118,21 @@ All insee units will be published in the http://rdf.insee.fr/graphes/organisatio
 
 *TODO:* do we need a specific graph for Insee units?
 
+## Statistical operations and related resources
+
+### Families, series and operations
+
+The URIs for families, series and operations are respectively http://id.insee.fr/operations/famille/{identifier}, http://id.insee.fr/operations/serie/{identifier} and http://id.insee.fr/operations/operation/{identifier}, where {identifier} is 's' followed by an integer. The computation of this integer is described in a [specific page](uri-mappings.md).
+
+### Indicators
+
+Indicator URIs are of the form http://id.insee.fr/produits/indicateur/{identifier}, where {identifier} is 'p' followed by an integer.
+
+### Publication graph
+
+Families, series and operations are published in the http://rdf.insee.fr/graphes/operations graph, and indicators are published in the http://rdf.insee.fr/graphes/produits graph.
+
+
 ## Metadata set
 
 MetadataReport: http://id.insee.fr/qualite/rapport/{number}, where {number} is the M0 documentation number (e.g. 1503)

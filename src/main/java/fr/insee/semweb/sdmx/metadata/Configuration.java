@@ -127,6 +127,8 @@ public class Configuration {
 	protected static Property SIMS_TARGET = ResourceFactory.createProperty("http://www.w3.org/ns/sdmx-mm#target");
 	/** The range of metadata attribute properties corresponding to 'rich text' attributes */
 	public static Resource RICH_TEXT_MAP_RANGE = DCTypes.Text;
+	/** The range of the 'data collector' attribute */
+	public static Property DATA_COLLECTOR_PROPERTY = ResourceFactory.createProperty("http://rdf.insee.fr/def/base/dataCollector");
 	/** The range of metadata attribute properties corresponding to the 'territory' attributes */
 	public static Resource TERRITORY_MAP_RANGE = ResourceFactory.createResource("http://www.opengis.net/ont/geosparql#Feature");
 	/** RDF predicate connecting rich text resources to documents/links resources */
@@ -158,7 +160,7 @@ public class Configuration {
 		//propertyMappings.put("FREQ_COLL", DCTerms.accrualPeriodicity); FREQ_COLL is no longer a direct property
 		propertyMappings.put("ORGANISATION", DCTerms.creator);
 		propertyMappings.put("STAKEHOLDERS", DCTerms.contributor);
-		propertyMappings.put("DATA_COLLECTOR", DCTerms.contributor); // TODO Using dcterms:contributor for now, should be a sub-property
+		propertyMappings.put("DATA_COLLECTOR", DATA_COLLECTOR_PROPERTY); // TODO Publish in base ontology
 		propertyMappings.put("REPLACES", DCTerms.replaces);
 		propertyMappings.put("RELATED_TO", RDFS.seeAlso);
 	}

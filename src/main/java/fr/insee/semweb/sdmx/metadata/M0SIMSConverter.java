@@ -73,6 +73,8 @@ public class M0SIMSConverter extends M0Converter {
 	protected static Model simsDocumentsAndLinksModel = null;
 	/** Attachments between documentations and their target (series, operation or indicator) */
 	protected static SortedMap<Integer, String> simsAttachments = null;
+	/** Mappings between codes and labels for units of measure */
+	protected static SortedMap<String, String[]> umMappings = null;
 
 	// Will be handy for parsing dates
 	final static DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
@@ -97,6 +99,9 @@ public class M0SIMSConverter extends M0Converter {
 		Model m0AssociationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
 		attributeReferences = M0SIMSConverter.getAllAttributeReferences(m0AssociationsModel);
 		simsDocumentsAndLinksModel = convertDocumentsToSIMS().add(convertLinksToSIMS());
+
+		// We also need the mappings between codes and labels for units of measure, since the coded values are now replaces by text (see hack below)
+		umMappings = M0Extractor.readUnitMeasureMappings(m0Dataset);
 
 		// Finally, if attachments are requested, we need the correspondence between documentations and the documented resources
 		if (withAttachments) simsAttachments = getSIMSAttachments(m0AssociationsModel);
@@ -248,12 +253,22 @@ public class M0SIMSConverter extends M0Converter {
 					targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(Configuration.SIMS_REPORTED_ATTRIBUTE));
 				}
 				else if (propertyRange.equals(XSD.xstring)) {
-					targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "fr"));
-					// See if there is an English version
-					objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES_EN).toList();
-					if (objectValues.size() > 0) {
-						stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", "");
-						if (stringValue.length() > 0) targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "en"));
+					// HACK For the UNIT_MEASURE attribute (S.4), the code list is no longer used, and codes should be replaced by labels
+					if ("S.4".equals(entry.getNotation())) {
+						if (!umMappings.containsKey(stringValue)) logger.warn("Invalid code for unit of measure '" + stringValue + "' for M0 resource " + m0EntryResource.getURI());
+						else {
+							String labels[] = umMappings.get(stringValue);
+							targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(labels[0], "fr"));
+							targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(labels[1], "en"));
+						}
+					} else {
+						targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "fr"));
+						// See if there is an English version
+						objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES_EN).toList();
+						if (objectValues.size() > 0) {
+							stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", "");
+							if (stringValue.length() > 0) targetResource.addProperty(metadataAttributeProperty, simsModel.createLiteral(stringValue, "en"));
+						}
 					}
 				}
 				else if (propertyRange.equals(XSD.date)) {

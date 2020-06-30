@@ -1,6 +1,9 @@
 package fr.insee.semweb.sdmx.metadata;
 
+import static fr.insee.semweb.sdmx.metadata.Configuration.M0_BASE_GRAPH_URI;
 import static fr.insee.semweb.sdmx.metadata.Configuration.M0_RELATED_TO;
+import static fr.insee.semweb.sdmx.metadata.Configuration.M0_VALUES;
+import static fr.insee.semweb.sdmx.metadata.Configuration.M0_VALUES_EN;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -21,6 +24,7 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.ResIterator;
+import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Selector;
 import org.apache.jena.rdf.model.SimpleSelector;
@@ -79,6 +83,52 @@ public class M0Extractor {
 		logger.debug("Number of triples extracted: " + reportNumber);
 	
 		return extractModel;
+	}
+
+	/**
+	 * Extracts the mappings between code and labels for unit measures.
+	 * This is only useful for a hack in the SIMS converter.
+	 * 
+	 * @param m0Dataset The M0 dataset where the mapping will be read.
+	 * @return A map between the code value and and array containing the labels (French and English, in that order).
+	 */
+	public static SortedMap<String, String[]> readUnitMeasureMappings(Dataset m0Dataset) {
+
+		// Open the 'associations' M0 model and get the resource that links the 'unit measure' code list and its codes
+		Model associationsM0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
+		Resource umRelated = associationsM0Model.createResource("http://baseUri/codelists/codelist/2/RELATED_TO");
+		StmtIterator codeIterator = associationsM0Model.listStatements(umRelated, M0_RELATED_TO, (RDFNode)null);
+
+		SortedSet<String> codeURIs = new TreeSet<>();
+		codeIterator.forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				// Get code URI, which is the last-but-one part of the URI, cast to integer
+				String codeURI = statement.getObject().asResource().getURI().replace("/RELATED_TO", "");
+				codeURIs.add(codeURI);
+			}
+		});
+
+		SortedMap<String, String[]> unitMeasureMappings = new TreeMap<String, String[]>();
+		// Open the 'codes' M0 model and get the code labels
+		Model codeM0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "codes");
+		for (String codeURI : codeURIs) {
+			String codeValue = codeURI.substring(codeURI.lastIndexOf('/') + 1);
+			Resource labelResource = codeM0Model.createResource(codeURI + "/TITLE");
+			StmtIterator valueIterator = codeM0Model.listStatements(labelResource, M0_VALUES, (RDFNode)null); // Find French values (there should be exactly one)
+			String frenchLabel = valueIterator.next().getObject().toString();
+			valueIterator = codeM0Model.listStatements(labelResource, M0_VALUES_EN, (RDFNode)null);
+			String englishLabel = "";
+			if (valueIterator.hasNext()) englishLabel = valueIterator.next().getObject().toString();
+			String[] labels = new String[2];
+			labels[0] = frenchLabel;
+			labels[1] = englishLabel;
+			unitMeasureMappings.put(codeValue, labels);
+		}
+		codeM0Model.close();
+		associationsM0Model.close();
+		
+		return unitMeasureMappings;
 	}
 
 	/**

@@ -45,6 +45,21 @@ class M0ExtractorTest {
  	}
 
 	/**
+	 * Extracts from the M0 dataset the mappings between codes and labels for the 'unit measures'.
+	 * 
+	 * @throws IOException In case of problems while creating the output file.
+	 */
+	@Test
+	public void testReadUnitMeasureMappings() {
+
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		SortedMap<String, String[]> mappings = M0Extractor.readUnitMeasureMappings(m0Dataset);
+		for (String code : mappings.keySet()) {
+			System.out.println(code + "\t" + Arrays.toString(mappings.get(code)));
+		}
+	}
+
+	/**
 	 * Extracts from the M0 dataset the list of hierarchical relations between families, series and operations, and saves it to a file.
 	 * 
 	 * @throws IOException In case of problems while creating the output file.

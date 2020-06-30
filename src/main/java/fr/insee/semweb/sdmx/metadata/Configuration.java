@@ -132,6 +132,10 @@ public class Configuration {
 	/** RDF predicate connecting rich text resources to documents/links resources */
 	public static Property ADDITIONAL_MATERIAL = ResourceFactory.createProperty("http://rdf.insee.fr/def/base#additionalMaterial");
 
+	/** Language codes (for now using http://psi.oasis-open.org/iso/639/) */
+	public static final Resource LANGUAGE_EN = ResourceFactory.createResource("http://psi.oasis-open.org/iso/639/#eng");
+	public static final Resource LANGUAGE_FR = ResourceFactory.createResource("http://psi.oasis-open.org/iso/639/#fra");
+
 	// Parameters, mapping and other useful objects
 
 	/** Specifies if reported attributes are created or if attribute properties are directly attached to the report */
@@ -260,10 +264,11 @@ public class Configuration {
 	 * 
 	 * @param m0Id The identifier of the SIMSFr attribute to which the text is attached.
 	 * @param entry A <code>SIMSFrEntry</code> corresponding to the SIMSv2/SIMSFr attribute.
+	 * @param language The language tag in which the rich text is expressed (should be either 'fr' or 'en').
 	 * @return The URI of the DCType:Text resource.
 	 */
-	public static String simsFrRichText(String m0Id, SIMSFrEntry entry) {
-		return QUALITY_BASE_URI + "attribut/" + m0Id + "/" + entry.getNotation() + "/texte";
+	public static String simsFrRichTextURI(String m0Id, SIMSFrEntry entry, String language) {
+		return QUALITY_BASE_URI + "attribut/" + m0Id + "/" + entry.getNotation() + "/text" + ("fr".equals(language) ? "e" : "");
 	}
 
 	/** Returns the URI of a geo:Feature resource corresponding to territorial attribute */

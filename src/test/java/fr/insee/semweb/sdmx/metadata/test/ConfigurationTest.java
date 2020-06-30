@@ -5,6 +5,7 @@ import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 
 import fr.insee.semweb.sdmx.metadata.Configuration;
+import fr.insee.semweb.sdmx.metadata.SIMSFrEntry;
 
 /**
  * Test and launch methods for class <code>Configuration</code>.
@@ -19,6 +20,14 @@ public class ConfigurationTest {
 		assertEquals(Configuration.inseeCodeURI("Q", "Frequence"), "http://id.insee.fr/codes/frequence/Q");
 		assertEquals(Configuration.inseeCodeURI("M", "ModeCollecte"), "http://id.insee.fr/codes/modeCollecte/M");
 		assertEquals(Configuration.inseeCodeURI("L", "UniteEnquetee"), "http://id.insee.fr/codes/uniteEnquetee/L");
+	}
+
+	@Test
+	public void testSIMSFrRichTextURI() {
+
+		SIMSFrEntry testEntry = new SIMSFrEntry("S.3.3");
+		assertEquals(Configuration.simsFrRichTextURI("1234", testEntry, "fr"), "http://id.insee.fr/qualite/attribut/1234/S.3.3/texte");
+		assertEquals(Configuration.simsFrRichTextURI("1234", testEntry, "en"), "http://id.insee.fr/qualite/attribut/1234/S.3.3/text");
 	}
 
 	@Test

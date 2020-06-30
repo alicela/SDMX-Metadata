@@ -67,8 +67,10 @@ public class M0SIMSConverter extends M0Converter {
 	protected static OntModel simsFrMSD = null;
 	/** The SIMS-FR scheme */
 	protected static SIMSFrScheme simsFRScheme = null;
-	/** All the references from attributes to links or documents */
-	protected static SortedMap<Integer, SortedMap<String, SortedSet<String>>> attributeReferences = null;
+	/** All the references from attributes to links or documents in French */
+	protected static SortedMap<Integer, SortedMap<String, SortedSet<String>>> attributeReferencesFr = null;
+	/** All the references from attributes to links or documents in English */
+	protected static SortedMap<Integer, SortedMap<String, SortedSet<String>>> attributeReferencesEn = null;
 	/** The SIMS model for documents and links */
 	protected static Model simsDocumentsAndLinksModel = null;
 	/** Attachments between documentations and their target (series, operation or indicator) */
@@ -85,9 +87,10 @@ public class M0SIMSConverter extends M0Converter {
 	 * @param m0Ids A <code>List</code> of M0 'documentation' metadata set identifiers, or <code>null</code> to convert all models.
 	 * @param namedModels If <code>true</code>, a named model will be created for each identifier, otherwise all models will be included in the dataset.
 	 * @param withAttachments If <code>true</code>, the resulting model will include the triple attaching the SIMS to its target.
+	 * @param includeReferences If <code>true</code>, the properties of referenced documents and links will be included in the models of the dataset returned.
 	 * @return A Jena dataset containing the models corresponding to the identifiers received.
 	 */
-	public static Dataset convertToSIMS(List<Integer> m0Ids, boolean namedModels, boolean withAttachments) {
+	public static Dataset convertToSIMS(List<Integer> m0Ids, boolean namedModels, boolean withAttachments, boolean includeReferences) {
 
 		// We will need the documentation model, the SIMSFr scheme and the SIMSFr MSD
 		if (m0Dataset == null) m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
@@ -95,10 +98,12 @@ public class M0SIMSConverter extends M0Converter {
 		simsFrMSD = (OntModel) ModelFactory.createOntologyModel().read(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME);
 		simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 
-		// We will also need the documents and links models as well as all the attribute references to links and documents
+		// We will also need all the attribute references to links and documents
 		Model m0AssociationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
-		attributeReferences = M0SIMSConverter.getAllAttributeReferences(m0AssociationsModel);
-		simsDocumentsAndLinksModel = convertDocumentsToSIMS().add(convertLinksToSIMS());
+		attributeReferencesFr = M0SIMSConverter.getAllAttributeReferences(m0AssociationsModel, "fr");
+		attributeReferencesEn = M0SIMSConverter.getAllAttributeReferences(m0AssociationsModel, "en");
+		// If all documents and links information are to be included in the target documentation models, we need the complete documents and links model 
+		if (includeReferences) simsDocumentsAndLinksModel = convertDocumentsToSIMS().add(convertLinksToSIMS());
 
 		// We also need the mappings between codes and labels for units of measure, since the coded values are now replaces by text (see hack below)
 		umMappings = M0Extractor.readUnitMeasureMappings(m0Dataset);
@@ -122,7 +127,7 @@ public class M0SIMSConverter extends M0Converter {
 			// Extract the M0 model containing the resource of the current documentation
 			Model docModel = M0Extractor.extractM0ResourceModel(m0DocumentationModel, Configuration.M0_SIMS_BASE_URI + docIdentifier);
 			// Convert to SIMS format
-			Model simsModel = convertM0ModelToSIMS(docModel);
+			Model simsModel = convertM0ModelToSIMS(docModel, includeReferences);
 			if (!namedModels) simsDataset.getDefaultModel().add(simsModel);
 			else {
 				simsDataset.addNamedModel(Configuration.simsReportGraphURI(docIdentifier.toString()), simsModel);
@@ -139,9 +144,10 @@ public class M0SIMSConverter extends M0Converter {
 	 * Converts a metadata set from M0 to SIMSFr RDF format.
 	 * 
 	 * @param m0Model A Jena <code>Model</code> containing the metadata in M0 format.
+	 * @param includeReferences If <code>true</code>, the properties of referenced documents and links will be included in the model returned.
 	 * @return A Jena <code>Model</code> containing the metadata in SIMSFr format.
 	 */
-	private static Model convertM0ModelToSIMS(Model m0Model) {
+	private static Model convertM0ModelToSIMS(Model m0Model, boolean includeReferences) {
 
 		// Retrieve base URI (the base resource is a skos:Concept) and the corresponding M0 identifier
 		List<Statement> conceptStatements = m0Model.listStatements(null, RDF.type, SKOS.Concept).toList();
@@ -174,8 +180,9 @@ public class M0SIMSConverter extends M0Converter {
 				logger.debug("Metadata report attached to target resource: " + metadataTargetURI);
 			}
 		}
-		// Shortcut to the list of document and link references on attributes of the current documentation
-		SortedMap<String, SortedSet<String>> documentReferences = attributeReferences.get(documentNumber);
+		// Shortcuts to the lists of references to French and English documents and links on attributes of the current documentation
+		SortedMap<String, SortedSet<String>> documentReferencesFr = attributeReferencesFr.get(documentNumber);
+		SortedMap<String, SortedSet<String>> documentReferencesEn = attributeReferencesEn.get(documentNumber);
 
 		// For each possible (non-direct) SIMSFr entry, check if the M0 model contains corresponding information and in that case convert it
 		for (SIMSFrEntry entry : simsFRScheme.getEntries()) {
@@ -197,8 +204,8 @@ public class M0SIMSConverter extends M0Converter {
 			List<RDFNode> objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES).toList();
 			if (objectValues.size() == 0) {
 				// No value is acceptable if the type is DCTypes.Text and the resource has references to links or documents
-				if (DCTypes.Text.equals(propertyRange) && (documentReferences != null) && documentReferences.containsKey(entry.getCode())) {
-					logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode() + ", but references exist: " + documentReferences.get(entry.getCode()));
+				if (DCTypes.Text.equals(propertyRange) && (documentReferencesFr != null) && documentReferencesFr.containsKey(entry.getCode())) {
+					logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode() + ", but references exist: " + documentReferencesFr.get(entry.getCode()));
 				}
 				else {
 					logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());
@@ -230,21 +237,43 @@ public class M0SIMSConverter extends M0Converter {
 
 				logger.debug("Target property is " + metadataAttributeProperty + " with range " + propertyRange);
 				if (propertyRange.equals(DCTypes.Text)) {
-					// We are in the case of a 'text + seeAlso...' object
-					Resource objectResource = simsModel.createResource(Configuration.simsFrRichText(m0Id, entry), DCTypes.Text);
-					if ((stringValue != null) && (stringValue.length() != 0)) objectResource.addProperty(RDF.value, simsModel.createLiteral(stringValue, "fr"));
-					targetResource.addProperty(metadataAttributeProperty, objectResource);
-					// We search for references to documents or links attached to this attribute
-					SortedSet<String> thisAttributeReferences = (documentReferences == null) ? null : documentReferences.get(entry.getCode());
-					logger.debug("Attribute " + entry.getCode() + " has type 'rich text', with references " + thisAttributeReferences);
+					// We are in the case of a 'text + seeAlso...' object. Create DCTypes.text instances for French and possibly English texts
+					Resource frenchTextResource = simsModel.createResource(Configuration.simsFrRichTextURI(m0Id, entry, "fr"), DCTypes.Text);
+					if ((stringValue != null) && (stringValue.length() != 0)) frenchTextResource.addProperty(RDF.value, simsModel.createLiteral(stringValue, "fr"));
+					frenchTextResource.addProperty(DCTerms.language, Configuration.LANGUAGE_FR);
+					targetResource.addProperty(metadataAttributeProperty, frenchTextResource);
+					// We search for references to French documents or links attached to this attribute
+					SortedSet<String> thisAttributeReferences = (documentReferencesFr == null) ? null : documentReferencesFr.get(entry.getCode());
+					logger.debug("Attribute " + entry.getCode() + " has type 'rich text'");
 					if (thisAttributeReferences != null) {
+						logger.debug("Attribute " + entry.getCode() + " has French references " + thisAttributeReferences);
 						for (String refURI : thisAttributeReferences) {
 							// Add the referenced link/document as additional material to the text resource
 							Resource refResource = simsModel.createResource(refURI);
-							objectResource.addProperty(Configuration.ADDITIONAL_MATERIAL, refResource);
-							// Add all the properties of the link/document extracted from the document and links model
-							simsModel.add(simsDocumentsAndLinksModel.listStatements(refResource, null, (RDFNode) null));
-							//simsModel.add(iter)
+							frenchTextResource.addProperty(Configuration.ADDITIONAL_MATERIAL, refResource);
+							// If requested, add all the properties of the link/document extracted from the document and links model
+							if (includeReferences) simsModel.add(simsDocumentsAndLinksModel.listStatements(refResource, null, (RDFNode) null));
+						}
+					}
+					// See if there is an English rich text value
+					Resource englishTextResource = null;
+					objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES_EN).toList();
+					if (objectValues.size() > 0) {
+						englishTextResource = simsModel.createResource(Configuration.simsFrRichTextURI(m0Id, entry, "en"), DCTypes.Text);
+						stringValue = objectValues.get(0).asLiteral().getString().trim().replaceAll("^\n", "");
+						englishTextResource.addProperty(RDF.value, simsModel.createLiteral(stringValue, "en"));
+						englishTextResource.addProperty(DCTerms.language, Configuration.LANGUAGE_EN);
+						targetResource.addProperty(metadataAttributeProperty, englishTextResource);
+						thisAttributeReferences = (documentReferencesEn == null) ? null : documentReferencesEn.get(entry.getCode());
+						if (thisAttributeReferences != null) {
+							logger.debug("Attribute " + entry.getCode() + " has English references " + thisAttributeReferences);
+							for (String refURI : thisAttributeReferences) {
+								// Add the referenced link/document as additional material to the text resource
+								Resource refResource = simsModel.createResource(refURI);
+								englishTextResource.addProperty(Configuration.ADDITIONAL_MATERIAL, refResource);
+								// If requested, add all the properties of the link/document extracted from the document and links model
+								if (includeReferences) simsModel.add(simsDocumentsAndLinksModel.listStatements(refResource, null, (RDFNode) null));
+							}
 						}
 					}
 				}
@@ -290,7 +319,7 @@ public class M0SIMSConverter extends M0Converter {
 					feature.addProperty(RDFS.label, simsModel.createLiteral(stringValue, "fr"));
 					targetResource.addProperty(metadataAttributeProperty, feature);
 				}
-				else if (propertyRange.equals(ORG.Organization)) {
+				else if (propertyRange.equals(ORG. Organization)) {
 					String normalizedValue = StringUtils.normalizeSpace(objectValue.toString());
 					if (normalizedValue.length() == 0) {
 						logger.warn("Empty value for organization name, ignoring");
@@ -518,7 +547,7 @@ public class M0SIMSConverter extends M0Converter {
 	}
 
 	/**
-	 * Reads in the current 'associations' model all the associations between SIMS attributes in all documentations and all links stores them as a map.
+	 * Reads in the current 'associations' model all the associations between SIMS attributes in all documentations and all links and stores them as a map.
 	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document numbers as values.
 	 * Example: <1580, <SEE_ALSO, <http://id.insee.fr/documents/page/54, http://id.insee.fr/documents/document/55>>>
 	 * This method actually merges the results from the more specialized methods that follow.
@@ -535,6 +564,27 @@ public class M0SIMSConverter extends M0Converter {
 		referenceMappingsList.add(getAttributeReferences(m0AssociationModel, "fr", false));
 		referenceMappingsList.add(getAttributeReferences(m0AssociationModel, "en", true));
 		referenceMappingsList.add(getAttributeReferences(m0AssociationModel, "en", false));
+
+		return mergeAttributeReferences(referenceMappingsList);	
+	}
+
+	/**
+	 * Reads in the current 'associations' model all the associations between SIMS attributes in all documentations and all links of a ginven language and stores them as a map.
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and list of link or document numbers as values.
+	 * Example: <1580, <SEE_ALSO, <http://id.insee.fr/documents/page/54, http://id.insee.fr/documents/document/55>>>
+	 * This method actually merges the results from the more specialized methods that follow.
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @param language The language tag corresponding to the language of the link (should be 'fr' or 'en', defaults to 'fr').
+	 * @return A map containing the relations.
+	 */
+	public static SortedMap<Integer, SortedMap<String, SortedSet<String>>> getAllAttributeReferences(Model m0AssociationModel, String language) {
+
+		logger.debug("Extracting the information on relations between SIMS properties and link or document objects from dataset " + Configuration.M0_FILE_NAME);
+
+		List<SortedMap<Integer, SortedMap<String, SortedSet<String>>>> referenceMappingsList = new ArrayList<SortedMap<Integer, SortedMap<String, SortedSet<String>>>>();
+		referenceMappingsList.add(getAttributeReferences(m0AssociationModel, language, true));
+		referenceMappingsList.add(getAttributeReferences(m0AssociationModel, language, false));
 
 		return mergeAttributeReferences(referenceMappingsList);	
 	}

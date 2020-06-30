@@ -458,7 +458,7 @@ public class M0ConverterTest {
 
 		boolean namedGraphs = true;
 
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(null, namedGraphs, true);
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(null, namedGraphs, true, false);
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-all." + (namedGraphs ? "trig" : "ttl")), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE));
 	}
 
@@ -475,7 +475,7 @@ public class M0ConverterTest {
 
 		List<String> simsNumberStrings = simsNumbers.stream().map(Object::toString).collect(Collectors.toList());
 		String fileName = "src/main/resources/data/models/sims-" + String.join("-", simsNumberStrings) + "." + (namedGraphs ? "trig" : "ttl");
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simsNumbers, namedGraphs, false);
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simsNumbers, namedGraphs, false, false);
 		RDFDataMgr.write(new FileOutputStream(fileName), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE));
 	}
 
@@ -491,7 +491,7 @@ public class M0ConverterTest {
 		List<Integer> simNumber = Arrays.asList(1893);
 
 		String fileName = "src/main/resources/data/models/sims-" + simNumber.get(0) + "." + (namedGraphs ? "trig" : "ttl");
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simNumber, namedGraphs, false);
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simNumber, namedGraphs, false, false);
 		RDFDataMgr.write(new FileOutputStream(fileName), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE)); // TODO Check if Lang.TRIG is OK for both cases
 	}
 

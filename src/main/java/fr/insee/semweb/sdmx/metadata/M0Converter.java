@@ -679,7 +679,11 @@ public class M0Converter {
 	 * @param m0Model The M0 model where the information is taken from.
 	 * @param m0Resource The origin M0 resource (a SKOS concept).
 	 */
+	@SuppressWarnings("unused")
 	private static void fillLiteralProperties(Resource targetResource, Model m0Model, Resource m0Resource) {
+
+		final boolean ALT_LABELS_HAVE_LANGUAGE_TAGS = true;
+
 		for (String property : propertyMappings.keySet()) {
 			Resource propertyResource = m0Model.createResource(m0Resource.getURI() + "/" + property);
 			if (stringProperties.contains(property)) {
@@ -690,7 +694,7 @@ public class M0Converter {
 					String propertyValue = valueIterator.next().getObject().asLiteral().getLexicalForm().trim();
 					if (propertyValue.length() == 0) continue; // Ignore empty values for text properties
 					// TODO Remove this is ALT_LABEL should have a language tag
-					if ("ALT_LABEL".equals(property)) {
+					if ("ALT_LABEL".equals(property) && !ALT_LABELS_HAVE_LANGUAGE_TAGS) {
 						targetResource.addProperty(propertyMappings.get(property), ResourceFactory.createStringLiteral(propertyValue));
 						continue;
 					}

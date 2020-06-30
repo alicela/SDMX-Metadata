@@ -398,8 +398,8 @@ public class Configuration {
 	}
 
 	/** URI of a reported attribute */
-	public static String simsReportedAttributeURI(String documentationId, String attributeCode) {
-		return QUALITY_BASE_URI + "attribut/" + documentationId + "/" + attributeCode;
+	public static String simsReportedAttributeURI(String documentationId, String attributeId) {
+		return QUALITY_BASE_URI + "attribut/" + documentationId + "/" + attributeId;
 	}
 
 	/** URI of a SIMS quality metric (called actually indicator) */

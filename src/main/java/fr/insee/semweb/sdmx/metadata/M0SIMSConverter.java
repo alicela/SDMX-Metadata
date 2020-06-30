@@ -218,7 +218,7 @@ public class M0SIMSConverter extends M0Converter {
 				// If specified, create a reported attribute (otherwise, the metadata attribute properties will be attached to the report)
 				Resource targetResource = null;
 				if (Configuration.CREATE_REPORTED_ATTRIBUTES) {
-					String reportedAttributeURI = Configuration.simsReportedAttributeURI(m0Id, entry.getCode());
+					String reportedAttributeURI = Configuration.simsReportedAttributeURI(m0Id, entry.getNotation());
 					targetResource = simsModel.createResource(reportedAttributeURI, Configuration.SIMS_REPORTED_ATTRIBUTE);
 					targetResource.addProperty(simsModel.createProperty(Configuration.SDMX_MM_BASE_URI + "metadataReport"), report);
 				} else targetResource = report;

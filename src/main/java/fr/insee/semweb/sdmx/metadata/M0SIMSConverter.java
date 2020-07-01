@@ -106,7 +106,7 @@ public class M0SIMSConverter extends M0Converter {
 		if (includeReferences) simsDocumentsAndLinksModel = convertDocumentsToSIMS().add(convertLinksToSIMS());
 
 		// We also need the mappings between codes and labels for units of measure, since the coded values are now replaces by text (see hack below)
-		umMappings = M0Extractor.readUnitMeasureMappings(m0Dataset);
+		umMappings = M0Extractor.extractUnitMeasureMappings(m0Dataset);
 
 		// Finally, if attachments are requested, we need the correspondence between documentations and the documented resources
 		if (withAttachments) simsAttachments = getSIMSAttachments(m0AssociationsModel);

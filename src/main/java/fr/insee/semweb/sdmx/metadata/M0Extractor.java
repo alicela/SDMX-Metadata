@@ -30,6 +30,8 @@ import org.apache.jena.rdf.model.Selector;
 import org.apache.jena.rdf.model.SimpleSelector;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
+import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.SKOS;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -92,7 +94,7 @@ public class M0Extractor {
 	 * @param m0Dataset The M0 dataset where the mapping will be read.
 	 * @return A map between the code value and and array containing the labels (French and English, in that order).
 	 */
-	public static SortedMap<String, String[]> readUnitMeasureMappings(Dataset m0Dataset) {
+	public static SortedMap<String, String[]> extractUnitMeasureMappings(Dataset m0Dataset) {
 
 		// Open the 'associations' M0 model and get the resource that links the 'unit measure' code list and its codes
 		Model associationsM0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
@@ -129,6 +131,52 @@ public class M0Extractor {
 		associationsM0Model.close();
 		
 		return unitMeasureMappings;
+	}
+
+	/**
+	 * Extracts the mappings between labels and identifiers for M0 organizations.
+	 * These mappings are used in the SIMS converter.
+	 * 
+	 * @param m0OrganizationsModel The M0 'organismes' model where the information should be read.
+	 * @return A map between the French label ('TITLE' as keys) and identifiers ('ID_CODE' as values) for all M0 organizations.
+	 */
+	public static SortedMap<String, String> extractOrganizationMappings(Model m0OrganizationsModel) {
+
+		logger.debug("Extracting the mappings between M0 organizations labels and codes");
+		SortedMap<String, String> mappings = new TreeMap<String, String>();
+
+		// Iterate on all subject resources that are organizations (characterised by their type skos:Concept)
+		m0OrganizationsModel.listStatements(null, RDF.type, SKOS.Concept).forEachRemaining(new Consumer<Statement>() {
+
+			@Override
+			public void accept(Statement organizationStatement) {
+				Resource organizationResource = organizationStatement.getSubject();
+				String organizationM0URI = organizationResource.getURI();
+				// Find the French label (attribute 'TITLE')
+				final String labelURI = organizationM0URI + "/TITLE";
+				Resource attributeResource = m0OrganizationsModel.createResource(labelURI);
+				List<Statement> titleList = m0OrganizationsModel.listStatements(attributeResource, Configuration.M0_VALUES, (RDFNode)null).toList();
+				if (titleList.size() != 1) { // There should be exactly one French label
+					logger.error("Invalid number of French names for organization " + organizationM0URI + ": " + titleList);
+					return;
+				}
+				final String organizationLabel = titleList.get(0).getObject().toString(); // No language tags in the M0 'organismes' model
+				// Find the identifier (attribute 'ID_CODE')
+				final String codeURI = organizationM0URI + "/ID_CODE";
+				attributeResource = m0OrganizationsModel.createResource(codeURI);
+				List<Statement> codeList = m0OrganizationsModel.listStatements(attributeResource, Configuration.M0_VALUES, (RDFNode)null).toList();
+				if (codeList.size() != 1) { // There should be exactly one ID_CODE value
+					logger.error("Invalid number of identifiers (ID_CODE) for organization " + organizationM0URI + ": " + codeList);
+					return;
+				}
+				final String organizationCode = codeList.get(0).getObject().toString();
+				mappings.put(organizationLabel, organizationCode);
+			}
+			
+		});
+
+		logger.debug(mappings.size() + " mappings found");
+		return mappings;
 	}
 
 	/**

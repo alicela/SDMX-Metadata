@@ -46,16 +46,29 @@ class M0ExtractorTest {
 
 	/**
 	 * Extracts from the M0 dataset the mappings between codes and labels for the 'unit measures'.
-	 * 
-	 * @throws IOException In case of problems while creating the output file.
 	 */
 	@Test
-	public void testReadUnitMeasureMappings() {
+	public void testExtractUnitMeasureMappings() {
 
 		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		SortedMap<String, String[]> mappings = M0Extractor.readUnitMeasureMappings(m0Dataset);
+		SortedMap<String, String[]> mappings = M0Extractor.extractUnitMeasureMappings(m0Dataset);
 		for (String code : mappings.keySet()) {
 			System.out.println(code + "\t" + Arrays.toString(mappings.get(code)));
+		}
+	}
+
+	/**
+	 * Extracts from the M0 dataset the mappings between labels and codes for the M0 organizations.
+	 */
+	@Test
+	public void testExtractOrganizationMappings() {
+
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0OrganizationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "organismes");
+		SortedMap<String, String> mappings = M0Extractor.extractOrganizationMappings(m0OrganizationsModel);
+		System.out.println(mappings.size() + " mappings found");
+		for (String label : mappings.keySet()) {
+			System.out.println(label + "\t" + mappings.get(label));
 		}
 	}
 

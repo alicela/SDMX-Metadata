@@ -62,7 +62,7 @@ public class M0Extractor {
 	
 		Model extractModel = ModelFactory.createDefaultModel();
 		Selector selector = new SimpleSelector(null, Configuration.M0_VALUES, (RDFNode) null) {
-			// Override 'selects' method to retain only statements whose subject URI ends with the property name
+			// Override 'selects' method to retain only statements whose subject URI ends with the attribute name
 	        public boolean selects(Statement statement) {
 	        	return statement.getSubject().getURI().endsWith(attributeName);
 	        }
@@ -85,6 +85,42 @@ public class M0Extractor {
 		logger.debug("Number of triples extracted: " + reportNumber);
 	
 		return extractModel;
+	}
+
+	/**
+	 * Extracts from an M0 model all the values of a given SIMS attribute.
+	 * The method returns a map where the keys are the subject entity M0 URIs and the values is the list of values (including empty ones) of the attribute.
+	 * 
+	 * @param m0Model A Jena <code>Model</code> in M0 format from which the values will be extracted.
+	 * @param attributeName The name of the SIMS attribute (e.g. SUMMARY).
+	 * @param inEnglish If <code>true</code>, the English values will be returned.
+	 * @return The map between the subject URIs and the list of values for the given attribute. 
+	 */
+	public static SortedMap<String, List<String>> extractAttributeValues(Model m0Model, String attributeName, boolean inEnglish) {
+
+		Property valueProperty = inEnglish ? Configuration.M0_VALUES_EN : Configuration.M0_VALUES;
+
+		// Define the selector catching the relevant statements
+		Selector selector = new SimpleSelector(null, valueProperty, (RDFNode) null) {
+			// Override 'selects' method to retain only statements whose subject URI ends with the attribute name
+	        public boolean selects(Statement statement) {
+	        	return statement.getSubject().getURI().endsWith(attributeName);
+	        }
+	    };
+
+	    SortedMap<String, List<String>> attributeValues = new TreeMap<String, List<String>>();
+		// Iterate on all statements and build the list of values of the attribute
+	    m0Model.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				// Extract the URI of the base entity to which the attribute relates
+				String baseEntityURI = StringUtils.substringBeforeLast(statement.getSubject().getURI(), "/");
+				if (!attributeValues.containsKey(baseEntityURI)) attributeValues.put(baseEntityURI, new ArrayList<>());
+				attributeValues.get(baseEntityURI).add(statement.getObject().toString());
+			}
+	    });
+
+		return attributeValues;
 	}
 
 	/**
@@ -509,7 +545,7 @@ public class M0Extractor {
 	 * 
 	 * @param m0Dataset The RDF dataset containing the M0 data.
 	 */
-	public static void extractModels(Dataset m0Dataset) {
+	public static void extractM0Models(Dataset m0Dataset) {
 
 		logger.info("Extracting all M0 models to different files");
 		Iterator<String> nameIterator = m0Dataset.listNames();

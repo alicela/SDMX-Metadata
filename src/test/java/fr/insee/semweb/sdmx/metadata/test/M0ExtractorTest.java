@@ -26,6 +26,22 @@ import fr.insee.semweb.sdmx.metadata.M0Extractor;
 class M0ExtractorTest {
 
 	/**
+	 * Extracts from an M0 model the list of all values of a given attribute, and writes it to the console.
+	 */
+	@Test
+	public void testExtractAttributeValues() {
+
+		String attributeOfInterest = "ORGANISATION_UNIT";
+		String modelName = "documentations";
+
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0SIMSModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + modelName);
+		SortedMap<String, List<String>> values = M0Extractor.extractAttributeValues(m0SIMSModel, attributeOfInterest, false);
+		System.out.println("Values of the " + attributeOfInterest + " attribute in the '" + modelName + "' model");
+		for (String baseURI : values.keySet()) System.out.println(baseURI + "\t" + values.get(baseURI));
+	}
+
+	/**
 	 * Extracts from the M0 dataset the list of all relations between operation-like resources, and saves it to a file.
 	 * 
 	 * @throws IOException In case of problems while creating the output file.
@@ -273,10 +289,10 @@ class M0ExtractorTest {
 	 * @throws IOException In case of problem while writing the output file.
 	 */
 	@Test
-	public void testExtractModels() {
+	public void testExtractM0Models() {
 
 		Dataset dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		M0Extractor.extractModels(dataset);
+		M0Extractor.extractM0Models(dataset);
 		dataset.close();
 	}
 

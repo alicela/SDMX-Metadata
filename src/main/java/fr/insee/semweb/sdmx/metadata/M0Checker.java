@@ -1068,4 +1068,14 @@ public class M0Checker {
 		}
 		return report.toString();
 	}
+
+	/**
+	 * Checks that organizations found in the 'documentations' mode can be mapped to those defined in the 'organismes' model.
+	 *  
+	 * @return
+	 */
+	public static String checkOrganizationMappings() {
+
+		return null;
+	}
 }

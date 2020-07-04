@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
+import java.util.SortedSet;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
@@ -83,8 +84,8 @@ class M0ExtractorTest {
 		Model m0OrganizationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "organismes");
 		SortedMap<String, String> mappings = M0Extractor.extractOrganizationMappings(m0OrganizationsModel);
 		System.out.println(mappings.size() + " mappings found");
-		for (String label : mappings.keySet()) {
-			System.out.println(label + "\t" + mappings.get(label));
+		for (String code : mappings.keySet()) {
+			System.out.println(code + "\t" + mappings.get(code));
 		}
 	}
 

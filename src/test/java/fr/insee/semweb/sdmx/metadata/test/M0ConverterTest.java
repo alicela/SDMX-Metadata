@@ -495,10 +495,30 @@ public class M0ConverterTest {
 		RDFDataMgr.write(new FileOutputStream(fileName), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE)); // TODO Check if Lang.TRIG is OK for both cases
 	}
 
+	/**
+	 * Extracts from the M0 dataset and prints to console the mappings between the M0 and target URIs for organizations.
+	 */
 	@Test
-	public void testReadOrganizationURIMappings() throws IOException {
+	public void testReadOrganizationURIMappings() {
 
-		M0Converter.readOrganizationURIMappings();
+		SortedMap<String, String> mappings = M0Converter.readOrganizationURIMappings();
+		for (String m0URI : mappings.keySet()) System.out.println(m0URI + " - " + mappings.get(m0URI));
 	}
 
+	/**
+	 * Extracts from the M0 dataset and prints to console the mappings between SIMS numbers and organizational attributes.
+	 */
+	@Test
+	public void testGetOrganizationValues() {
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		Model m0AssociationModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		SortedMap<Integer, SortedMap<String, SortedSet<String>>> organizationValues = M0SIMSConverter.getOrganizationValues(m0AssociationModel);
+
+		for (Integer documentationId : organizationValues.keySet()) {
+			System.out.println("\nOrganizations related to documentation " + documentationId);
+			SortedMap<String, SortedSet<String>> docMappings = organizationValues.get(documentationId);
+			for (String attribute : docMappings.keySet())
+				System.out.println("\t" + attribute + docMappings.get(attribute));
+		}
+	}
 }

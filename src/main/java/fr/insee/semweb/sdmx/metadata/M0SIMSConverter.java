@@ -5,6 +5,7 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -601,7 +602,7 @@ public class M0SIMSConverter extends M0Converter {
 	 */
 	public static SortedMap<Integer, SortedMap<String, SortedSet<String>>> getAttributeReferences(Model m0AssociationModel, String language, boolean links) {
 
-		// The relations between SIMS properties and link/documents objects are in the 'associations' graph and have the following structure (replace by relatedToGb for English):
+		// The relations between SIMS properties and link/document objects are in the 'associations' graph and have the following structure (replace by relatedToGb for English):
 		// <http://baseUri/documentations/documentation/1580/SEE_ALSO> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/liens/lien/54/SEE_ALSO> .
 
 		Property associationProperty = "en".equalsIgnoreCase(language) ? Configuration.M0_RELATED_TO_EN : Configuration.M0_RELATED_TO;
@@ -651,6 +652,58 @@ public class M0SIMSConverter extends M0Converter {
 		});
 
 		return referenceMappings;
+	}
+
+	/**
+	 * Reads the values of SIMSFr attributes that correspond to organizations (CONTACT_ORGANISATION, ORGANISATION_UNIT) and stores them as a map.
+	 * The map keys will be the documentation identifiers and the values will be maps with attribute names as keys and lists of organisation target URIs as values.
+	 * Example: <1507, <CONTACT_ORGANISATION, <http://id.insee.fr/organisations/insee/DG75-F201>>, <ORGANISATION_UNIT, <http://id.insee.fr/organisations/insee/DG75-F210>>>.
+	 * 
+	 * @param m0AssociationModel The M0 'associations' model where the information should be read.
+	 * @return A map containing the values.
+	 */
+	public static SortedMap<Integer, SortedMap<String, SortedSet<String>>> getOrganizationValues(Model m0AssociationModel) {
+
+		// The relations between SIMS properties and organization objects are in the 'associations' graph and have the following structure:
+		// <http://baseUri/documentations/documentation/1507/CONTACT_ORGANISATION> <http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message#relatedTo> <http://baseUri/organismes/organisme/36/CONTACT_ORGANISATION> .
+
+		List<String> attributeNames = Arrays.asList("CONTACT_ORGANISATION", "ORGANISATION_UNIT");
+
+		SortedMap<Integer, SortedMap<String, SortedSet<String>>> organizationURIs = new TreeMap<Integer, SortedMap<String, SortedSet<String>>>();
+		for (String attributeName : attributeNames) {
+			logger.debug("Extracting URI values of SIMS attribute " + attributeName);
+			// Will select triples of the form indicated above
+			Selector selector = new SimpleSelector(null, Configuration.M0_RELATED_TO, (RDFNode) null) {
+				// Override 'selects' method to retain only statements whose subject URI conforms to what we expect
+		        public boolean selects(Statement statement) {
+		        	String subjectURI = statement.getSubject().getURI();
+		        	return ((subjectURI.startsWith(Configuration.M0_SIMS_BASE_URI)) && (subjectURI.endsWith(attributeName)));
+		        }
+		    };
+		    // Go through the selected triples and fill the map to return
+		    m0AssociationModel.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+				@Override
+				public void accept(Statement statement) {
+					// Extract the documentation and organisation M0 identifiers
+					String subjectURI = statement.getSubject().getURI();
+					String objectURI = statement.getObject().toString();
+					try {
+						Integer documentationM0Id = Integer.parseInt(StringUtils.substringAfterLast(StringUtils.substringBeforeLast(subjectURI, "/"), "/"));
+						String organizationM0URI = StringUtils.substringBeforeLast(objectURI, "/");
+						String organizationURI = convertM0OrganizationURI(organizationM0URI);
+						if (!organizationURIs.containsKey(documentationM0Id)) organizationURIs.put(documentationM0Id, new TreeMap<>());
+						if (!organizationURIs.get(documentationM0Id).containsKey(attributeName)) organizationURIs.get(documentationM0Id).put(attributeName, new TreeSet<>());
+						organizationURIs.get(documentationM0Id).get(attributeName).add(organizationURI);
+
+					} catch (Exception e) {
+						logger.error("Unexpected statement ignored: " + statement);
+						return;
+					}
+				}
+			});
+		}
+
+		return organizationURIs;
 	}
 
 	/**

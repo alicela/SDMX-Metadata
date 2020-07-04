@@ -170,11 +170,10 @@ public class M0Extractor {
 	}
 
 	/**
-	 * Extracts the mappings between labels and identifiers for M0 organizations.
-	 * These mappings are used in the SIMS converter.
+	 * Extracts the mappings between identifiers and labels for M0 organizations.
 	 * 
 	 * @param m0OrganizationsModel The M0 'organismes' model where the information should be read.
-	 * @return A map between the French label ('TITLE' as keys) and identifiers ('ID_CODE' as values) for all M0 organizations.
+	 * @return A map between identifiers ('ID_CODE' as keys) and French labels ('TITLE' as values) for all M0 organizations.
 	 */
 	public static SortedMap<String, String> extractOrganizationMappings(Model m0OrganizationsModel) {
 
@@ -206,9 +205,8 @@ public class M0Extractor {
 					return;
 				}
 				final String organizationCode = codeList.get(0).getObject().toString();
-				mappings.put(organizationLabel, organizationCode);
+				mappings.put(organizationCode, organizationLabel);
 			}
-			
 		});
 
 		logger.debug(mappings.size() + " mappings found");

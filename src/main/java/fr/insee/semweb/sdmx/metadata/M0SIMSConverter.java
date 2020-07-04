@@ -78,9 +78,14 @@ public class M0SIMSConverter extends M0Converter {
 	protected static SortedMap<Integer, String> simsAttachments = null;
 	/** Mappings between codes and labels for units of measure */
 	protected static SortedMap<String, String[]> umMappings = null;
+	/** Values of the target URIs for SIMS organizational attributes */
+	protected static SortedMap<Integer, SortedMap<String, SortedSet<String>>> organizationValues = null;
 
 	// Will be handy for parsing dates
 	final static DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+	// Dummy RDF literal used for converting organizations
+	final static String dummyString = "dummy";
+	final static Literal dummyLiteral = ResourceFactory.createStringLiteral(dummyString);
 
 	/**
 	 * Converts a list (or all) of M0 'documentation' models to SIMS models.
@@ -99,10 +104,11 @@ public class M0SIMSConverter extends M0Converter {
 		simsFrMSD = (OntModel) ModelFactory.createOntologyModel().read(Configuration.SIMS_FR_MSD_TURTLE_FILE_NAME);
 		simsFRScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 
-		// We will also need all the attribute references to links and documents
+		// We will also need all the attribute references to links and documents, and the values of organizational attributes (which are obtained through associations)
 		Model m0AssociationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
-		attributeReferencesFr = M0SIMSConverter.getAllAttributeReferences(m0AssociationsModel, "fr");
-		attributeReferencesEn = M0SIMSConverter.getAllAttributeReferences(m0AssociationsModel, "en");
+		attributeReferencesFr = getAllAttributeReferences(m0AssociationsModel, "fr");
+		attributeReferencesEn = getAllAttributeReferences(m0AssociationsModel, "en");
+		organizationValues = getOrganizationValues(m0AssociationsModel);
 		// If all documents and links information are to be included in the target documentation models, we need the complete documents and links model 
 		if (includeReferences) simsDocumentsAndLinksModel = convertDocumentsToSIMS().add(convertLinksToSIMS());
 
@@ -201,11 +207,16 @@ public class M0SIMSConverter extends M0Converter {
 			}
 			Statement rangeStatement = metadataAttributeProperty.getProperty(RDFS.range);
 			Resource propertyRange = (rangeStatement == null) ? null : rangeStatement.getObject().asResource();
-			// Query for the list of values of the M0 entry resource
+			// Query for the list of (French) values of the M0 entry resource
 			List<RDFNode> objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES).toList();
 			if (objectValues.size() == 0) {
-				// No value is acceptable if the type is DCTypes.Text and the resource has references to links or documents
-				if (DCTypes.Text.equals(propertyRange) && (documentReferencesFr != null) && documentReferencesFr.containsKey(entry.getCode())) {
+				// No value is normal for organizational attributes (CONTACT_ORGANISATION and ORGANISATION_UNIT) because they take their values through associations.
+				if (propertyRange.equals(ORG.Organization)) {
+					// HACK We just add a fake value in order to pass in the mail loop below and benefit from the treatments made there (logging, creation of reported attribute...)
+					objectValues.add(dummyLiteral);
+				}
+				// No value is also acceptable if the type is DCTypes.Text and the resource has references to links or documents
+				else if (DCTypes.Text.equals(propertyRange) && (documentReferencesFr != null) && documentReferencesFr.containsKey(entry.getCode())) {
 					logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode() + ", but references exist: " + documentReferencesFr.get(entry.getCode()));
 				}
 				else {
@@ -315,32 +326,38 @@ public class M0SIMSConverter extends M0Converter {
 					logger.error("Property range should not be equal to dqv:Metric");
 				}
 				else if (propertyRange.equals(Configuration.TERRITORY_MAP_RANGE)) {
-					// TODO Handle English labels for features
+					// This is the REF_AREA attribute: the value gives the territory code
+					// TODO Find feature in lookup map
 					Resource feature = simsModel.createResource(Configuration.geoFeatureURI(m0Id, entry.getCode()), Configuration.TERRITORY_MAP_RANGE);
 					feature.addProperty(RDFS.label, simsModel.createLiteral(stringValue, "fr"));
 					targetResource.addProperty(metadataAttributeProperty, feature);
 				}
-				else if (propertyRange.equals(ORG. Organization)) {
-					String normalizedValue = StringUtils.normalizeSpace(objectValue.toString());
-					if (normalizedValue.length() == 0) {
-						logger.warn("Empty value for organization name, ignoring");
-						continue;
+				else if (propertyRange.equals(ORG.Organization)) {
+					if (!dummyString.equals(stringValue)) {
+						// We ignore and log cases where organizations are directly specified as values
+						logger.warn("Direct values for organizations are not converted - '" + stringValue + "' for attribute " + entry.getCode() + " in documentation " + m0Id);
 					}
-					logger.warn("Conversion of organizations is not supported: for now, creating a blank organization with label " + normalizedValue);
-					Resource objectOrganization = simsModel.createResource();
-					objectOrganization.addProperty(RDF.type, ORG.Organization);
-					objectOrganization.addProperty(SKOS.prefLabel, simsModel.createLiteral(normalizedValue, "fr"));
-					targetResource.addProperty(metadataAttributeProperty, objectOrganization);
+					SortedMap<String, SortedSet<String>> orgAttributeValues = organizationValues.get(documentNumber);
+					if (orgAttributeValues != null) {
+						if (orgAttributeValues.containsKey(entry.getCode())) {
+							SortedSet<String> orgURIs = orgAttributeValues.get(entry.getCode());
+							if (orgURIs.size() > 1) logger.warn("Multiple values for organizational attribute " + entry.getCode() + ", only the first value will be considered: " + orgURIs);
+							String orgURI = orgURIs.first();
+							Resource objectOrganization = simsModel.createResource(orgURI, ORG.Organization);
+							targetResource.addProperty(metadataAttributeProperty, objectOrganization);
+							logger.debug("Organization URI " + orgURI + " assigned to organizational attribute property");
+						}
+					}
 				}
 				else {
-					// The only remaining case should be code list, with the range equal to the concept associated to the code list
+					// The only remaining case should be code lists, with the range equal to the concept associated to the code list
 					String propertyRangeString = propertyRange.getURI();
 					if (!propertyRangeString.startsWith(Configuration.INSEE_CODE_CONCEPTS_BASE_URI)) logger.error("Unrecognized property range: " + propertyRangeString);
 					else {
 						String codeConceptName = propertyRangeString.substring(propertyRangeString.lastIndexOf('/') + 1);
 						// We don't verify at this stage that the value is a valid code in the code list, but just sanitize the value (by taking the first word) to avoid URI problems
 						String sanitizedCode = (stringValue.indexOf(' ') == -1) ? stringValue : stringValue.split(" ", 2)[0];
-						// HACK some recodifications needed here for CL_FREQ, CL_COLLECTION_MODE, CL_SURVEY_UNIT
+						// HACK some recodifications needed here for CL_FREQ (T -> U, BM -> T) and CL_SURVEY_UNIT (AS -> A); also value O (Other) is filterd out for CL_FREQ, CL_COLLECTION_MODE and CL_SURVEY_UNIT
 						if ("Frequence".equals(codeConceptName)) {
 							if ("T".equals(sanitizedCode)) {
 								logger.debug("Recoding M0 frequency code from 'T' to 'U'");

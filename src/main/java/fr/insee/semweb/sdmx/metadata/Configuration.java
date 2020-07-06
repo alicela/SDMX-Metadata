@@ -158,7 +158,7 @@ public class Configuration {
 		propertyMappings.put("SUMMARY", DCTerms.abstract_);
 		propertyMappings.put("HISTORY", SKOS.historyNote);
 		//propertyMappings.put("FREQ_COLL", DCTerms.accrualPeriodicity); FREQ_COLL is no longer a direct property
-		propertyMappings.put("ORGANISATION", DCTerms.creator);
+		propertyMappings.put("ORGANISATION", DCTerms.publisher);
 		propertyMappings.put("STAKEHOLDERS", DCTerms.contributor);
 		propertyMappings.put("DATA_COLLECTOR", DATA_COLLECTOR_PROPERTY); // TODO Publish in base ontology
 		propertyMappings.put("REPLACES", DCTerms.replaces);

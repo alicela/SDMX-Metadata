@@ -850,7 +850,7 @@ public class M0Converter {
 	public static SortedMap<String, String> readOrganizationURIMappings() {
 
 		readDataset();
-		SortedMap<String, String> organizationURIMappings = new TreeMap<String, String>();
+		SortedMap<String, String> organizationURIMappings = new TreeMap<String, String>(new URIComparator());
 		// Read the 'organismes' model and loop through the statements with 'ID_CODE' subjects
 		Model m0OrganizationsModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "organismes");
 		Model extractModel = M0Extractor.extractAttributeStatements(m0OrganizationsModel, "ID_CODE");
@@ -864,6 +864,7 @@ public class M0Converter {
 				// HACK Organization 81 has a weird identifier
 				if (m0URI.endsWith("/81")) orgId = "Drees";
 				String orgURI = null;
+				// TODO Improve this
 				if ((orgId.length() == 4) && (StringUtils.isNumeric(orgId.substring(1)))) orgURI = inseeUnitURI("DG75-" + orgId);
 				else orgURI = organizationURI(orgId);
 				organizationURIMappings.put(m0URI, orgURI);

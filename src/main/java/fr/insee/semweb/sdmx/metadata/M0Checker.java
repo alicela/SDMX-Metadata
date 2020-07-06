@@ -1,5 +1,9 @@
 package fr.insee.semweb.sdmx.metadata;
 
+import static fr.insee.semweb.sdmx.metadata.Configuration.M0_BASE_GRAPH_URI;
+import static fr.insee.semweb.sdmx.metadata.Configuration.inseeUnitURI;
+import static fr.insee.semweb.sdmx.metadata.Configuration.organizationURI;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -9,6 +13,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +47,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import fr.insee.semweb.utils.URIComparator;
 import fr.insee.semweb.utils.Utils;
 
 /**
@@ -1058,9 +1064,9 @@ public class M0Checker {
 			}
 		});
 		// Write and return report
-		StringWriter report = new StringWriter().append("Actual usage of organizations in the M0 data\n");
+		StringWriter report = new StringWriter().append("Actual usage of organizations in the M0 data");
 		for (int orgIntId : occurrences.keySet()) {
-			report.append("\nOrganization " + orgIntId + " is used in the following cases:");
+			report.append("\n\nOrganization " + orgIntId + " is used in the following cases:");
 			for (String attName : occurrences.get(orgIntId).keySet()) {
 				report.append("\n . as attribute " + attName + " in the following contexts:");
 				for (String sourceType : occurrences.get(orgIntId).get(attName).keySet()) report.append("\n\t\t" + sourceType + "\t\t" + occurrences.get(orgIntId).get(attName).get(sourceType));
@@ -1070,12 +1076,53 @@ public class M0Checker {
 	}
 
 	/**
-	 * Checks that organizations found in the 'documentations' mode can be mapped to those defined in the 'organismes' model.
+	 * Checks the correspondences between M0 organizations found in 'organismes' and 'associations' models, and in the provided Excel file.
 	 *  
-	 * @return
+	 * @param m0Dataset The Jena dataset containing all M0 information.
+	 * @return A <code>String</code> containing the report.
 	 */
-	public static String checkOrganizationMappings() {
+	public static String checkOrganizationMappings(Dataset m0Dataset) {
 
-		return null;
+		// First get the list of M0 URIs referred to in the 'associations' model
+		//SortedMap<String, String> organizationURIMappings = new TreeMap<String, String>();
+		SortedSet<String> orgURIsInAssociations = new TreeSet<>(Comparator.nullsFirst(new URIComparator()));
+		Model m0AssociationModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "associations");
+		m0AssociationModel.listSubjects().forEachRemaining(new Consumer<Resource>() {
+			@Override
+			public void accept(Resource subject) {
+				if (subject.getURI().startsWith("http://baseUri/organismes/organisme/"))
+					orgURIsInAssociations.add(StringUtils.substringBeforeLast(subject.getURI(), "/"));
+			}
+		});
+		m0AssociationModel.close();
+		// Then get the map between M0 URIs and identifiers for organizations defined in the 'organismes' model
+		SortedMap<String, String> orgURIsAndIds = new TreeMap<>(Comparator.nullsFirst(new URIComparator()));
+		Model m0OrganizationsModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "organismes");
+		Model extractModel = M0Extractor.extractAttributeStatements(m0OrganizationsModel, "ID_CODE");
+		extractModel.listStatements().forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				// Get the M0 URI (just strip the /ID_CODE part) and the ID_CODE value 
+				String m0OrgURI = StringUtils.removeEnd(statement.getSubject().toString(), "/ID_CODE");
+				orgURIsAndIds.put(m0OrgURI, statement.getObject().asLiteral().toString());
+			}
+		});
+		extractModel.close();
+		m0OrganizationsModel.close();
+
+		// First check that all organizations used in associations are defined in the 'organismes' model
+		StringWriter report = new StringWriter().append("Checks on the mappings of organizations\n");
+		report.append("\nOrganizations defined in the 'organismes' M0 model:");
+		for (String orgURI : orgURIsAndIds.keySet()) report.append("\n").append(orgURI).append("\t").append(orgURIsAndIds.get(orgURI));
+		report.append("\n\nOrganizations referenced in the 'associations' M0 model:");
+		for (String orgURI : orgURIsInAssociations) {
+			if (orgURIsAndIds.containsKey(orgURI)) report.append("\n").append(orgURI).append("\t").append(orgURIsAndIds.get(orgURI));
+			else report.append("\n").append(orgURI).append("\t").append("Not defined in the 'organisme' model");
+		}
+
+		// TODO Check mappings with Excel workbook
+
+
+		return report.toString();
 	}
 }

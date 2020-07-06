@@ -518,7 +518,7 @@ public class M0ConverterTest {
 			System.out.println("\nOrganizations related to documentation " + documentationId);
 			SortedMap<String, SortedSet<String>> docMappings = organizationValues.get(documentationId);
 			for (String attribute : docMappings.keySet())
-				System.out.println("\t" + attribute + docMappings.get(attribute));
+				System.out.println("\t" + attribute + "\t" + docMappings.get(attribute));
 		}
 	}
 }

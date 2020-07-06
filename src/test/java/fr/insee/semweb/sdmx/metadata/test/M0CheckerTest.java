@@ -290,7 +290,7 @@ public class M0CheckerTest {
 	 */
 	@Test
 	public void testListModels() {
-	
+
 		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		SortedSet<String> graphNames = new TreeSet<String>();
 		m0Dataset.listNames().forEachRemaining(new Consumer<String>() {
@@ -314,7 +314,7 @@ public class M0CheckerTest {
 	public void testCheckOrganizations() throws IOException {
 
 		// Attributes to report. Notes: 'ORGANISATION' always empty
-		String[] attributesToCheck = new String[]{"ALT_LABEL", "TITLE", "ORIGINE", "STAKEHOLDERS", "TYPE", "UNIT_OF"};
+		String[] attributesToCheck = new String[]{"ID_CODE", "ALT_LABEL", "TITLE", "ORIGINE", "STAKEHOLDERS", "TYPE", "UNIT_OF"};
 
 		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
 		Model m0rganizationsModel = m0Dataset.getNamedModel(Configuration.M0_BASE_GRAPH_URI + "organismes");
@@ -340,5 +340,16 @@ public class M0CheckerTest {
 		outStream.print(report);
 		outStream.close();
 		m0AssociationsModel.close();
+	}
+
+	/**
+	 * Runs the basic checks on the M0 organizations mappings and prints the report to the console.
+	 */
+	@Test
+	public void testCheckOrganizationMappings() {
+		
+		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
+		System.out.println(M0Checker.checkOrganizationMappings(m0Dataset));
+		m0Dataset.close();
 	}
 }

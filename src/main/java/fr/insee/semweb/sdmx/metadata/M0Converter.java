@@ -864,8 +864,8 @@ public class M0Converter {
 				// HACK Organization 81 has a weird identifier
 				if (m0URI.endsWith("/81")) orgId = "Drees";
 				String orgURI = null;
-				// TODO Improve this
-				if ((orgId.length() == 4) && (StringUtils.isNumeric(orgId.substring(1)))) orgURI = inseeUnitURI("DG75-" + orgId);
+				// TODO Will not work for regional units
+				if ((orgId.length() == 4) && (Configuration.isInseeOrganization(orgId))) orgURI = inseeUnitURI("DG75-" + orgId);
 				else orgURI = organizationURI(orgId);
 				organizationURIMappings.put(m0URI, orgURI);
 			}

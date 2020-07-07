@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
@@ -191,8 +192,6 @@ public class Configuration {
 		}
 	}
 
-	// Methods for MSD components
-
 	/**
 	 * Returns the URI of the SIMSv2/SIMSFr metadata structure definition.
 	 * 
@@ -279,8 +278,6 @@ public class Configuration {
 		return simsReportURI(m0Id) + "/" + Utils.camelCase(code.replace("_", ""), true, false);
 	}
 
-	// Methods for concept schemes components
-
 	/** URI of the SIMSv2/SIMSFr concept scheme */
 	public static String simsConceptSchemeURI(boolean simsStrict) {
 		return (simsStrict ? BASE_SIMS_URI : BASE_SIMS_FR_URI) + "sims"; // TODO Add a path segment?
@@ -339,10 +336,17 @@ public class Configuration {
 		return "http://rdf.insee.fr/graphes/qualite/rapport/" + reportId;
 	}
 
-	/** URI of a SIMSv2/SIMSv2Fr represented by a SIMSFrEntry */
+	/** URI of a SIMSv2/SIMSv2Fr concept represented by a SIMSFrEntry */
 	public static String simsConceptURI(SIMSFrEntry entry) {
 		if (entry.isOriginal()) return simsConceptURI(entry.getNotation());
 		return "http://id.insee.fr/concepts/simsv2fr/" + entry.getNotation();
+	}
+
+	/** Determines from its identifier if an organization is external or internal */
+	public static boolean isInseeOrganization(String organizationId) {
+		// An identifier is considered internal if it ends with 3 digits (e.g. DG75-A001)
+		// TODO Will not work for regional units
+		return ((organizationId != null) && (organizationId.length() >= 4) && (StringUtils.isNumeric(StringUtils.right(organizationId, 3))));
 	}
 
 	/** URI of an organization */
@@ -352,7 +356,6 @@ public class Configuration {
 
 	/** URI of an Insee organizational unit */
 	public static String inseeUnitURI(String timbre) {
-	
 		return INSEE_ORG_BASE_URI + "insee/" + timbre.toLowerCase();
 	}
 

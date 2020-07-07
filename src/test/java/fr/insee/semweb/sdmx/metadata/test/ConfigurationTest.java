@@ -1,6 +1,8 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -55,5 +57,12 @@ public class ConfigurationTest {
 	@Test
 	public void testGetOrganizationURI() {
 		assertEquals(Configuration.organizationURI("banque-de-france"), "http://id.insee.fr/organisations/banque-de-france");
+	}
+
+	@Test
+	public void testIsInseeOrganization() {
+		assertTrue(Configuration.isInseeOrganization("DG75-D001"));
+		assertTrue(Configuration.isInseeOrganization("C520"));
+		assertFalse(Configuration.isInseeOrganization("Drees"));		
 	}
 }

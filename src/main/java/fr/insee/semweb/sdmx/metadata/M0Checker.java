@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -1079,9 +1080,10 @@ public class M0Checker {
 	 * Checks the correspondences between M0 organizations found in 'organismes' and 'associations' models, and in the provided Excel file.
 	 *  
 	 * @param m0Dataset The Jena dataset containing all M0 information.
+	 * @param orgWorkbook An Excel workbook containing the information on organizations (<code>Workbook</code> object).
 	 * @return A <code>String</code> containing the report.
 	 */
-	public static String checkOrganizationMappings(Dataset m0Dataset) {
+	public static String checkOrganizationMappings(Dataset m0Dataset, Workbook orgWorkbook) {
 
 		// First get the list of M0 URIs referred to in the 'associations' model
 		//SortedMap<String, String> organizationURIMappings = new TreeMap<String, String>();
@@ -1110,18 +1112,42 @@ public class M0Checker {
 		extractModel.close();
 		m0OrganizationsModel.close();
 
-		// First check that all organizations used in associations are defined in the 'organismes' model
+		// First check that all organizations used in associations are defined in the 'organismes' model and vice versa
 		StringWriter report = new StringWriter().append("Checks on the mappings of organizations\n");
 		report.append("\nOrganizations defined in the 'organismes' M0 model:");
 		for (String orgURI : orgURIsAndIds.keySet()) report.append("\n").append(orgURI).append("\t").append(orgURIsAndIds.get(orgURI));
 		report.append("\n\nOrganizations referenced in the 'associations' M0 model:");
+		SortedSet<String> refURIs = new TreeSet<>(Comparator.nullsFirst(new URIComparator()));
+		refURIs.addAll(orgURIsAndIds.keySet());
 		for (String orgURI : orgURIsInAssociations) {
+			refURIs.remove(orgURI);
 			if (orgURIsAndIds.containsKey(orgURI)) report.append("\n").append(orgURI).append("\t").append(orgURIsAndIds.get(orgURI));
 			else report.append("\n").append(orgURI).append("\t").append("Not defined in the 'organisme' model");
 		}
+		// URIs left in the copy of the reference URIs are not used in the 'associations' model
+		if (refURIs.size() == 0) report.append("\n\nAll organizations defined in the 'organismes' M0 model are referenced in the 'associations' M0 model");
+		else {
+			report.append("\n\nThe following organizations defined in the 'organismes' M0 model are not referenced in the 'associations' M0 model:");
+			for (String refURI : refURIs) report.append("\n").append(refURI).append("\t").append(orgURIsAndIds.get(refURI));
+		}
 
-		// TODO Check mappings with Excel workbook
-
+		// Check mappings with Excel workbook for external applications
+		SortedSet<String> unknownIds = new TreeSet<>();
+		if (orgWorkbook != null) {
+			Sheet orgSheet = orgWorkbook.getSheetAt(0);
+			Iterator<Row> orgRows = orgSheet.rowIterator();
+			orgRows.next(); // Skip the title line
+			while (orgRows.hasNext()) {
+				String orgId = orgRows.next().getCell(0).toString().trim();
+				if (!orgURIsAndIds.containsValue(orgId)) unknownIds.add(orgId);
+			}
+			try { orgWorkbook.close(); } catch (IOException ignored) { }
+			if (unknownIds.size() == 0) report.append("\n\nAll external organizations from the Excel workbook are defined in the 'organismes' M0 model");
+			else {
+				report.append("\n\nThe following external organizations from the Excel workbook are not defined in the 'organismes' M0 model:");
+				for (String unknownId : unknownIds) report.append("\n\t. ").append(unknownId);
+			}
+		}
 
 		return report.toString();
 	}

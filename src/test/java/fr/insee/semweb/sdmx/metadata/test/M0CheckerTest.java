@@ -17,6 +17,9 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.poi.EncryptedDocumentException;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.Test;
 
 import fr.insee.semweb.sdmx.metadata.Configuration;
@@ -344,12 +347,15 @@ public class M0CheckerTest {
 
 	/**
 	 * Runs the basic checks on the M0 organizations mappings and prints the report to the console.
+	 * 
+	 * @throws IOException In case of problem reading the Excel file or writing the report.
 	 */
 	@Test
-	public void testCheckOrganizationMappings() {
+	public void testCheckOrganizationMappings() throws IOException {
 		
 		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		System.out.println(M0Checker.checkOrganizationMappings(m0Dataset));
+		Workbook orgWorkbook = WorkbookFactory.create(new File(Configuration.ORGANIZATIONS_XLSX_FILE_NAME));
+		System.out.println(M0Checker.checkOrganizationMappings(m0Dataset, orgWorkbook));
 		m0Dataset.close();
 	}
 }

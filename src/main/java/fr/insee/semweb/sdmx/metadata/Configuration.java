@@ -39,7 +39,7 @@ public class Configuration {
 	/** Excel file containing the information on organizations */
 	public static String ORGANIZATIONS_XLSX_FILE_NAME = "src/main/resources/data/OrganisationScheme_20170719.xlsx";
 	/** TriG file containing the "M0" (temporary model) RDF dataset */
-	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20200611.trig";
+	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20200702.trig";
 	/** Excel file containing the links between families and themes */
 	public static String FAMILY_THEMES_XLSX_FILE_NAME = "src/main/resources/data/themes-familles.xlsx";
 	/** Correspondence between DDS identifiers and Web4G identifiers for series */

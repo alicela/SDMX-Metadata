@@ -47,7 +47,7 @@ public class GeoMapper {
 
 		SortedMap<String, Resource> m0CodeToResourceMappings = new TreeMap<>();
 
-		m0CodeToResourceMappings.put("FHM", ResourceFactory.createResource(Configuration.BASE_SIMS_URI + "franceHorsMayotte")); // TODO Check URI
+		m0CodeToResourceMappings.put("FHM", ResourceFactory.createResource(Configuration.QUALITY_BASE_URI + "territoire/franceHorsMayotte")); // TODO Check URI
 		m0CodeToResourceMappings.put("FR", ResourceFactory.createResource("http://id.insee.fr/geo/pays/france"));
 		m0CodeToResourceMappings.put("FRE1", ResourceFactory.createResource("http://id.insee.fr/geo/region/ab3afd3d-b2ef-433b-96d4-d38962c60b2f")); // Nord-Pas-de-Calais
 		m0CodeToResourceMappings.put("FRHDF01", ResourceFactory.createResource("http://id.insee.fr/geo/region/70086d81-9af2-4aeb-8734-502658d6a93f")); // Hauts-de-France

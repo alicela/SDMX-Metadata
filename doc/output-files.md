@@ -6,7 +6,7 @@ This page describes the minimum set of files containing all the converted resour
 
 The `SIMSModelMakerTest.exportAllAsTriG()` method creates the `sims-metadata.trig` TriG file containing all SIMSFr metadata (MSD, concepts, base RDF vocabulary).
 
-The `CodelistModelMakerTest.exportAllAsTriG()` method creates the `sims-codes.trig` TriG file containing all SIMSFr metadata (MSD, concepts, base RDF vocabulary).
+The `CodelistModelMakerTest.exportAllAsTriG()` method creates the `sims-codes.trig` TriG file containing all SIMSFr metadata (schemes, codes, concepts).
 
 The `OrganizationModelMakerTest.createOrganizationDataset()` method creates the `organizations.trig` TriG file containing the organization schemes.
 

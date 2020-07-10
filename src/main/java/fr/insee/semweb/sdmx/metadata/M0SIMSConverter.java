@@ -391,7 +391,7 @@ public class M0SIMSConverter extends M0Converter {
 								continue;
 							}
 						}
-						String codeURI = Configuration.inseeCodeURI(codeConceptName, sanitizedCode);
+						String codeURI = Configuration.inseeCodeURI(sanitizedCode, codeConceptName);
 						if (codeURI != null) targetResource.addProperty(metadataAttributeProperty, simsModel.createResource(codeURI));
 						logger.debug("Code list value " + codeURI + " of concept " + codeConceptName + " assigned to attribute property");
 					}

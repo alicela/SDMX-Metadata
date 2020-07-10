@@ -78,6 +78,8 @@ public class M0SIMSConverter extends M0Converter {
 	protected static SortedMap<Integer, String> simsAttachments = null;
 	/** Mappings between codes and labels for units of measure */
 	protected static SortedMap<String, String[]> umMappings = null;
+	/** Mappings between M0 codes and target resources for territories */
+	protected static SortedMap<String, Resource> geoMappings = null;
 	/** Values of the target URIs for SIMS organizational attributes */
 	protected static SortedMap<Integer, SortedMap<String, SortedSet<String>>> organizationValues = null;
 
@@ -114,6 +116,9 @@ public class M0SIMSConverter extends M0Converter {
 
 		// We also need the mappings between codes and labels for units of measure, since the coded values are now replaces by text (see hack below)
 		umMappings = M0Extractor.extractUnitMeasureMappings(m0Dataset);
+
+		// We also need the mappings between M0 CL_AREA codes and the target territory resources
+		geoMappings = GeoMapper.createM0CodeToURIMappings();
 
 		// Finally, if attachments are requested, we need the correspondence between documentations and the documented resources
 		if (withAttachments) simsAttachments = getSIMSAttachments(m0AssociationsModel);
@@ -326,11 +331,13 @@ public class M0SIMSConverter extends M0Converter {
 					logger.error("Property range should not be equal to dqv:Metric");
 				}
 				else if (propertyRange.equals(Configuration.TERRITORY_MAP_RANGE)) {
-					// This is the REF_AREA attribute: the value gives the territory code
-					// TODO Find feature in lookup map
-					Resource feature = simsModel.createResource(Configuration.geoFeatureURI(m0Id, entry.getCode()), Configuration.TERRITORY_MAP_RANGE);
-					feature.addProperty(RDFS.label, simsModel.createLiteral(stringValue, "fr"));
-					targetResource.addProperty(metadataAttributeProperty, feature);
+					// This is the REF_AREA attribute: the value gives the territory code, which should be found in the mappings
+					if ("OTHER".equals(stringValue)) {
+						logger.warn("'OTHER' value for REF_AREA not converted in documentation " + m0Id);
+					} else {
+						if (geoMappings.containsKey(stringValue)) targetResource.addProperty(metadataAttributeProperty, geoMappings.get(stringValue));
+						else logger.error("REF_AREA code not found in the geographic mappings: " + stringValue);
+					}
 				}
 				else if (propertyRange.equals(ORG.Organization)) {
 					if (!dummyString.equals(stringValue)) {

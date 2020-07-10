@@ -22,6 +22,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.apache.jena.query.Dataset;
+import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
@@ -176,6 +177,19 @@ public class M0ConverterTest {
 	}
 
 	/**
+	 * Creates a RDF dataset containing all documents (including 'links') in the target model and saves it to a TriG file.
+	 * 
+	 * @throws Exception In case of problem while writing the output file.
+	 */
+	@Test
+	public void testConvertAllDocuments() throws IOException {
+
+		Dataset allOperationsAndIndicatorsDataset = M0Converter.convertAllOperationsAndIndicators("http://rdf.insee.fr/graphes/operations", "http://rdf.insee.fr/graphes/produits");
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-operations-and-indicators.trig"), allOperationsAndIndicatorsDataset, Lang.TRIG);
+		allOperationsAndIndicatorsDataset.close();
+	}
+
+	/**
 	 * Creates a RDF dataset containing all base resources (code lists, organizations, families, series, operations and indicators) in the target model and saves it to a TriG file.
 	 * 
 	 * @throws Exception In case of problem while writing the output file.
@@ -209,7 +223,7 @@ public class M0ConverterTest {
 	public void testConvertAllOperations() throws IOException {
 
 		Model allOPerationsModel = M0Converter.convertAllOperations();
-		allOPerationsModel.write(new FileOutputStream("src/test/resources/all-operations.ttl"), "TTL");
+		allOPerationsModel.write(new FileOutputStream("src/main/resources/data/all-operations.ttl"), "TTL");
 		allOPerationsModel.close();
 	}
 
@@ -222,7 +236,7 @@ public class M0ConverterTest {
 	public void testConvertFamilies() throws IOException {
 
 		Model familiesModel = M0Converter.convertFamilies();
-		familiesModel.write(new FileOutputStream("src/test/resources/families.ttl"), "TTL");
+		familiesModel.write(new FileOutputStream("src/main/resources/data/families.ttl"), "TTL");
 		familiesModel.close();
 	}
 
@@ -235,7 +249,7 @@ public class M0ConverterTest {
 	public void testConvertIndicators() throws IOException {
 
 		Model indicatorsModel = M0Converter.convertIndicators();
-		indicatorsModel.write(new FileOutputStream("src/test/resources/indicators.ttl"), "TTL");
+		indicatorsModel.write(new FileOutputStream("src/main/resources/data/indicators.ttl"), "TTL");
 		indicatorsModel.close();
 	}
 
@@ -248,7 +262,7 @@ public class M0ConverterTest {
 	public void testConvertOperations() throws IOException {
 
 		Model operationsModel = M0Converter.convertOperations();
-		operationsModel.write(new FileOutputStream("src/test/resources/operations.ttl"), "TTL");
+		operationsModel.write(new FileOutputStream("src/main/resources/data/operations.ttl"), "TTL");
 		operationsModel.close();
 	}
 
@@ -261,7 +275,7 @@ public class M0ConverterTest {
 	public void testConvertOrganizations() throws IOException {
 
 		Model organizationsModel = M0Converter.convertOrganizations();
-		organizationsModel.write(new FileOutputStream("src/test/resources/organizations.ttl"), "TTL");
+		organizationsModel.write(new FileOutputStream("src/main/resources/data/organizations.ttl"), "TTL");
 		organizationsModel.close();
 	}
 
@@ -274,7 +288,7 @@ public class M0ConverterTest {
 	public void testConvertSeries() throws IOException {
 
 		Model seriesModel = M0Converter.convertSeries();
-		seriesModel.write(new FileOutputStream("src/test/resources/series.ttl"), "TTL");
+		seriesModel.write(new FileOutputStream("src/main/resources/data/series.ttl"), "TTL");
 		seriesModel.close();
 	}
 
@@ -406,7 +420,7 @@ public class M0ConverterTest {
 	public void testConvertDocumentsToSIMS() throws IOException {
 
 		Model documentsModel = M0SIMSConverter.convertDocumentsToSIMS();
-		documentsModel.write(new FileOutputStream("src/test/resources/sims-documents.ttl"), "TTL");
+		documentsModel.write(new FileOutputStream("src/main/resources/data/sims-documents.ttl"), "TTL");
 		documentsModel.close();
 	}
 
@@ -449,17 +463,39 @@ public class M0ConverterTest {
 	}
 
 	/**
-	 * Converts all SIMS to the target model and writes the result as a TriG or Turtle file.
+	 * Converts all SIMSFr to the target model and writes the result as a TriG or Turtle file.
 	 * 
 	 * @throws IOException In case of problems while writing the output file.
 	 */
 	@Test
 	public void testConvertAllToSIMS() throws IOException {
 
-		boolean namedGraphs = true;
+		boolean namedGraphs = true; // Each SIMSFr in its own graph
+		boolean withAttachments = true; // Include the attachments of SIMSFr to their base resource
+		boolean includeReferences = false; // Include in each SIMSFr the data on the documents or pages referenced (false recommended)
 
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(null, namedGraphs, true, false);
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/models/sims-all." + (namedGraphs ? "trig" : "ttl")), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE));
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(null, namedGraphs, withAttachments, includeReferences);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-all." + (namedGraphs ? "trig" : "ttl")), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE));
+		simsDataset.close();
+	}
+
+	/**
+	 * Converts information on documents (M0 'documents' and 'links' to the target model and writes the result as a TriG.
+	 * 
+	 * @throws IOException In case of problems while writing the output file.
+	 */
+	@Test
+	public void exportDocumentsAsTriG() throws IOException {
+
+		String documentGraph = Configuration.INSEE_BASE_GRAPH_URI + "qualite/documents";
+
+		Dataset documentsDataset = DatasetFactory.create();
+
+		Model documentsModel = M0SIMSConverter.convertDocumentsToSIMS();
+		documentsModel.add(M0SIMSConverter.convertLinksToSIMS());
+		documentsDataset.addNamedModel(documentGraph, documentsModel);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/documents.trig"), documentsDataset, Lang.TRIG);
+		documentsDataset.close();
 	}
 
 	/**

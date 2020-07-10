@@ -13,6 +13,7 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.junit.Test;
 
 import fr.insee.semweb.sdmx.metadata.Configuration;
+import fr.insee.semweb.sdmx.metadata.GeoModelMaker;
 import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
 import fr.insee.semweb.sdmx.metadata.SIMSModelMaker;
 
@@ -86,4 +87,21 @@ public class SIMSModelMakerTest {
 		sdmxMMModel.close();
 		metadata.close();
 	}
+
+	/**
+	 * Exports all specific territories into a TriG file.
+	 */
+	@Test
+	public void exportGeoAsTriG() throws IOException {
+
+		Dataset geography = DatasetFactory.create();
+
+		// Adjust parameters or comment lines according to desired result
+		Model geoModel = GeoModelMaker.createGeoModel();
+		geography.addNamedModel(Configuration.INSEE_BASE_GRAPH_URI + "qualite/territoires", geoModel);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-geo.trig"), geography, Lang.TRIG);
+		geoModel.close();
+		geography.close();
+	}
+
 }

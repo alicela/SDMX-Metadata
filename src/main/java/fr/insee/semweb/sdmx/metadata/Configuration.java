@@ -124,7 +124,7 @@ public class Configuration {
 	protected static Resource SIMS_REPORTED_ATTRIBUTE = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#ReportedAttribute");
 	/** The metadata report */
 	protected static Resource SIMS_METADATA_REPORT = ResourceFactory.createResource("http://www.w3.org/ns/sdmx-mm#MetadataReport");
-	/** The reported attribute */
+	/** The property linking a report to its target */
 	protected static Property SIMS_TARGET = ResourceFactory.createProperty("http://www.w3.org/ns/sdmx-mm#target");
 	/** The range of metadata attribute properties corresponding to 'rich text' attributes */
 	public static Resource RICH_TEXT_MAP_RANGE = DCTypes.Text;

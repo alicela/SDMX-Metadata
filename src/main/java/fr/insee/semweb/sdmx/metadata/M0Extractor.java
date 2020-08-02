@@ -128,9 +128,10 @@ public class M0Extractor {
 	 * This is only useful for a hack in the SIMS converter.
 	 * 
 	 * @param m0Dataset The M0 dataset where the mapping will be read.
+	 * @param keepOthers Indicates if the 'Others' code value should be kept.
 	 * @return A map between the code value and and array containing the labels (French and English, in that order).
 	 */
-	public static SortedMap<String, String[]> extractUnitMeasureMappings(Dataset m0Dataset) {
+	public static SortedMap<String, String[]> extractUnitMeasureMappings(Dataset m0Dataset, boolean keepOthers) {
 
 		// Open the 'associations' M0 model and get the resource that links the 'unit measure' code list and its codes
 		Model associationsM0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
@@ -151,9 +152,13 @@ public class M0Extractor {
 		// Open the 'codes' M0 model and get the code labels
 		Model codeM0Model = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "codes");
 		for (String codeURI : codeURIs) {
-			String codeValue = codeURI.substring(codeURI.lastIndexOf('/') + 1);
+			// The code value is given by 'attribute' CODE_VALUE
+			Resource codeResource = codeM0Model.createResource(codeURI + "/CODE_VALUE");
+			StmtIterator valueIterator = codeM0Model.listStatements(codeResource, M0_VALUES, (RDFNode)null);
+			String codeValue = valueIterator.next().getObject().toString();
+			if ("O".equalsIgnoreCase(codeValue) && !keepOthers) continue;
 			Resource labelResource = codeM0Model.createResource(codeURI + "/TITLE");
-			StmtIterator valueIterator = codeM0Model.listStatements(labelResource, M0_VALUES, (RDFNode)null); // Find French values (there should be exactly one)
+			valueIterator = codeM0Model.listStatements(labelResource, M0_VALUES, (RDFNode)null); // Find French values (there should be exactly one)
 			String frenchLabel = valueIterator.next().getObject().toString();
 			valueIterator = codeM0Model.listStatements(labelResource, M0_VALUES_EN, (RDFNode)null);
 			String englishLabel = "";

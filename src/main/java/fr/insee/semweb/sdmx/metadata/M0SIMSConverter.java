@@ -115,7 +115,7 @@ public class M0SIMSConverter extends M0Converter {
 		if (includeReferences) simsDocumentsAndLinksModel = convertDocumentsToSIMS().add(convertLinksToSIMS());
 
 		// We also need the mappings between codes and labels for units of measure, since the coded values are now replaces by text (see hack below)
-		umMappings = M0Extractor.extractUnitMeasureMappings(m0Dataset);
+		umMappings = M0Extractor.extractUnitMeasureMappings(m0Dataset, false);
 
 		// We also need the mappings between M0 CL_AREA codes and the target territory resources
 		geoMappings = GeoMapper.createM0CodeToURIMappings();

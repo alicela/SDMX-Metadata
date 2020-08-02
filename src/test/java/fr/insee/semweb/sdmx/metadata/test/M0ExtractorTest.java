@@ -68,7 +68,7 @@ class M0ExtractorTest {
 	public void testExtractUnitMeasureMappings() {
 
 		Dataset m0Dataset = RDFDataMgr.loadDataset(Configuration.M0_FILE_NAME);
-		SortedMap<String, String[]> mappings = M0Extractor.extractUnitMeasureMappings(m0Dataset);
+		SortedMap<String, String[]> mappings = M0Extractor.extractUnitMeasureMappings(m0Dataset, false);
 		for (String code : mappings.keySet()) {
 			System.out.println(code + "\t" + Arrays.toString(mappings.get(code)));
 		}

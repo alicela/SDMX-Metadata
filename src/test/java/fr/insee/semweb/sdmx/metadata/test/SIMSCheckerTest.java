@@ -1,13 +1,12 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import java.io.File;
-import java.util.List;
-
-import org.junit.Test;
-
 import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.SIMSChecker;
 import fr.insee.semweb.sdmx.metadata.SIMSEntry;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.util.List;
 
 /**
  * Test and run methods for <code>SIMSChecker</code>.

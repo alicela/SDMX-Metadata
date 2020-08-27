@@ -1,7 +1,11 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import fr.insee.semweb.sdmx.metadata.Configuration;
+import fr.insee.semweb.sdmx.metadata.SIMSFrEntry;
+import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
+import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,13 +14,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.lang3.StringUtils;
-import org.junit.Before;
-import org.junit.Test;
-
-import fr.insee.semweb.sdmx.metadata.Configuration;
-import fr.insee.semweb.sdmx.metadata.SIMSFrEntry;
-import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Test and launch methods for class <code>SIMSFrScheme</code>.
@@ -31,7 +30,7 @@ public class SIMSFrSchemeTest {
 	/**
 	 * Reads the SIMSFr from the Excel file.
 	 */
-	@Before
+	@BeforeAll
 	public void readScheme() {
 		simsFrScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 		report = new StringBuilder();

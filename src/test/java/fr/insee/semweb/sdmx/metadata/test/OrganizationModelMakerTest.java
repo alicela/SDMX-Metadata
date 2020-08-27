@@ -1,14 +1,7 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import static org.junit.Assert.assertEquals;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-
-import javax.naming.NamingException;
-
+import fr.insee.semweb.sdmx.metadata.Configuration;
+import fr.insee.semweb.sdmx.metadata.OrganizationModelMaker;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
@@ -16,10 +9,15 @@ import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import fr.insee.semweb.sdmx.metadata.Configuration;
-import fr.insee.semweb.sdmx.metadata.OrganizationModelMaker;
+import javax.naming.NamingException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Test and launch methods for class <code>OrganizationModelMaker</code>.

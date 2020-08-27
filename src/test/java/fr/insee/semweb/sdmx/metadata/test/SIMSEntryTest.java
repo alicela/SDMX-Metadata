@@ -1,15 +1,14 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import fr.insee.semweb.sdmx.metadata.SIMSChecker;
+import fr.insee.semweb.sdmx.metadata.SIMSEntry;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.List;
 
-import org.junit.Test;
-
-import fr.insee.semweb.sdmx.metadata.SIMSChecker;
-import fr.insee.semweb.sdmx.metadata.SIMSEntry;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class SIMSEntryTest {
 

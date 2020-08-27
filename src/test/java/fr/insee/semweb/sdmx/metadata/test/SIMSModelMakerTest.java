@@ -1,21 +1,20 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-
+import fr.insee.semweb.sdmx.metadata.Configuration;
+import fr.insee.semweb.sdmx.metadata.GeoModelMaker;
+import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
+import fr.insee.semweb.sdmx.metadata.SIMSModelMaker;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import fr.insee.semweb.sdmx.metadata.Configuration;
-import fr.insee.semweb.sdmx.metadata.GeoModelMaker;
-import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
-import fr.insee.semweb.sdmx.metadata.SIMSModelMaker;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 
 /**
  * Test and launch methods for class <code>SIMSModelMaker</code>.

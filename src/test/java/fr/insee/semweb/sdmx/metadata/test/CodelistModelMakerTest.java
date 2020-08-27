@@ -1,11 +1,7 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.Map;
-
+import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
+import fr.insee.semweb.sdmx.metadata.Configuration;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
@@ -13,10 +9,15 @@ import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
-import fr.insee.semweb.sdmx.metadata.Configuration;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Test and launch methods for class <code>CodelistModelMaker</code>.
@@ -178,5 +179,16 @@ public class CodelistModelMakerTest {
 
 		Map<String, Resource> mappings = CodelistModelMaker.getNotationConceptMappings();
 		for (String clNotation : mappings.keySet()) System.out.println(clNotation + " - " + mappings.get(clNotation));
+	}
+
+	@Test
+	public void testCreateLanguageCodeList() throws IOException {
+
+		final String OASIS_ISO_639_PAGE = "http://psi.oasis-open.org/iso/639/";
+		List<String> languages = Arrays.asList("ar", "de", "en", "es", "fr", "it", "ja", "ro", "pt", "tr", "zh");
+
+		Model languagesCL = CodelistModelMaker.createLanguageCodeList(OASIS_ISO_639_PAGE, languages);
+		languagesCL.write(new FileWriter("src/main/resources/data/cl-language.ttl"), "TTL");
+		languagesCL.close();
 	}
 }

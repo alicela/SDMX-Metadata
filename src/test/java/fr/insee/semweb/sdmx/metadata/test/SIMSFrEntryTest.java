@@ -1,29 +1,28 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import static org.junit.Assert.assertEquals;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.Map;
-
-import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.vocabulary.ORG;
-import org.apache.jena.vocabulary.RDFS;
-import org.apache.jena.vocabulary.XSD;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
 import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.SIMSFrEntry;
 import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
 import fr.insee.stamina.utils.DQV;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.vocabulary.ORG;
+import org.apache.jena.vocabulary.RDFS;
+import org.apache.jena.vocabulary.XSD;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class SIMSFrEntryTest {
 
 	static Map<String, Resource> clMappings = null;
 
-	@BeforeClass
+	@BeforeAll
 	public static void getMappings() {
 		// We will need the code mappings for the range calculations
 		clMappings = CodelistModelMaker.getNotationConceptMappings();

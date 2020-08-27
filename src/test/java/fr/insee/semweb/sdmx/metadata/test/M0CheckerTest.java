@@ -1,17 +1,7 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.SortedSet;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.function.Consumer;
-
+import fr.insee.semweb.sdmx.metadata.Configuration;
+import fr.insee.semweb.sdmx.metadata.M0Checker;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Statement;
@@ -19,10 +9,13 @@ import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import fr.insee.semweb.sdmx.metadata.Configuration;
-import fr.insee.semweb.sdmx.metadata.M0Checker;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * Test and launch methods for class <code>M0Checker</code>.

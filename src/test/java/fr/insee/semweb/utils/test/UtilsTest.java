@@ -1,11 +1,10 @@
 package fr.insee.semweb.utils.test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-
+import fr.insee.semweb.utils.Utils;
 import org.junit.jupiter.api.Test;
 
-import fr.insee.semweb.utils.Utils;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Test and launch methods for class <code>Utils</code>.

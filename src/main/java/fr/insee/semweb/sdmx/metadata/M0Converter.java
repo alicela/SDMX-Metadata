@@ -625,7 +625,7 @@ public class M0Converter {
 
 		logger.info(indicatorRealNumber + " indicators extracted, now adding the PRODUCED_FROM, RELATED_TO and REPLACES relations");
 		logger.debug("Reading the M0 model on associations from dataset " + M0_FILE_NAME);
-		Model m0AssociationModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "asssociations");
+		Model m0AssociationModel = m0Dataset.getNamedModel(M0_BASE_GRAPH_URI + "associations");
 		Map<String, List<String>> multipleRelations = M0Extractor.extractProductionRelations(m0AssociationModel);
 		for (String indicatorM0URI : multipleRelations.keySet()) {
 			String indicatorTargetURI = allURIMappings.get(indicatorM0URI);

@@ -356,7 +356,7 @@ public class Configuration {
 
 	/** URI of an Insee organizational unit */
 	public static String inseeUnitURI(String timbre) {
-		return INSEE_ORG_BASE_URI + "insee/" + timbre.toLowerCase();
+		return INSEE_ORG_BASE_URI + "insee/" + timbre.toUpperCase();
 	}
 
 	/** Returns a concept name associated to a code list name of the type CL_XXX_YYY */

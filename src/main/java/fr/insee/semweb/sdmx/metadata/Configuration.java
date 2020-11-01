@@ -135,9 +135,11 @@ public class Configuration {
 	/** RDF predicate connecting rich text resources to documents/links resources */
 	public static Property ADDITIONAL_MATERIAL = ResourceFactory.createProperty("http://rdf.insee.fr/def/base#additionalMaterial");
 
-	/** Language codes (for now using http://psi.oasis-open.org/iso/639/) */
-	public static final Resource LANGUAGE_EN = ResourceFactory.createResource("http://psi.oasis-open.org/iso/639/#eng");
-	public static final Resource LANGUAGE_FR = ResourceFactory.createResource("http://psi.oasis-open.org/iso/639/#fra");
+	/** Language codes (reference is http://psi.oasis-open.org/iso/639/) */
+	// English (same as http://psi.oasis-open.org/iso/639/#eng)
+	public static final Resource LANGUAGE_EN = ResourceFactory.createResource("http://id.insee.fr/codes/langue/en");
+	// French (same as http://psi.oasis-open.org/iso/639/#fra)
+	public static final Resource LANGUAGE_FR = ResourceFactory.createResource("http://id.insee.fr/codes/langue/fr");
 
 	// Parameters, mapping and other useful objects
 

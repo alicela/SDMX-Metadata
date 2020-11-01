@@ -280,7 +280,7 @@ public class SIMSModelMaker {
 			attributeSpec.addProperty(sdmxModel.getProperty(Configuration.SDMX_MM_BASE_URI + "metadataAttributeProperty"), attributeProperty);
 			// The type of the property depends on the values of the representation variables (SIMS and Insee)
 			Resource propertyRange = entry.getRange(simsStrict, clMappings);
-			if (propertyRange == null) logger.error("Range undertermined for SIMSEntry " + entry.getNotation());
+			if (propertyRange == null) logger.error("Range undetermined for SIMSEntry " + entry.getNotation());
 			else {
 				attributeProperty.addProperty(RDFS.range, propertyRange);
 				// Add the type of OWL property (datatype or object)

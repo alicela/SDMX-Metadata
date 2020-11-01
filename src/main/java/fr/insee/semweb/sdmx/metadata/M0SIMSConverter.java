@@ -865,7 +865,7 @@ public class M0SIMSConverter extends M0Converter {
 	/**
 	 * Returns the correspondence between M0 documentations identifiers and URIs of associated target resources documented, sorted numerically.
 	 * 
-	 * @param m0AssociationModel The M0 'associations' model where the information about associations should be read.
+	 * @param m0AssociationsModel The M0 'associations' model where the information about associations should be read.
 	 * @return A <code>Map</code> whose keys are documentation identifiers and values are target URI of the documented resources, sorted numerically.
 	 */
 	public static SortedMap<Integer, String> getSIMSAttachments(Model m0AssociationsModel) {

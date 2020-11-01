@@ -201,14 +201,16 @@ public class OrganizationModelMaker {
 			SearchControls controls = new SearchControls();
 			controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
 			controls.setReturningAttributes(ldapAttributes);
-			// Execute search and browse through results to fill unit lists
+			// Execute search and browse through results to fill list of units and hierarchy
 			NamingEnumeration<SearchResult> results = context.search(ldapBase, ldapFilter, controls);
 			while (results.hasMore()) {
 				SearchResult entree = results.next();
-				String unit = entree.getAttributes().get(ldapAttributes[0]).toString();
-				units.put(unit, entree.getAttributes().get(ldapAttributes[1]).toString());
+				String unit = entree.getAttributes().get(ldapAttributes[0]).get(0).toString(); // Get first (and unique) value of 'ou' attribute
+				// HACK Filter out the 'AUTRE' unit
+				if ("AUTRE".equalsIgnoreCase(unit)) continue;
+				units.put(unit, entree.getAttributes().get(ldapAttributes[1]).get(0).toString()); // Get first (and unique) value of 'description' attribute
 				if (entree.getAttributes().get(ldapAttributes[2]) != null) {
-					String parent = entree.getAttributes().get(ldapAttributes[2]).toString().split(",")[0].substring(3);
+					String parent = entree.getAttributes().get(ldapAttributes[2]).get(0).toString().split(",")[0].substring(3); // First RDN is 'ou=<Id>', thus the substring
 					hierarchy.put(unit, parent);
 				}
 			}
@@ -216,6 +218,7 @@ public class OrganizationModelMaker {
 		} catch (NamingException e) {
 			logger.error("Error while querying the list of units - " + e.getMessage());
 		}
+		System.out.println(hierarchy);
 
 		// Create the Jena model
 		Model inseeModel = ModelFactory.createDefaultModel();

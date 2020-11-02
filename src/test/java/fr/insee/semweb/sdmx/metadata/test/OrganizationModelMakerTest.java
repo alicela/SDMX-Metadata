@@ -25,6 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * @author Franck
  */
 public class OrganizationModelMakerTest {
+	
+	Model inseeModel;
 
 	/**
 	 * Tests the method computing an organization URI from a label.
@@ -82,15 +84,15 @@ public class OrganizationModelMakerTest {
 	 * @throws Exception In case of problem creating the dataset.
 	 */
 	@Test
-	public void createOrganizationDataset(boolean useLDAP) throws IOException {
-
+	public void createOrganizationDataset() throws IOException {
+		if (inseeModel==null) inseeModel = OrganizationModelMaker.createInseeModelFromLDAP();
+		
 		String inseeGraphURI = Configuration.INSEE_BASE_GRAPH_URI + "organisations/insee";
 		String ssmGraphURI = Configuration.INSEE_BASE_GRAPH_URI + "organisations"; 
 
 		Workbook orgWorkbook = WorkbookFactory.create(new File(Configuration.ORGANIZATIONS_XLSX_FILE_NAME));
 
 		Dataset dataset = DatasetFactory.create();
-		Model inseeModel = useLDAP ? OrganizationModelMaker.createInseeModelFromLDAP() : OrganizationModelMaker.createInseeModel(orgWorkbook);
 		Model ssmModel = OrganizationModelMaker.createSSMModel(orgWorkbook);
 		if (inseeGraphURI.equals(ssmGraphURI)) dataset.addNamedModel(inseeGraphURI, inseeModel.add(ssmModel));
 		else dataset.addNamedModel(inseeGraphURI, inseeModel).addNamedModel(ssmGraphURI, ssmModel);
@@ -99,5 +101,11 @@ public class OrganizationModelMakerTest {
 		inseeModel.close();
 		ssmModel.close();
 		dataset.close();
+	}
+	
+	public void createOrganizationDataset(boolean useLDAP) throws IOException {
+		Workbook orgWorkbook = WorkbookFactory.create(new File(Configuration.ORGANIZATIONS_XLSX_FILE_NAME));
+		inseeModel = useLDAP ? OrganizationModelMaker.createInseeModelFromLDAP() : OrganizationModelMaker.createInseeModel(orgWorkbook);
+		createOrganizationDataset();
 	}
 }

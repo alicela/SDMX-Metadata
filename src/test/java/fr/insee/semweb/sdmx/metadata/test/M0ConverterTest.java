@@ -175,7 +175,7 @@ public class M0ConverterTest {
 	public void testConvertAllBaseResources() throws Exception {
 
 		// Code lists from the Excel file
-		Dataset allBaseResourcesDataset = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes");
+		Dataset allBaseResourcesDataset = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), "http://rdf.insee.fr/graphes/concepts", "http://rdf.insee.fr/graphes/codes", null);
 		// Families, series, operations converted from the M0 model
 		allBaseResourcesDataset.addNamedModel("http://rdf.insee.fr/graphes/operations", M0Converter.convertAllOperations());
 		// Indicators converted from the M0 model
@@ -184,9 +184,9 @@ public class M0ConverterTest {
 		Workbook orgWorkbook = WorkbookFactory.create(new File(Configuration.ORGANIZATIONS_XLSX_FILE_NAME));
 		Model orgModel = OrganizationModelMaker.createSSMModel(orgWorkbook);
 		orgModel.add(OrganizationModelMaker.createInseeModel(orgWorkbook));
-		orgModel.close();
 		allBaseResourcesDataset.addNamedModel("http://rdf.insee.fr/graphes/organisations", orgModel);
-		
+		orgModel.close();
+
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-base-resources.trig"), allBaseResourcesDataset, Lang.TRIG);
 		allBaseResourcesDataset.close();
 	}

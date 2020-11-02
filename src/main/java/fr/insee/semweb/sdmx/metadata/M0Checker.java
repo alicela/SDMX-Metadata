@@ -245,10 +245,9 @@ public class M0Checker {
 				// Create map entry if it does not exist already
 				if (!attributesByDocumentation.containsKey(documentationIntId)) attributesByDocumentation.put(documentationIntId, new TreeSet<String>());
 				// In this case we make lists of attribute names, not full URIs
-				if (pathComponents.length == 1) {
-					report.append(Arrays.toString(pathComponents)).append(System.lineSeparator());
-					if (!attributesByDocumentation.get(documentationIntId).add(pathComponents[1])) logger.warn("Duplicate values: " + Arrays.toString(pathComponents));
-				}
+				if (pathComponents.length == 1) report.append(Arrays.toString(pathComponents)).append(System.lineSeparator());
+				if (pathComponents.length > 1 && !attributesByDocumentation.get(documentationIntId).add(pathComponents[1])) logger.warn("Duplicate values: " + Arrays.toString(pathComponents));
+				
 				else logger.error("Invalid documentation URI: " + documentationM0URI);
 			} catch (NumberFormatException e) {
 				// Should be the sequence number resource: http://baseUri/documentations/documentation/sequence

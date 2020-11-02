@@ -1,6 +1,6 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -8,17 +8,13 @@ import java.util.SortedSet;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.RDFDataMgr;
+import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
 
 import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.GeoMapper;
 
 class GeoMapperTest {
-
-	@Test
-	public void testCreateGeoURIMappings() {
-		fail("Not yet implemented");
-	}
 
 	/**
 	 * Gets the mappings between target territory names and URIs and prints it to the console.

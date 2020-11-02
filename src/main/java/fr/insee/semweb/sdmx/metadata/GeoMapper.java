@@ -135,6 +135,9 @@ public class GeoMapper {
 
 		SortedMap<String, String> labelURIMappings = new TreeMap<>();
 
+		System.setProperty("http.proxyHost", "proxy-rie.http.insee.fr");
+		System.setProperty("http.proxyPort", "8080");
+		
 		try (QueryExecution execution = QueryExecutionFactory.sparqlService(SPARQL_ENDPOINT, query)) {
 			ResultSet results = execution.execSelect();
 			results.forEachRemaining(solution -> {

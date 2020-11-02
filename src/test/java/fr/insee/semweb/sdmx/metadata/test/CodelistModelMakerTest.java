@@ -1,7 +1,13 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
-import fr.insee.semweb.sdmx.metadata.Configuration;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
@@ -11,13 +17,8 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import fr.insee.semweb.sdmx.metadata.CodelistModelMaker;
+import fr.insee.semweb.sdmx.metadata.Configuration;
 
 /**
  * Test and launch methods for class <code>CodelistModelMaker</code>.
@@ -34,8 +35,14 @@ public class CodelistModelMakerTest {
 	 */
 	@Test
 	public void exportAllAsTriG() throws IOException {
-		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI, "CL_AREA", "CL_UNIT_MEASURE");
+	    final String OASIS_ISO_639_PAGE = "http://psi.oasis-open.org/iso/639/";
+            List<String> languages = Arrays.asList("ar", "de", "en", "es", "fr", "it", "ja", "ro", "pt", "tr", "zh");
+
+            Model languagesCL = CodelistModelMaker.createLanguageCodeList(OASIS_ISO_639_PAGE, languages);
+	    
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI,languagesCL, "CL_AREA", "CL_UNIT_MEASURE");
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-codes.trig"), codes, Lang.TRIG);
+	        languagesCL.close();
 		codes.close();
 	}
 	
@@ -47,7 +54,7 @@ public class CodelistModelMakerTest {
 	@Test
 	public void testReadCodelistDataset() throws IOException {
 
-		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI);
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI, null);
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl.trig"), codes, Lang.TRIG);
 		codes.close();
 	}
@@ -60,7 +67,7 @@ public class CodelistModelMakerTest {
 	@Test
 	public void testReadCodelistDatasetExceptArea() throws IOException {
 
-		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI, "CL_AREA");
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI,null, "CL_AREA");
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl-x-area.trig"), codes, Lang.TRIG);
 		codes.close();
 	}
@@ -73,7 +80,7 @@ public class CodelistModelMakerTest {
 	@Test
 	public void testReadCodelistDatasetExceptAreaAndMeasure() throws IOException {
 
-		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI, "CL_AREA", "CL_UNIT_MEASURE");
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI,null, "CL_AREA", "CL_UNIT_MEASURE");
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl-x-area-measure.trig"), codes, Lang.TRIG);
 		codes.close();
 	}
@@ -86,7 +93,7 @@ public class CodelistModelMakerTest {
 	@Test
 	public void testReadCodelistDatasetExceptThemes() throws IOException {
 
-		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI, "CL_TOPICS");
+		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI,null, "CL_TOPICS");
 		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-cl-x-themes.trig"), codes, Lang.TRIG);
 		codes.close();
 	}
@@ -178,7 +185,9 @@ public class CodelistModelMakerTest {
 	public void testGetNotationConceptMappings() {
 
 		Map<String, Resource> mappings = CodelistModelMaker.getNotationConceptMappings();
-		for (String clNotation : mappings.keySet()) System.out.println(clNotation + " - " + mappings.get(clNotation));
+		for (String clNotation : mappings.keySet()) {
+            System.out.println(clNotation + " - " + mappings.get(clNotation));
+        }
 	}
 
 	@Test

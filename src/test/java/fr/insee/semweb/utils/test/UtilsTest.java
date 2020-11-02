@@ -16,7 +16,7 @@ class UtilsTest {
 	@Test
 	public void testCamelCase1() {
 		assertEquals(Utils.camelCase("How about that", true, false), "howAboutThat");
-		assertEquals(Utils.camelCase("How about that", true, true), "howsAboutThat");
+		assertEquals(Utils.camelCase("How about that", true, true), "howsAboutsThats");
 		assertEquals(Utils.camelCase("A  B C dF edd", true, false), "aBCDfEdd");
 		assertNull(Utils.camelCase(null, true, true));
 	}

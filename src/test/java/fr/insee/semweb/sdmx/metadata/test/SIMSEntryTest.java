@@ -2,6 +2,8 @@ package fr.insee.semweb.sdmx.metadata.test;
 
 import fr.insee.semweb.sdmx.metadata.SIMSChecker;
 import fr.insee.semweb.sdmx.metadata.SIMSEntry;
+
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -37,13 +39,17 @@ public class SIMSEntryTest {
 
 	@Test
 	public void testEquals() {
-		List<SIMSEntry> reference = SIMSChecker.readSIMSFromExcel(new File("src/main/resources/data/SIMS_V2 0.xlsx"), false);
-		List<SIMSEntry> modified = SIMSChecker.readSIMSFromExcel(new File("src/main/resources/data/SIMSplus_V20170213.xlsx"), false);
-		int index = 0;
-		for (SIMSEntry entry : reference) {
-			SIMSEntry compareEntry = modified.get(index);
-			assertEquals(entry, compareEntry);
-			index++;
+		File refFile = new File("src/main/resources/data/SIMS_V2 0.xlsx") ;
+		File modifFile = new File("src/main/resources/data/SIMSplus_V20170213.xlsx" ) ;
+		if (refFile.exists() && modifFile.exists()) {
+			List<SIMSEntry> reference = SIMSChecker.readSIMSFromExcel(refFile, false);
+			List<SIMSEntry> modified = SIMSChecker.readSIMSFromExcel(modifFile, false);
+			int index = 0;
+			for (SIMSEntry entry : reference) {
+				SIMSEntry compareEntry = modified.get(index);
+				assertEquals(entry, compareEntry);
+				index++;
+			}
 		}
 	}
 }

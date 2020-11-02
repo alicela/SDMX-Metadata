@@ -40,7 +40,7 @@ public class SourceConverter {
 
 	public static Logger logger = LogManager.getLogger(SourceConverter.class);
 
-	static String workingDir = "D:\\Documents\\Travail\\Sources\\";
+	static String workingDir = "C:\\Temp\\sdmx\\";
 	public static String OPERATION_LIST_FILE_NAME = "src/main/resources/Comparaison_Insee-sources-methodes-CASD-GD.xlsx";
 
 	/** List of all URIs (read from a text file produced by XSLT on M0 DDS export */
@@ -198,7 +198,6 @@ public class SourceConverter {
 			sourceModel.write(new FileOutputStream(workingDir + "models/"+ operationName.toLowerCase() + ".ttl"), "TTL");
 			sourceModel.close();
 		}
-		m0Model.close();
 	}
 
 	/**
@@ -216,7 +215,7 @@ public class SourceConverter {
 					            {return getOperationId(statement.getSubject().getURI()).equals(operationURI);}
 						    };
 		// Copy the relevant statements to the extract model
-		operationModel.add(m0Model.listStatements(selector));
+		if (m0Model != null) operationModel.add(m0Model.listStatements(selector));
 
 		return operationModel;
 	}

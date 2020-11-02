@@ -1,6 +1,13 @@
 package fr.insee.semweb.sdmx.metadata;
 
-import fr.insee.semweb.utils.Utils;
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
@@ -24,9 +31,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.*;
+import fr.insee.semweb.utils.Utils;
 
 /**
  * Creates RDF models and datasets containing the code lists used in the SIMSFr.
@@ -47,7 +52,7 @@ public class CodelistModelMaker {
 	 * @param exclusions Identifiers (notations, e.g. CL_AREA) of code list that will be excluded from the output.
 	 * @return A Jena <code>Dataset</code> containing the code lists as SKOS concept schemes in two graphs (or one if CL_TOPICS excluded).
 	 */
-	public static Dataset readCodelistDataset(File xlxsFile, String conceptGraph, String codeGraph, String... exclusions) {
+	public static Dataset readCodelistDataset(File xlxsFile, String conceptGraph, String codeGraph,Model modelToAdd, String... exclusions) {
 
 		Workbook clWorkbook;
 		try {
@@ -59,25 +64,37 @@ public class CodelistModelMaker {
 
 		logger.info("Reading code lists from Excel file " + Configuration.CL_XLSX_FILE_NAME);
 		List<String> exclusionList = Arrays.asList(exclusions);
-		if (!exclusionList.isEmpty()) logger.info("The following code lists are excluded " + exclusionList);
+		if (!exclusionList.isEmpty()) {
+            logger.info("The following code lists are excluded " + exclusionList);
+        }
 		Model concepts = ModelFactory.createDefaultModel();
-		Model codes = ModelFactory.createDefaultModel();
+		Model codes = modelToAdd == null ? ModelFactory.createDefaultModel() : modelToAdd;
 
 		// Each code list should be on a dedicated sheet of the spreadsheet
 		Iterator<Sheet> sheets = clWorkbook.sheetIterator();
 		while (sheets.hasNext()) {
 			Sheet sheet = sheets.next();
 			String sheetName = sheet.getSheetName().trim();
-			if (exclusionList.contains(sheetName)) continue;
+			if (exclusionList.contains(sheetName)) {
+                continue;
+            }
 			logger.info("Reading " + sheetName + " code list");
-			if (sheet.getSheetName().equals("CL_TOPICS")) concepts.add(readThemesConceptScheme(sheet));
-			else codes.add(readCodelist(sheet));
+			if (sheet.getSheetName().equals("CL_TOPICS")) {
+                concepts.add(readThemesConceptScheme(sheet));
+            }
+            else {
+                codes.add(readCodelist(sheet));
+            }
 		}
 		try { clWorkbook.close(); } catch (IOException ignored) { }
 
 		Dataset dataset = DatasetFactory.create();
-		if (concepts.size() > 0) dataset.addNamedModel(conceptGraph, concepts);
-		if (codes.size() > 0) dataset.addNamedModel(codeGraph, codes);
+		if (concepts.size() > 0) {
+            dataset.addNamedModel(conceptGraph, concepts);
+        }
+		if (codes.size() > 0) {
+            dataset.addNamedModel(codeGraph, codes);
+        }
 
 		concepts.close();
 		codes.close();
@@ -125,7 +142,9 @@ public class CodelistModelMaker {
 		while (rows.hasNext()) {
 			Row row = rows.next();
 			notation = row.getCell(0, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
-			if (notation.length() == 0) continue;
+			if (notation.length() == 0) {
+                continue;
+            }
 			englishLabel = row.getCell(1, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
 			frenchLabel = row.getCell(2, MissingCellPolicy.CREATE_NULL_AS_BLANK).toString().trim();
 			Resource code = codeList.createResource(Configuration.inseeCodeURI(notation, Utils.camelCase(pathElement, false, false)), SKOS.Concept);
@@ -214,7 +233,10 @@ public class CodelistModelMaker {
 		while (sheets.hasNext()) {
 			Sheet sheet = sheets.next();
 			String clNotation = sheet.getSheetName();
-			if (clNotation.contains("CL_TOPICS")) continue; // We exclude the category list
+			if (clNotation.contains("CL_TOPICS"))
+             {
+                continue; // We exclude the category list
+            }
 
 			Iterator<Row> rows = sheet.rowIterator();
 			rows.next();
@@ -255,7 +277,7 @@ public class CodelistModelMaker {
 		codeClass.addProperty(RDFS.seeAlso, scheme);  // Add a reference from the concept class to the scheme
 
 		// Connect to the web page and browse the DOM to get the desired languages
-		Document iso639Page = Jsoup.connect(iso639PageURL).get();
+		Document iso639Page = Jsoup.connect(iso639PageURL).proxy("proxy-rie.http.insee.fr",8080).get();
 		Element languageTable = iso639Page.body().getElementsByTag("table").last().getElementsByTag("tbody").first();
 
 		Elements rows = languageTable.getElementsByTag("tr");
@@ -297,7 +319,9 @@ public class CodelistModelMaker {
 	 * @return The label stripped from its parenthesis.
 	 */
 	private static String stripLastParenthesis(String label) {
-		if (!label.endsWith(")")) return label;
+		if (!label.endsWith(")")) {
+            return label;
+        }
 		return label.substring(0, label.lastIndexOf('('));
 	}
 }

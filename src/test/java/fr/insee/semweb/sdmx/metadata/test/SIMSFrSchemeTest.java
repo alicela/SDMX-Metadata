@@ -24,14 +24,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  */
 public class SIMSFrSchemeTest {
 
-	SIMSFrScheme simsFrScheme = null;
-	StringBuilder report = null;
+	static SIMSFrScheme simsFrScheme = null;
+	static StringBuilder report = null;
 
 	/**
 	 * Reads the SIMSFr from the Excel file.
 	 */
 	@BeforeAll
-	public void readScheme() {
+	public static void readScheme() {
 		simsFrScheme = SIMSFrScheme.readSIMSFrFromExcel(new File(Configuration.SIMS_XLSX_FILE_NAME));
 		report = new StringBuilder();
 	}

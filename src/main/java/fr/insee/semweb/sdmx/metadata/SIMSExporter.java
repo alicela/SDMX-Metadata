@@ -9,6 +9,10 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdfconnection.RDFConnection;
+import org.apache.jena.vocabulary.DCTerms;
+import org.apache.jena.vocabulary.DCTypes;
+import org.apache.jena.vocabulary.ORG;
+import org.apache.jena.vocabulary.SKOS;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -23,13 +27,14 @@ public class SIMSExporter {
 	}
 
 	/**
-	 * Queries over an RDF connection to create a Jena model mixing direct information about a target resource and a SIMS report attached.
+	 * Queries over an RDF connection to create a Jena SIMS expanded model.
+	 * A SIMS expanded model completes the base SIMS model with additional context information (code labels, target resource, etc.).
 	 * 
 	 * @param connection <code>RDFConnection</code> allowing to query RDF data.
 	 * @param simsURI URI of the SIMS document.
-	 * @return A Jena model mixing the SIMS report and the direct information about the resource to which it is attached.
+	 * @return A Jena model containing the expanded SIMS information.
 	 */
-	public static Model querySIMSModel(RDFConnection connection, String simsURI) {
+	public static Model queryExpandedSIMSModel(RDFConnection connection, String simsURI) {
 
 		// Get the graph containing the SIMS information
 		// For example: http://id.insee.fr/qualite/rapport/1507 -> http://rdf.insee.fr/graphes/qualite/rapport/1507
@@ -43,12 +48,31 @@ public class SIMSExporter {
 			logger.error("SIMS documentation " + simsURI + " should target exactly one resource, but found " + targets.size() + " - " + targets);
 			return null;
 		}
+		// Add description of the target resource to the model
 		String targetURI = targets.get(0).toString();
 		Query targetQuery = QueryFactory.create("DESCRIBE <" + targetURI + ">");
 		logger.debug("About to send DESCRIBE query for resource " + targetURI);
-
 		simsModel.add(connection.queryDescribe(targetQuery));
 
+		// TODO Add code labels
+
+		addPrefixes(simsModel);
 		return simsModel;
+	}
+
+	/**
+	 * Adds to a completed SIMS model the prefix mappings that it uses.
+	 *
+	 * @param model The completed SIMS model.
+	 */
+	private static void addPrefixes(Model model) {
+		model.setNsPrefix("skos", SKOS.getURI());
+		model.setNsPrefix("dcterms", DCTerms.getURI());
+		model.setNsPrefix("dctypes", DCTypes.getURI());
+		model.setNsPrefix("org", ORG.getURI());
+		model.setNsPrefix("sdmx-mm", "http://www.w3.org/ns/sdmx-mm#");
+		model.setNsPrefix("ibase", "http://rdf.insee.fr/def/base#");
+		model.setNsPrefix("sims-att", "http://ec.europa.eu/eurostat/simsv2/attribute/");
+		model.setNsPrefix("isims-att", "http://id.insee.fr/qualite/simsv2fr/attribut/");
 	}
 }

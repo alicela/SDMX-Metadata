@@ -98,6 +98,8 @@ public class Configuration {
 	public static String INSEE_CODE_CONCEPTS_BASE_URI = INSEE_CODES_BASE_URI + "concept/";
 	/** Base URI for organizations */
 	public static String INSEE_ORG_BASE_URI = "http://id.insee.fr/organisations/";
+	/** Use names (e.g. DATA_VALIDATION) for SIMS concepts URIs (otherwise use item numbers like S.18.4) */
+	public static boolean USE_NAMES_FOR_SIMS_CONCEPTS_URIS = true;
 
 	// Resources in the M0 model
 
@@ -328,9 +330,9 @@ public class Configuration {
 		return INSEE_CODES_BASE_URI + Utils.camelCase(conceptName, true, false) + "/" + notation;
 	}
 
-	/** URI of a SIMSv2 concept as a function of its notation */
-	public static String simsConceptURI(String notation) {
-		return BASE_SIMS_URI + "concept/" + notation;
+	/** URI of a SIMSv2 concept as a function of a local identifier */
+	public static String simsConceptURI(String identifier) {
+		return BASE_SIMS_URI + "concept/" + identifier;
 	}
 
 	/** URI of the graph containing a SIMSv2Fr report */
@@ -340,8 +342,9 @@ public class Configuration {
 
 	/** URI of a SIMSv2/SIMSv2Fr concept represented by a SIMSFrEntry */
 	public static String simsConceptURI(SIMSFrEntry entry) {
-		if (entry.isOriginal()) return simsConceptURI(entry.getNotation());
-		return "http://id.insee.fr/concepts/simsv2fr/" + entry.getNotation();
+		String localIdentifier = USE_NAMES_FOR_SIMS_CONCEPTS_URIS ? entry.getCode() : entry.getNotation();
+		if (entry.isOriginal()) return simsConceptURI(localIdentifier);
+		return "http://id.insee.fr/concepts/simsv2fr/" + localIdentifier;
 	}
 
 	/** Determines from its identifier if an organization is external or internal */

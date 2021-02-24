@@ -2,6 +2,7 @@ package fr.insee.semweb.sdmx.metadata;
 
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SKOS;
@@ -29,12 +30,18 @@ public class GeoModelMaker {
 		geoModel.setNsPrefix("skos", SKOS.getURI());
 		geoModel.setNsPrefix("rdfs", RDFS.getURI());
 		geoModel.setNsPrefix("igeo", "http://rdf.insee.fr/def/geo#");
+		//geoModel.setNsPrefix("geo", "http://www.opengis.net/ont/geosparql#");
+		
+		Property union = geoModel.createProperty("http://www.opengis.net/ont/geosparql#union");
+		Property difference = geoModel.createProperty("http://www.opengis.net/ont/geosparql#difference");
 
 		Resource territoireStatistique = geoModel.createResource("http://rdf.insee.fr/def/geo#TerritoireStatistique");
 		Resource franceHorsMayotte = geoModel.createResource(Configuration.QUALITY_BASE_URI + "territoire/franceHorsMayotte", territoireStatistique);
 		logger.debug("Creating resource 'France hors Mayotte");
 		franceHorsMayotte.addProperty(SKOS.prefLabel, geoModel.createLiteral("France hors Mayotte", "fr"));
-
+		franceHorsMayotte.addProperty(union, geoModel.createResource("http://id.insee.fr/geo/territoireFrancais/territoireDeLaRepubliqueFrancaise") );
+		franceHorsMayotte.addProperty(difference, geoModel.createLiteral("Mayotte"));
+		
 		return geoModel;
 	}
 }

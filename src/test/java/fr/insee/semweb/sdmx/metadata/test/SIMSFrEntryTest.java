@@ -6,6 +6,7 @@ import fr.insee.semweb.sdmx.metadata.SIMSFrEntry;
 import fr.insee.semweb.sdmx.metadata.SIMSFrScheme;
 import fr.insee.stamina.utils.DQV;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.vocabulary.DCTypes;
 import org.apache.jena.vocabulary.ORG;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.XSD;
@@ -78,7 +79,7 @@ public class SIMSFrEntryTest {
 		testEntry.setInseeRepresentation("Code list : Liste Insee+Liste Liste des SSM + ajouts possibles");
 		assertEquals(testEntry.getRange(false, clMappings), ORG.Organization);
 		testEntry.setInseeRepresentation("Rich text + other material (0,n) : label+URI/URL");
-		assertEquals(testEntry.getRange(false, clMappings), RDFS.Resource);
+		assertEquals(testEntry.getRange(false, clMappings), DCTypes.Text);
 	}
 
 	@Test

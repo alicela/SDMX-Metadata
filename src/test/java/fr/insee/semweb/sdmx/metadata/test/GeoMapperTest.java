@@ -1,14 +1,11 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
 import java.util.SortedMap;
 import java.util.SortedSet;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.RDFDataMgr;
-import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
 
 import fr.insee.semweb.sdmx.metadata.Configuration;

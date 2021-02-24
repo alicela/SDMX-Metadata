@@ -504,7 +504,7 @@ public class M0ConverterTest {
 		List<Integer> simNumber = Arrays.asList(1893);
 
 		String fileName = "src/main/resources/data/models/sims-" + simNumber.get(0) + "." + (namedGraphs ? "trig" : "ttl");
-		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simNumber, namedGraphs, false, false);
+		Dataset simsDataset = M0SIMSConverter.convertToSIMS(simNumber, namedGraphs, true, true);
 		RDFDataMgr.write(new FileOutputStream(fileName), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE)); // TODO Check if Lang.TRIG is OK for both cases
 	}
 

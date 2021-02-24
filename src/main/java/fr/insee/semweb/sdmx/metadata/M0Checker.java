@@ -1,8 +1,6 @@
 package fr.insee.semweb.sdmx.metadata;
 
 import static fr.insee.semweb.sdmx.metadata.Configuration.M0_BASE_GRAPH_URI;
-import static fr.insee.semweb.sdmx.metadata.Configuration.inseeUnitURI;
-import static fr.insee.semweb.sdmx.metadata.Configuration.organizationURI;
 
 import java.io.File;
 import java.io.FileOutputStream;

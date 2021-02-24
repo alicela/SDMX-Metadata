@@ -52,7 +52,7 @@ class SIMSExporterTest {
 
 		try (RDFConnection connection = RDFConnectionFactory.connect(simsDataset)) {
 
-			Model simsModel = SIMSExporter.querySIMSModel(connection, simsURI);
+			Model simsModel = SIMSExporter.queryExpandedSIMSModel(connection, simsURI);
 			simsModel.write(new FileOutputStream("src/test/resources/models/" + simsId + ".ttl"), "TTL");
 		}
 		simsDataset.close();

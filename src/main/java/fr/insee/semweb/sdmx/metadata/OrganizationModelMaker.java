@@ -52,7 +52,7 @@ public class OrganizationModelMaker {
 
 	public static Logger logger = LogManager.getLogger(OrganizationModelMaker.class);
 	/** Use directly the DILA URIs for the organizations or make sameAs links */
-	public static boolean USE_DILA_URI = true;
+	public static boolean USE_DILA_URI = false;
 	/** For these line numbers, org:linkedTo relations will be used between the organization and its mother */
 	public static List<Integer> reportLinkOrg = Arrays.asList(3, 21, 22, 31, 32); // 3 DREES (to MFEDF), 21 CNAMTS, 22 Céreq, 31 Bpifrance, 32 Acoss
 	/** For these line numbers, org:linkedTo relations will be used between the organization's mother and its grand-mother */

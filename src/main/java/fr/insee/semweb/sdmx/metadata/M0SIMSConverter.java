@@ -223,6 +223,51 @@ public class M0SIMSConverter extends M0Converter {
 				// No value is also acceptable if the type is DCTypes.Text and the resource has references to links or documents
 				else if (DCTypes.Text.equals(propertyRange) && (documentReferencesFr != null) && documentReferencesFr.containsKey(entry.getCode())) {
 					logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode() + ", but references exist: " + documentReferencesFr.get(entry.getCode()));
+					
+					// If specified, create a reported attribute (otherwise, the metadata attribute properties will be attached to the report)
+					Resource targetResource = null;
+					if (Configuration.CREATE_REPORTED_ATTRIBUTES) {
+						String reportedAttributeURI = Configuration.simsReportedAttributeURI(m0Id, entry.getNotation());
+						targetResource = simsModel.createResource(reportedAttributeURI, Configuration.SIMS_REPORTED_ATTRIBUTE);
+						targetResource.addProperty(simsModel.createProperty(Configuration.SDMX_MM_BASE_URI + "metadataReport"), report);
+					} else targetResource = report;
+					
+					// We are in the case of a 'text + seeAlso...' object. Create DCTypes.text instances for French and possibly English texts
+					Resource frenchTextResource = simsModel.createResource(Configuration.simsFrRichTextURI(m0Id, entry, "fr"), DCTypes.Text);
+					frenchTextResource.addProperty(DCTerms.language, Configuration.LANGUAGE_FR);
+					targetResource.addProperty(metadataAttributeProperty, frenchTextResource);
+					// We search for references to French documents or links attached to this attribute
+					SortedSet<String> thisAttributeReferences = (documentReferencesFr == null) ? null : documentReferencesFr.get(entry.getCode());
+					logger.debug("Attribute " + entry.getCode() + " has type 'rich text'");
+					if (thisAttributeReferences != null) {
+						logger.debug("Attribute " + entry.getCode() + " has French references " + thisAttributeReferences);
+						for (String refURI : thisAttributeReferences) {
+							// Add the referenced link/document as additional material to the text resource
+							Resource refResource = simsModel.createResource(refURI);
+							frenchTextResource.addProperty(Configuration.ADDITIONAL_MATERIAL, refResource);
+							// If requested, add all the properties of the link/document extracted from the document and links model
+							if (includeReferences) simsModel.add(simsDocumentsAndLinksModel.listStatements(refResource, null, (RDFNode) null));
+						}
+					}
+					// See if there is an English rich text value
+					Resource englishTextResource = null;
+					objectValues = m0Model.listObjectsOfProperty(m0EntryResource, Configuration.M0_VALUES_EN).toList();
+					if (objectValues.size() > 0) {
+						englishTextResource = simsModel.createResource(Configuration.simsFrRichTextURI(m0Id, entry, "en"), DCTypes.Text);
+						englishTextResource.addProperty(DCTerms.language, Configuration.LANGUAGE_EN);
+						targetResource.addProperty(metadataAttributeProperty, englishTextResource);
+						thisAttributeReferences = (documentReferencesEn == null) ? null : documentReferencesEn.get(entry.getCode());
+						if (thisAttributeReferences != null) {
+							logger.debug("Attribute " + entry.getCode() + " has English references " + thisAttributeReferences);
+							for (String refURI : thisAttributeReferences) {
+								// Add the referenced link/document as additional material to the text resource
+								Resource refResource = simsModel.createResource(refURI);
+								englishTextResource.addProperty(Configuration.ADDITIONAL_MATERIAL, refResource);
+								// If requested, add all the properties of the link/document extracted from the document and links model
+								if (includeReferences) simsModel.add(simsDocumentsAndLinksModel.listStatements(refResource, null, (RDFNode) null));
+							}
+						}
+					}
 				}
 				else {
 					logger.debug("No value found in the M0 documentation model for SIMSFr attribute " + entry.getCode());

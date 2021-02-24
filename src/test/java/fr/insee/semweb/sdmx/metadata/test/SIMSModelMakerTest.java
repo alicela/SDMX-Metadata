@@ -81,7 +81,7 @@ public class SIMSModelMakerTest {
 
 		metadata.addNamedModel(Configuration.INSEE_BASE_GRAPH_URI + "qualite/simsv2fr", simsModel);
 		if (SDMX_MM_GRAPH != null) metadata.addNamedModel(SDMX_MM_GRAPH, sdmxMMModel);
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-metadata.trig"), metadata, Lang.TRIG);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/finalOutput/sims-metadata.trig"), metadata, Lang.TRIG);
 		simsModel.close();
 		sdmxMMModel.close();
 		metadata.close();
@@ -98,7 +98,7 @@ public class SIMSModelMakerTest {
 		// Adjust parameters or comment lines according to desired result
 		Model geoModel = GeoModelMaker.createGeoModel();
 		geography.addNamedModel(Configuration.INSEE_BASE_GRAPH_URI + "qualite/territoires", geoModel);
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-geo.trig"), geography, Lang.TRIG);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/finalOutput/sims-geo.trig"), geography, Lang.TRIG);
 		geoModel.close();
 		geography.close();
 	}

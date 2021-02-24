@@ -97,7 +97,7 @@ public class OrganizationModelMakerTest {
 		if (inseeGraphURI.equals(ssmGraphURI)) dataset.addNamedModel(inseeGraphURI, inseeModel.add(ssmModel));
 		else dataset.addNamedModel(inseeGraphURI, inseeModel).addNamedModel(ssmGraphURI, ssmModel);
 
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/organizations.trig"), dataset, Lang.TRIG);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/finalOutput/organizations.trig"), dataset, Lang.TRIG);
 		inseeModel.close();
 		ssmModel.close();
 		dataset.close();

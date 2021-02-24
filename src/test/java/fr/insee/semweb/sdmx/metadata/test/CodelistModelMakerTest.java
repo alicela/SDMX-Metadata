@@ -41,7 +41,7 @@ public class CodelistModelMakerTest {
             Model languagesCL = CodelistModelMaker.createLanguageCodeList(OASIS_ISO_639_PAGE, languages);
 	    
 		Dataset codes = CodelistModelMaker.readCodelistDataset(new File(Configuration.CL_XLSX_FILE_NAME), CONCEPTS_GRAPH_URI, CODES_GRAPH_URI,languagesCL, "CL_AREA", "CL_UNIT_MEASURE");
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-codes.trig"), codes, Lang.TRIG);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/finalOutput/sims-codes.trig"), codes, Lang.TRIG);
 	        languagesCL.close();
 		codes.close();
 	}

@@ -149,7 +149,7 @@ public class M0ConverterTest {
 	public void testConvertAllOperationsAndIndicators() throws IOException {
 
 		Dataset allOperationsAndIndicatorsDataset = M0Converter.convertAllOperationsAndIndicators("http://rdf.insee.fr/graphes/operations", "http://rdf.insee.fr/graphes/produits");
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/all-operations-and-indicators.trig"), allOperationsAndIndicatorsDataset, Lang.TRIG);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/finalOutput/all-operations-and-indicators.trig"), allOperationsAndIndicatorsDataset, Lang.TRIG);
 		allOperationsAndIndicatorsDataset.close();
 	}
 
@@ -449,10 +449,10 @@ public class M0ConverterTest {
 
 		boolean namedGraphs = true; // Each SIMSFr in its own graph
 		boolean withAttachments = true; // Include the attachments of SIMSFr to their base resource
-		boolean includeReferences = false; // Include in each SIMSFr the data on the documents or pages referenced (false recommended)
+		boolean includeReferences = true; // Include in each SIMSFr the data on the documents or pages referenced (false recommended)
 
 		Dataset simsDataset = M0SIMSConverter.convertToSIMS(null, namedGraphs, withAttachments, includeReferences);
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/sims-all." + (namedGraphs ? "trig" : "ttl")), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE));
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/finalOutput/sims-all." + (namedGraphs ? "trig" : "ttl")), simsDataset, (namedGraphs ? Lang.TRIG : Lang.TURTLE));
 		simsDataset.close();
 	}
 
@@ -471,7 +471,7 @@ public class M0ConverterTest {
 		Model documentsModel = M0SIMSConverter.convertDocumentsToSIMS();
 		documentsModel.add(M0SIMSConverter.convertLinksToSIMS());
 		documentsDataset.addNamedModel(documentGraph, documentsModel);
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/documents.trig"), documentsDataset, Lang.TRIG);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/finalOutput/documents.trig"), documentsDataset, Lang.TRIG);
 		documentsDataset.close();
 	}
 

@@ -3,14 +3,19 @@ package fr.insee.semweb.sdmx.metadata.test;
 import fr.insee.semweb.sdmx.metadata.PostProcessor;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
-import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.*;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.vocabulary.DCTerms;
+import org.apache.jena.vocabulary.SKOS;
 import org.junit.jupiter.api.Test;
 
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  * Test and launch methods for class <code>PostProcessor</code>.
@@ -69,5 +74,22 @@ class PostProcessorTest {
 		resourceDataset.close();
 		simsDataset.close();
 		modifiedResourceDataset.close();
+	}
+
+	@Test
+	public void testAddStatements() throws IOException {
+
+		Dataset codeDataset = RDFDataMgr.loadDataset("src/main/resources/data/sims-codes.trig");
+		Model codeModel = codeDataset.getNamedModel("http://rdf.insee.fr/graphes/codes");
+
+		Resource example = ResourceFactory.createResource("http://example.org");
+		Resource ccBy4 = ResourceFactory.createResource("https://creativecommons.org/licenses/by/4.0/");
+		Statement statement = ResourceFactory.createStatement(example, DCTerms.license, ccBy4);
+		List<Statement> statementList = Arrays.asList(statement);
+		PostProcessor.addStatements(codeModel, SKOS.ConceptScheme, statementList);
+
+		codeModel.write(new FileOutputStream("src/test/resources/modified-sims-codes.ttl"), "TTL");
+		codeModel.close();
+		codeDataset.close();
 	}
 }

@@ -74,4 +74,34 @@ import java.util.function.Consumer;
 			}
 		});
 	}
-}
+
+	/**
+	 * Modifies a Jena model by adding statements on resources of a given class.
+	 * All statements of the list will be added to each instance of the given class which is subject in the model.
+	 * Subjects of the provided statements are ignored.
+	 * No checks are made to verify if statements are already in the model.
+	 *
+	 * @param model The Jena model to modify.
+	 * @param resourceType The type (OWL/RDFS class) of subject resources to qualify.
+	 * @param statements List of statements containing properties and values to add (subjects are ignored).
+	 */
+	public static void addStatements(Model model, Resource resourceType, List<Statement> statements) {
+
+		// Loop through the instances of the given class in the model
+		logger.info(statements.size() + " statements to be added to all instances of " + resourceType.getURI());
+		final int[] modifiedResources = {0}; // Variables used in inner Consumer should be final
+		Selector selector = new SimpleSelector(null, RDF.type, resourceType);
+		model.listStatements(selector).forEachRemaining(new Consumer<Statement>() {
+			@Override
+			public void accept(Statement statement) {
+				Resource instance = statement.getSubject();
+				for (Statement statementToAdd : statements) {
+					instance.addProperty(statementToAdd.getPredicate(), statementToAdd.getObject());
+				}
+				logger.debug("Statements added to resource " + instance.getURI());
+				modifiedResources[0]++;
+			}
+		});
+		logger.info(modifiedResources[0] + " resources modified");
+	}
+ }

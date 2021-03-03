@@ -919,18 +919,18 @@ public class M0SIMSConverter extends M0Converter {
 
 		// Create the URI mappings if necessary
 		if (allURIMappings == null) allURIMappings = createURIMappings();
-		SortedMap<Integer, String> simsAttachmments = new TreeMap<Integer, String>();
-		SortedMap<String, String> m0SIMSAttachmments = M0Extractor.extractSIMSAttachments(m0AssociationsModel, true);
-		for (String m0DocumentationURI : m0SIMSAttachmments.keySet()) {
+		SortedMap<Integer, String> simsAttachments = new TreeMap<Integer, String>();
+		SortedMap<String, String> m0SIMSAttachments = M0Extractor.extractSIMSAttachments(m0AssociationsModel, true);
+		for (String m0DocumentationURI : m0SIMSAttachments.keySet()) {
 			Integer m0DocumentationId = Integer.parseInt(StringUtils.substringAfterLast(m0DocumentationURI, "/")); // We are sure of the URI structure
-			String m0ResourceURI = m0SIMSAttachmments.get(m0DocumentationURI);
+			String m0ResourceURI = m0SIMSAttachments.get(m0DocumentationURI);
 			if (!allURIMappings.containsKey(m0ResourceURI)) {
 				logger.error("No URI mapping found for M0 resource " + m0ResourceURI + " which has attached documentation " + m0DocumentationURI);
 			}
 			String targetURI = allURIMappings.get(m0ResourceURI);
-			simsAttachmments.put(m0DocumentationId, targetURI);
+			simsAttachments.put(m0DocumentationId, targetURI);
 		}
-		logger.debug("Returning " + simsAttachmments.size() + " attachments");
-		return simsAttachmments;
+		logger.debug("Returning " + simsAttachments.size() + " attachments");
+		return simsAttachments;
 	}
 }

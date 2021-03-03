@@ -724,7 +724,7 @@ public class M0Converter {
 	}
 
 	/**
-	 * Extracts from the current M0 dataset, and converts to the target model, all informations about families, series and operations, and relations between them
+	 * Extracts from the current M0 dataset, and converts to the target model, all information about families, series and operations, and relations between them.
 	 * 
 	 * @return A Jena model containing all the statements.
 	 */

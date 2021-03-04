@@ -1,5 +1,6 @@
 package fr.insee.semweb.sdmx.metadata.test;
 
+import fr.insee.semweb.sdmx.metadata.Configuration;
 import fr.insee.semweb.sdmx.metadata.PostProcessor;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
@@ -30,12 +31,13 @@ class PostProcessorTest {
 	@Test
 	public void testEnrichGSIMLabelsOne() throws IOException {
 
-		String simsNumber = "1776"; // Can be changed, but target resource should be indicator
+		String simsNumber = "1691"; // Can be changed, but target resource should be indicator
 
 		Dataset simsDataset = RDFDataMgr.loadDataset("src/main/resources/data/sims-all.trig");
 		Dataset resourceDataset = RDFDataMgr.loadDataset("src/main/resources/data/all-operations-and-indicators.trig");
 		Model simsModel = simsDataset.getNamedModel("http://rdf.insee.fr/graphes/qualite/rapport/" + simsNumber);
-		Model resourceModel = resourceDataset.getNamedModel("http://rdf.insee.fr/graphes/produits");
+		Model resourceModel = resourceDataset.getNamedModel("http://rdf.insee.fr/graphes/produits")
+				.add(resourceDataset.getNamedModel("http://rdf.insee.fr/graphes/operations"));
 
 		PostProcessor.enrichGSIMLabels(simsModel, resourceModel);
 		simsModel.write(new FileOutputStream("src/test/resources/relabelled-sims-" + simsNumber + ".ttl"), "TTL");
@@ -67,7 +69,7 @@ class PostProcessorTest {
 			modifiedResourceDataset.addNamedModel(graphName, simsModel); // TODO Does that copy the resources?
 		}
 
-		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/relabelled-sims-all.trig"), modifiedResourceDataset, Lang.TRIG);
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/finalOutput/sims-all.trig"), modifiedResourceDataset, Lang.TRIG);
 
 		resourceModel.close();
 		simsModel.close();
@@ -91,5 +93,32 @@ class PostProcessorTest {
 		codeModel.write(new FileOutputStream("src/test/resources/modified-sims-codes.ttl"), "TTL");
 		codeModel.close();
 		codeDataset.close();
+	}
+	
+	@Test
+	public void testAddStatementsValidation() throws IOException {
+
+		Dataset resourceDataset = RDFDataMgr.loadDataset("src/main/resources/data/all-operations-and-indicators.trig");
+		Model opModel = resourceDataset.getNamedModel("http://rdf.insee.fr/graphes/operations");
+		Model prodModel = resourceDataset.getNamedModel("http://rdf.insee.fr/graphes/produits");
+
+		Resource example = ResourceFactory.createResource("http://example.org");
+		Property predicat = ResourceFactory.createProperty("http://rdf.insee.fr/def/base#validationState");
+		Literal object = ResourceFactory.createPlainLiteral("Validated");
+		Statement statement = ResourceFactory.createStatement(example, predicat, object);
+		List<Statement> statementList = Arrays.asList(statement);
+		PostProcessor.addStatements(opModel,  Configuration.STATISTICAL_OPERATION_FAMILY, statementList);
+		PostProcessor.addStatements(opModel,  Configuration.STATISTICAL_OPERATION_SERIES, statementList);
+		PostProcessor.addStatements(opModel,  Configuration.STATISTICAL_OPERATION, statementList);
+		PostProcessor.addStatements(prodModel,  Configuration.STATISTICAL_INDICATOR, statementList);
+
+		Dataset dataset = DatasetFactory.create();
+		dataset.addNamedModel("http://rdf.insee.fr/graphes/operations", opModel);
+		dataset.addNamedModel("http://rdf.insee.fr/graphes/produits", prodModel);
+
+	
+		RDFDataMgr.write(new FileOutputStream("src/main/resources/data/finalOutput/all-operations-and-indicators.trig"),dataset,  Lang.TRIG);
+		opModel.close();
+		resourceDataset.close();
 	}
 }

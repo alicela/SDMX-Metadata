@@ -31,15 +31,15 @@ public class Configuration {
 	// Input files
 
 	/** Excel file containing the SIMS/SIMSFr models */
-	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V20200225.xlsx";
+	public static String SIMS_XLSX_FILE_NAME = "src/main/resources/data/SIMSFR_V20201019.xlsx";
 	/** Excel file containing the code lists */
 	public static String CL_XLSX_FILE_NAME = "src/main/resources/data/CODE_LISTS_20200615.xlsx";
 	/** Turtle file containing the SDMX metadata model vocabulary */
 	public static String SDMX_MM_TURTLE_FILE_NAME = "src/main/resources/data/sdmx-metadata.ttl";
 	/** Excel file containing the information on organizations */
-	public static String ORGANIZATIONS_XLSX_FILE_NAME = "src/main/resources/data/OrganisationScheme_20170719.xlsx";
+	public static String ORGANIZATIONS_XLSX_FILE_NAME = "src/main/resources/data/OrganisationScheme_20170719_maj20200618.xlsx";
 	/** TriG file containing the "M0" (temporary model) RDF dataset */
-	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20201023.trig";
+	public static String M0_FILE_NAME = "src/main/resources/data/sauvegardeGSM_20210304.trig";
 	/** Excel file containing the links between families and themes */
 	public static String FAMILY_THEMES_XLSX_FILE_NAME = "src/main/resources/data/themes-familles.xlsx";
 	/** Correspondence between DDS identifiers and Web4G identifiers for series */
@@ -162,7 +162,7 @@ public class Configuration {
 		propertyMappings.put("SOURCE_CATEGORY", DCTerms.type);
 		propertyMappings.put("SUMMARY", DCTerms.abstract_);
 		propertyMappings.put("HISTORY", SKOS.historyNote);
-		//propertyMappings.put("FREQ_COLL", DCTerms.accrualPeriodicity); FREQ_COLL is no longer a direct property
+		propertyMappings.put("FREQ_COLL", DCTerms.accrualPeriodicity); 
 		propertyMappings.put("ORGANISATION", DCTerms.publisher);
 		propertyMappings.put("STAKEHOLDERS", DCTerms.contributor);
 		propertyMappings.put("DATA_COLLECTOR", DATA_COLLECTOR_PROPERTY); // TODO Publish in base ontology
